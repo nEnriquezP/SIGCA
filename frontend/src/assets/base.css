@@ -1,0 +1,20 @@
+:root {
+  font-family: Arial, sans-serif;
+  color: #203047;
+  background: #f4f7fb;
+}
+
+body {
+  margin: 0;
+}
+
+.pagina-inicial {
+  box-sizing: border-box;
+  width: min(100%, 720px);
+  margin: 10vh auto;
+  padding: 32px;
+}
+
+h1 {
+  margin-bottom: 8px;
+}
