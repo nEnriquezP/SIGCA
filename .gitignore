@@ -1,0 +1,27 @@
+# Dependencias y resultados de compilación
+node_modules/
+dist/
+coverage/
+
+# Configuración local y credenciales
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+
+# Archivos temporales y registros
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.cache/
+
+# Sistema operativo y editores
+.DS_Store
+.idea/
+.vscode/
+
+# Paquetes de entrega generados
+*.zip
