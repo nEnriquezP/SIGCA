@@ -4,7 +4,7 @@ Sistema Integral de Gestión de Citas y Atención. Proyecto individual del curso
 
 ## Estado del proyecto
 
-La Etapa 2 contiene la estructura ejecutable de Vue y Express. Los módulos funcionales se implementarán por etapas.
+La Etapa 2 contiene la estructura ejecutable de Vue y Express. El backend de producción ya está activo en Render; los módulos funcionales se implementan por etapas.
 
 ## Tecnologías
 
@@ -29,9 +29,9 @@ En esta Mac, `npm run dev` del backend (que usa `node --watch`) produjo `EMFILE`
 
 Para usar otra base de datos, se cambia el nombre en `MONGO_URI` del archivo de entorno correspondiente; no se modifica el código fuente. Nunca se debe compartir ni versionar `backend/.env`.
 
-## Primer despliegue — configuración preparada, sin publicar
+## Primer despliegue
 
-**Producción aún no configurada.** Estos son los ajustes para cuando se autorice crear los servicios. Se usará este repositorio individual y la rama `main`. Los valores de producción se introducirán en los paneles de Vercel y Render; no se guardarán en archivos `.env` del repositorio ni se copiarán los valores locales de `sigca_dev`.
+El backend se publicó en Render y los registros mostraron conexión a `sigca_prod`. El frontend en Vercel sigue pendiente. Se usa este repositorio individual y la rama `main`. Los valores de producción se introducen en los paneles de Vercel y Render; no se guardan en archivos `.env` del repositorio ni se copian los valores locales de `sigca_dev`.
 
 ### Frontend en Vercel
 
@@ -61,8 +61,16 @@ Para usar otra base de datos, se cambia el nombre en `MONGO_URI` del archivo de 
 | `CORS_ORIGIN` | Origen HTTPS real de Vercel, sin ruta ni barra final |
 | `PORT` | Usar el valor que Render proporciona al servicio; el backend lo lee del entorno |
 
-El backend escucha en `0.0.0.0` y solo devuelve HTTP 200 en `/api/health` cuando Mongoose está conectado. `MONGO_URI` se configura únicamente en Render. `JWT_SECRET` se añadirá cuando exista autenticación; esta etapa todavía no lo usa. Antes de publicar, habrá que comprobar con autorización que Atlas permita la conexión desde Render, sin abrir el acceso de red indiscriminadamente.
+El backend escucha en `0.0.0.0` y solo devuelve HTTP 200 en `/api/health` cuando Mongoose está conectado. `MONGO_URI` se configura únicamente en Render. La autenticación requiere `JWT_SECRET`: un valor aleatorio de al menos 32 caracteres que se guarda solo en las variables de entorno de Render. La salud de la API permanece disponible aunque aún no se haya configurado ese secreto.
 
-Las dos URLs reales se conocerán al crear los servicios: Render aporta la URL para `VITE_API_URL` y Vercel aporta el origen para `CORS_ORIGIN`. Puede ser necesario completar `CORS_ORIGIN` y volver a desplegar Render después del primer despliegue de Vercel. Una vez autorizado y publicado, verificar la URL real de Render con `/api/health` y abrir directamente `/estado` en la URL real de Vercel; se espera HTTP 200 y `API: Conectada`. Conectar el repositorio a estos servicios puede activar despliegues automáticos en futuros pushes a `main`, por lo que esa opción debe revisarse antes de publicar.
+La URL actual de Render es `https://sigca-api-nelson.onrender.com`; será el valor de `VITE_API_URL` en Vercel. Vercel aportará el origen para `CORS_ORIGIN`. Puede ser necesario completar `CORS_ORIGIN` y volver a desplegar Render después del primer despliegue de Vercel. Verificar la URL de Render con `/api/health` y abrir directamente `/estado` en la URL real de Vercel; se espera HTTP 200 y `API: Conectada`. Los despliegues automáticos desde `main` deben revisarse antes de futuros pushes.
+
+## Autenticación — primera pieza de Avance 1
+
+El backend contiene el modelo `Usuario` con roles `ADMINISTRADOR`, `RECEPCIONISTA` y `PROFESIONAL`. `POST /api/auth/login` recibe `correo` y `password` en JSON, y devuelve un token de 8 horas y datos públicos del usuario. Limita los intentos repetidos de acceso. `GET /api/auth/me` requiere la cabecera `Authorization: Bearer <token>`; comprueba el token y vuelve a consultar si el usuario sigue activo. Las contraseñas se guardan como hashes bcrypt y no aparecen en las respuestas. `GET /api/usuarios`, `POST /api/usuarios` y `PATCH /api/usuarios/:id` requieren un administrador autenticado. El administrador puede crear, listar, editar y activar/desactivar usuarios, sin borrar su historial; el backend impide desactivar la propia cuenta o dejar el sistema sin un administrador activo.
+
+El primer administrador se crea con `npm run crear-admin` desde `backend/`. Antes de ejecutarlo se proporcionan por variables de entorno `ADMIN_NOMBRE`, `ADMIN_CORREO`, `ADMIN_PASSWORD`, `ADMIN_EXPECTED_DB` y `MONGO_URI`; `ADMIN_EXPECTED_DB` debe coincidir exactamente con `sigca_dev`, `sigca_test` o `sigca_prod` según el entorno deseado. El comando se detiene si la base conectada no coincide o si ya existe un administrador. No escribir contraseñas ni URI en comandos que queden en el historial de la terminal. El administrador de producción aún no se ha creado desde este trabajo.
+
+La pantalla `/ingresar` y la administración `/usuarios` están preparadas en Vue. El navegador conserva el token solo durante la sesión de la pestaña; Express comprueba el permiso en cada solicitud protegida. Estos cambios todavía no están desplegados hasta que se revisen, confirmen y publiquen. Para probar un inicio de sesión real en producción, primero se debe configurar `JWT_SECRET` en Render y crear el administrador inicial en `sigca_prod` sin exponer la URI ni la contraseña. El frontend en Vercel todavía está pendiente.
 
 Referencias: [build y monorepos en Vercel](https://vercel.com/docs/builds/configure-a-build), [rewrites de Vercel](https://vercel.com/docs/project-configuration/vercel-json), [variables de Vite](https://vite.dev/guide/env-and-mode), [monorepos de Render](https://render.com/docs/monorepo-support), [versión de Node en Render](https://render.com/docs/node-version), [puerto de servicios web](https://render.com/docs/web-services) y [health checks de Render](https://render.com/docs/health-checks).

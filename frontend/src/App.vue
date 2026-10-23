@@ -1,3 +1,31 @@
+<script setup>
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSesionStore } from './stores/sesion.js'
+
+const router = useRouter()
+const sesion = useSesionStore()
+
+onMounted(() => {
+  sesion.restaurar()
+})
+
+function salir() {
+  sesion.cerrar()
+  router.push({ name: 'inicio' })
+}
+</script>
+
 <template>
+  <header class="barra-principal">
+    <RouterLink class="marca" to="/">SIGCA</RouterLink>
+    <nav aria-label="Navegación principal">
+      <RouterLink to="/">Inicio</RouterLink>
+      <RouterLink to="/estado">Estado</RouterLink>
+      <RouterLink v-if="sesion.usuario?.rol === 'ADMINISTRADOR'" to="/usuarios">Usuarios</RouterLink>
+      <button v-if="sesion.autenticado" type="button" @click="salir">Salir</button>
+      <RouterLink v-else to="/ingresar">Ingresar</RouterLink>
+    </nav>
+  </header>
   <RouterView />
 </template>

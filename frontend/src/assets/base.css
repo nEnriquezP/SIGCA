@@ -4,9 +4,31 @@
   background: #f4f7fb;
 }
 
+* { box-sizing: border-box; }
+
 body {
   margin: 0;
 }
+
+.barra-principal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px max(24px, calc((100vw - 1100px) / 2));
+  background: #17365d;
+  color: white;
+}
+
+.barra-principal a, .barra-principal button {
+  color: white;
+  text-decoration: none;
+}
+
+.barra-principal .marca { font-size: 1.3rem; font-weight: bold; }
+.barra-principal nav { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; }
+.barra-principal nav button { border: 0; background: none; padding: 0; font: inherit; cursor: pointer; }
+.barra-principal a:hover, .barra-principal button:hover { text-decoration: underline; }
 
 .pagina-inicial {
   box-sizing: border-box;
@@ -17,4 +39,27 @@ body {
 
 h1 {
   margin-bottom: 8px;
+}
+
+.contenedor { width: min(1100px, 100%); margin: 40px auto; padding: 0 24px 48px; }
+.contenedor.estrecho { max-width: 520px; }
+.tarjeta { background: white; border: 1px solid #d9e2ed; border-radius: 10px; padding: 24px; margin: 24px 0; }
+.tarjeta h2 { margin-top: 0; }
+form { display: grid; gap: 12px; }
+.formulario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+label { display: grid; gap: 6px; font-weight: 600; }
+input, select { width: 100%; padding: 10px 12px; border: 1px solid #aab9c9; border-radius: 6px; font: inherit; }
+button { width: max-content; padding: 10px 15px; border: 0; border-radius: 6px; background: #1764a4; color: white; font: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .6; }
+button.secundario { background: #e7edf4; color: #203047; }
+.mensaje-error { color: #a32424; font-weight: 600; }
+.mensaje-exito { color: #166044; font-weight: 600; }
+.tabla-contenedor { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
+.acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 640px) {
+  .barra-principal { align-items: flex-start; flex-direction: column; }
+  .formulario-grid { grid-template-columns: 1fr; }
 }
