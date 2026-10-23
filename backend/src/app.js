@@ -3,8 +3,12 @@ import cors from 'cors'
 import express from 'express'
 import mongoose from 'mongoose'
 import { manejarError, rutaNoEncontrada } from './middleware/errorHandler.js'
+import rutasAuth from './routes/auth.js'
+import rutasUsuarios from './routes/usuarios.js'
 
 const app = express()
+
+if (process.env.RENDER === 'true') app.set('trust proxy', 1)
 
 app.use(cors({
   origin(origenSolicitud, callback) {
@@ -21,6 +25,9 @@ app.get('/api/health', (req, res) => {
 
   res.json({ estado: 'ok' })
 })
+
+app.use('/api/auth', rutasAuth)
+app.use('/api/usuarios', rutasUsuarios)
 
 app.use(rutaNoEncontrada)
 app.use(manejarError)
