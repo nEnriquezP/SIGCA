@@ -22,6 +22,11 @@ function datosPublicos(usuario) {
   }
 }
 
+function passwordValida(valor) {
+  return typeof valor === 'string' && valor.length >= 12 &&
+    Buffer.byteLength(valor, 'utf8') <= 72
+}
+
 router.post('/login', limitarIntentos, async (req, res) => {
   const { correo, password } = req.body ?? {}
   if (typeof correo !== 'string' || typeof password !== 'string' ||
@@ -30,7 +35,7 @@ router.post('/login', limitarIntentos, async (req, res) => {
   }
 
   const usuario = await Usuario.findOne({ correo: correo.trim().toLowerCase() })
-    .select('+passwordHash')
+    .select('+passwordHash +tokenVersion')
   const valido = usuario && await bcrypt.compare(password, usuario.passwordHash)
   if (!valido || !usuario.activo) {
     return res.status(401).json({ mensaje: 'Credenciales incorrectas' })
@@ -41,6 +46,33 @@ router.post('/login', limitarIntentos, async (req, res) => {
 
 router.get('/me', autenticar, (req, res) => {
   res.json({ usuario: datosPublicos(req.usuario) })
+})
+
+router.put('/password', autenticar, async (req, res) => {
+  const datos = req.body
+  if (!datos || typeof datos !== 'object' || Array.isArray(datos) ||
+      Object.keys(datos).length !== 2 || !('passwordActual' in datos) ||
+      !('passwordNueva' in datos) || !passwordValida(datos.passwordNueva) ||
+      typeof datos.passwordActual !== 'string' ||
+      Buffer.byteLength(datos.passwordActual, 'utf8') > 72) {
+    return res.status(400).json({ mensaje: 'Contraseñas inválidas' })
+  }
+
+  const usuario = await Usuario.findById(req.usuario.id).select('+passwordHash +tokenVersion')
+  if (!usuario || !usuario.activo) {
+    return res.status(401).json({ mensaje: 'Sesión inválida o vencida' })
+  }
+  if (!await bcrypt.compare(datos.passwordActual, usuario.passwordHash)) {
+    return res.status(403).json({ mensaje: 'Contraseña actual incorrecta' })
+  }
+  if (await bcrypt.compare(datos.passwordNueva, usuario.passwordHash)) {
+    return res.status(400).json({ mensaje: 'La nueva contraseña debe ser diferente' })
+  }
+
+  usuario.passwordHash = await bcrypt.hash(datos.passwordNueva, 12)
+  usuario.tokenVersion = (usuario.tokenVersion ?? 0) + 1
+  await usuario.save()
+  res.json({ mensaje: 'Contraseña actualizada. Inicia sesión de nuevo.' })
 })
 
 export default router

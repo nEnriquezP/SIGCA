@@ -12,7 +12,7 @@ function obtenerSecreto() {
 }
 
 export function crearToken(usuario) {
-  return jwt.sign({}, obtenerSecreto(), {
+  return jwt.sign({ version: usuario.tokenVersion ?? 0 }, obtenerSecreto(), {
     algorithm: 'HS256',
     subject: usuario.id,
     issuer: 'sigca',
@@ -45,8 +45,8 @@ export async function autenticar(req, res, next) {
     return res.status(401).json({ mensaje: 'Sesión inválida o vencida' })
   }
 
-  const usuario = await Usuario.findById(datos.sub)
-  if (!usuario || !usuario.activo) {
+  const usuario = await Usuario.findById(datos.sub).select('+tokenVersion')
+  if (!usuario || !usuario.activo || datos.version !== (usuario.tokenVersion ?? 0)) {
     return res.status(401).json({ mensaje: 'Sesión inválida o vencida' })
   }
 

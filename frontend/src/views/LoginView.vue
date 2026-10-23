@@ -29,6 +29,7 @@ async function ingresar() {
   <main class="contenedor estrecho">
     <section class="tarjeta">
       <h1>Ingresar a SIGCA</h1>
+      <p v-if="$route.query.password === 'actualizada'" class="mensaje-exito" role="status">Contraseña actualizada. Inicia sesión de nuevo.</p>
       <p>Accede con el correo y la contraseña asignados por el administrador.</p>
       <form @submit.prevent="ingresar">
         <label for="correo">Correo electrónico</label>

@@ -13,6 +13,7 @@ const cargando = ref(false)
 const guardando = ref(false)
 const nuevo = ref({ nombre: '', correo: '', rol: 'RECEPCIONISTA', password: '' })
 const edicion = ref(null)
+const restablecimiento = ref(null)
 const roles = ['ADMINISTRADOR', 'RECEPCIONISTA', 'PROFESIONAL']
 
 function manejarError(fallo) {
@@ -53,7 +54,8 @@ async function crear() {
 }
 
 function editar(usuario) {
-  edicion.value = { ...usuario, password: '' }
+  edicion.value = { ...usuario }
+  restablecimiento.value = null
   error.value = ''
   aviso.value = ''
 }
@@ -62,12 +64,11 @@ async function guardar() {
   error.value = ''
   aviso.value = ''
   guardando.value = true
-  const { id, nombre, correo, rol, password } = edicion.value
+  const { id, nombre, correo, rol } = edicion.value
   const body = { nombre, correo, rol }
-  if (password) body.password = password
 
   try {
-    await solicitarApi(`/api/usuarios/${id}`, { method: 'PATCH', token: sesion.token, body })
+    await solicitarApi(`/api/usuarios/${id}`, { method: 'PUT', token: sesion.token, body })
     edicion.value = null
     aviso.value = 'Usuario actualizado'
     await cargar()
@@ -79,6 +80,7 @@ async function guardar() {
 }
 
 async function cambiarEstado(usuario) {
+  if (!window.confirm(`¿Confirmas ${usuario.activo ? 'desactivar' : 'activar'} a ${usuario.nombre}?`)) return
   error.value = ''
   aviso.value = ''
   try {
@@ -89,6 +91,37 @@ async function cambiarEstado(usuario) {
     await cargar()
   } catch (fallo) {
     manejarError(fallo)
+  }
+}
+
+function prepararRestablecimiento(usuario) {
+  restablecimiento.value = { id: usuario.id, nombre: usuario.nombre,
+    passwordNueva: '', passwordAdministrador: '' }
+  edicion.value = null
+  error.value = ''
+  aviso.value = ''
+}
+
+async function restablecerPassword() {
+  guardando.value = true
+  error.value = ''
+  aviso.value = ''
+  try {
+    const { id, passwordNueva, passwordAdministrador } = restablecimiento.value
+    await solicitarApi(`/api/usuarios/${id}/password`, {
+      method: 'PUT', token: sesion.token, body: { passwordNueva, passwordAdministrador },
+    })
+    restablecimiento.value = null
+    if (id === sesion.usuario?.id) {
+      sesion.cerrar()
+      await router.push({ name: 'ingresar', query: { password: 'actualizada' } })
+    } else {
+      aviso.value = 'Contraseña restablecida. Las sesiones anteriores de esa cuenta dejaron de ser válidas.'
+    }
+  } catch (fallo) {
+    manejarError(fallo)
+  } finally {
+    guardando.value = false
   }
 }
 
@@ -133,6 +166,7 @@ onMounted(cargar)
               <td>{{ usuario.activo ? 'Activo' : 'Inactivo' }}</td>
               <td class="acciones">
                 <button type="button" class="secundario" @click="editar(usuario)">Editar</button>
+                <button type="button" class="secundario" @click="prepararRestablecimiento(usuario)">Restablecer contraseña</button>
                 <button type="button" class="secundario" :disabled="usuario.id === sesion.usuario?.id"
                   @click="cambiarEstado(usuario)">
                   {{ usuario.activo ? 'Desactivar' : 'Activar' }}
@@ -155,12 +189,26 @@ onMounted(cargar)
             <option v-for="rol in roles" :key="rol" :value="rol">{{ rol }}</option>
           </select>
         </label>
-        <label>Nueva contraseña (opcional)
-          <input v-model="edicion.password" type="password" minlength="12" autocomplete="new-password" />
-        </label>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Guardar cambios</button>
           <button type="button" class="secundario" @click="edicion = null">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <section v-if="restablecimiento" class="tarjeta">
+      <h2>Restablecer contraseña de {{ restablecimiento.nombre }}</h2>
+      <p>Confirma la operación con tu contraseña de administrador. La cuenta deberá iniciar sesión de nuevo.</p>
+      <form class="formulario-grid" @submit.prevent="restablecerPassword">
+        <label>Nueva contraseña
+          <input v-model="restablecimiento.passwordNueva" type="password" required minlength="12" autocomplete="new-password" />
+        </label>
+        <label>Tu contraseña actual
+          <input v-model="restablecimiento.passwordAdministrador" type="password" required autocomplete="current-password" />
+        </label>
+        <div class="acciones">
+          <button type="submit" :disabled="guardando">Restablecer</button>
+          <button type="button" class="secundario" @click="restablecimiento = null">Cancelar</button>
         </div>
       </form>
     </section>

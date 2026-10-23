@@ -5,6 +5,7 @@ import LoginView from '../views/LoginView.vue'
 import UsuariosView from '../views/UsuariosView.vue'
 import PacientesView from '../views/PacientesView.vue'
 import ResponsablesView from '../views/ResponsablesView.vue'
+import CambiarPasswordView from '../views/CambiarPasswordView.vue'
 import { useSesionStore } from '../stores/sesion.js'
 
 const router = createRouter({
@@ -13,6 +14,8 @@ const router = createRouter({
     { path: '/', name: 'inicio', component: InicioView },
     { path: '/estado', name: 'estado', component: EstadoView },
     { path: '/ingresar', name: 'ingresar', component: LoginView },
+    { path: '/mi-password', name: 'mi-password', component: CambiarPasswordView,
+      meta: { requiereSesion: true } },
     { path: '/usuarios', name: 'usuarios', component: UsuariosView,
       meta: { requiereSesion: true, rol: 'ADMINISTRADOR' } },
     { path: '/pacientes', name: 'pacientes', component: PacientesView,

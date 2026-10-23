@@ -11,6 +11,7 @@ const usuarioSchema = new mongoose.Schema({
     maxlength: 254,
   },
   passwordHash: { type: String, required: true, select: false },
+  tokenVersion: { type: Number, default: 0, select: false },
   rol: {
     type: String,
     required: true,

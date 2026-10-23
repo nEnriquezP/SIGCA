@@ -24,7 +24,8 @@ function validarCampos(datos, { nuevo = false } = {}) {
     return 'Datos de usuario inválidos'
   }
 
-  const permitidos = ['nombre', 'correo', 'rol', 'activo', 'password']
+  const permitidos = nuevo ? ['nombre', 'correo', 'rol', 'password'] :
+    ['nombre', 'correo', 'rol', 'activo']
   const campos = Object.keys(datos)
   if (!campos.length || campos.some((campo) => !permitidos.includes(campo))) {
     return 'Campos de usuario inválidos'
@@ -33,8 +34,6 @@ function validarCampos(datos, { nuevo = false } = {}) {
   if (nuevo && !['nombre', 'correo', 'rol', 'password'].every((campo) => campo in datos)) {
     return 'Nombre, correo, rol y contraseña son obligatorios'
   }
-  if (nuevo && 'activo' in datos) return 'El usuario nuevo debe iniciar activo'
-
   if ('nombre' in datos &&
       (typeof datos.nombre !== 'string' || !datos.nombre.trim() || datos.nombre.trim().length > 120)) {
     return 'Nombre inválido'
@@ -72,6 +71,15 @@ router.get('/', async (req, res) => {
   res.json({ usuarios: usuarios.map(respuestaUsuario) })
 })
 
+router.get('/:id', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).json({ mensaje: 'Identificador inválido' })
+  }
+  const usuario = await Usuario.findById(req.params.id)
+  if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' })
+  res.json({ usuario: respuestaUsuario(usuario) })
+})
+
 router.post('/', async (req, res) => {
   const error = validarCampos(req.body, { nuevo: true })
   if (error) return res.status(400).json({ mensaje: error })
@@ -91,7 +99,7 @@ router.post('/', async (req, res) => {
   }
 })
 
-router.patch('/:id', async (req, res) => {
+async function actualizarUsuario(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({ mensaje: 'Identificador inválido' })
   }
@@ -99,12 +107,13 @@ router.patch('/:id', async (req, res) => {
   const error = validarCampos(req.body)
   if (error) return res.status(400).json({ mensaje: error })
 
-  const usuario = await Usuario.findById(req.params.id)
+  const usuario = await Usuario.findById(req.params.id).select('+tokenVersion')
   if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' })
 
-  const { nombre, correo, rol, activo, password } = req.body
+  const { nombre, correo, rol, activo } = req.body
   const cambiaRol = rol !== undefined && rol !== usuario.rol
   const desactiva = activo === false && usuario.activo
+  const cambiaEstado = activo !== undefined && activo !== usuario.activo
 
   if (usuario.id === req.usuario.id && (cambiaRol || desactiva)) {
     return res.status(409).json({ mensaje: 'No puedes cambiar tu propio rol ni desactivar tu cuenta' })
@@ -119,7 +128,7 @@ router.patch('/:id', async (req, res) => {
   if (correo !== undefined) usuario.correo = correo.trim().toLowerCase()
   if (rol !== undefined) usuario.rol = rol
   if (activo !== undefined) usuario.activo = activo
-  if (password !== undefined) usuario.passwordHash = await bcrypt.hash(password, 12)
+  if (cambiaRol || cambiaEstado) usuario.tokenVersion = (usuario.tokenVersion ?? 0) + 1
 
   try {
     await usuario.save()
@@ -127,6 +136,42 @@ router.patch('/:id', async (req, res) => {
   } catch (errorActualizacion) {
     if (!errorDeDuplicado(errorActualizacion, res)) throw errorActualizacion
   }
+}
+
+router.patch('/:id', actualizarUsuario)
+router.put('/:id', actualizarUsuario)
+
+router.put('/:id/password', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).json({ mensaje: 'Identificador inválido' })
+  }
+  const datos = req.body
+  if (!datos || typeof datos !== 'object' || Array.isArray(datos) ||
+      Object.keys(datos).length !== 2 || !('passwordAdministrador' in datos) ||
+      !('passwordNueva' in datos) || typeof datos.passwordAdministrador !== 'string' ||
+      Buffer.byteLength(datos.passwordAdministrador, 'utf8') > 72 ||
+      typeof datos.passwordNueva !== 'string' || datos.passwordNueva.length < 12 ||
+      Buffer.byteLength(datos.passwordNueva, 'utf8') > 72) {
+    return res.status(400).json({ mensaje: 'Contraseñas inválidas' })
+  }
+
+  const administrador = await Usuario.findById(req.usuario.id).select('+passwordHash')
+  if (!administrador || !administrador.activo) {
+    return res.status(401).json({ mensaje: 'Sesión inválida o vencida' })
+  }
+  if (!await bcrypt.compare(datos.passwordAdministrador, administrador.passwordHash)) {
+    return res.status(403).json({ mensaje: 'Contraseña del administrador incorrecta' })
+  }
+  const usuario = await Usuario.findById(req.params.id).select('+passwordHash +tokenVersion')
+  if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' })
+  if (await bcrypt.compare(datos.passwordNueva, usuario.passwordHash)) {
+    return res.status(400).json({ mensaje: 'La nueva contraseña debe ser diferente' })
+  }
+
+  usuario.passwordHash = await bcrypt.hash(datos.passwordNueva, 12)
+  usuario.tokenVersion = (usuario.tokenVersion ?? 0) + 1
+  await usuario.save()
+  res.json({ mensaje: 'Contraseña restablecida' })
 })
 
 export default router
