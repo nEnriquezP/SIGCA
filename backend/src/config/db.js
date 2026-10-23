@@ -4,7 +4,7 @@ export async function conectarBaseDeDatos() {
   const uri = process.env.MONGO_URI
 
   if (!uri) {
-    throw new Error('Falta MONGO_URI en backend/.env')
+    throw new Error('Falta MONGO_URI en las variables de entorno')
   }
 
   await mongoose.connect(uri)
