@@ -23,6 +23,8 @@ function salir() {
       <RouterLink to="/">Inicio</RouterLink>
       <RouterLink to="/estado">Estado</RouterLink>
       <RouterLink v-if="sesion.usuario?.rol === 'ADMINISTRADOR'" to="/usuarios">Usuarios</RouterLink>
+      <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/pacientes">Pacientes</RouterLink>
+      <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/responsables">Responsables</RouterLink>
       <button v-if="sesion.autenticado" type="button" @click="salir">Salir</button>
       <RouterLink v-else to="/ingresar">Ingresar</RouterLink>
     </nav>
