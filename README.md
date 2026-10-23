@@ -31,7 +31,7 @@ Para usar otra base de datos, se cambia el nombre en `MONGO_URI` del archivo de 
 
 ## Primer despliegue
 
-El backend se publicó en Render y los registros mostraron conexión a `sigca_prod`. El frontend en Vercel sigue pendiente. Se usa este repositorio individual y la rama `main`. Los valores de producción se introducen en los paneles de Vercel y Render; no se guardan en archivos `.env` del repositorio ni se copian los valores locales de `sigca_dev`.
+El backend está publicado en Render y conectado a `sigca_prod`. El frontend está publicado en Vercel. Se usa este repositorio individual y la rama `main`. Los valores de producción se introducen en los paneles de Vercel y Render; no se guardan en archivos `.env` del repositorio ni se copian los valores locales de `sigca_dev`.
 
 ### Frontend en Vercel
 
@@ -63,7 +63,7 @@ El backend se publicó en Render y los registros mostraron conexión a `sigca_pr
 
 El backend escucha en `0.0.0.0` y solo devuelve HTTP 200 en `/api/health` cuando Mongoose está conectado. `MONGO_URI` se configura únicamente en Render. La autenticación requiere `JWT_SECRET`: un valor aleatorio de al menos 32 caracteres que se guarda solo en las variables de entorno de Render. La salud de la API permanece disponible aunque aún no se haya configurado ese secreto.
 
-La URL actual de Render es `https://sigca-api-nelson.onrender.com`; será el valor de `VITE_API_URL` en Vercel. Vercel aportará el origen para `CORS_ORIGIN`. Puede ser necesario completar `CORS_ORIGIN` y volver a desplegar Render después del primer despliegue de Vercel. Verificar la URL de Render con `/api/health` y abrir directamente `/estado` en la URL real de Vercel; se espera HTTP 200 y `API: Conectada`. Los despliegues automáticos desde `main` deben revisarse antes de futuros pushes.
+La API usa `https://sigca-api-nelson.onrender.com` y el frontend `https://sigca-theta.vercel.app`. En Vercel, `VITE_API_URL` contiene la URL de la API; en Render, `CORS_ORIGIN` contiene el origen del frontend sin barra final. Se verificaron HTTP 200 en ambas URL públicas, HTTP 204 con el encabezado CORS esperado y `API: Conectada` en `/estado`. Vercel publicó el último push de `main`. Render no inició automáticamente el despliegue de pacientes y responsables; se publicó el commit `1d0867f` con **Manual Deploy → Deploy latest commit**. Confirmar siempre qué commit está activo antes de probar una función nueva.
 
 ## Autenticación — primera pieza de Avance 1
 
@@ -71,7 +71,7 @@ El backend contiene el modelo `Usuario` con roles `ADMINISTRADOR`, `RECEPCIONIST
 
 El primer administrador se crea con `npm run crear-admin` desde `backend/`. Antes de ejecutarlo se proporcionan por variables de entorno `ADMIN_NOMBRE`, `ADMIN_CORREO`, `ADMIN_PASSWORD`, `ADMIN_EXPECTED_DB` y `MONGO_URI`; `ADMIN_EXPECTED_DB` debe coincidir exactamente con `sigca_dev`, `sigca_test` o `sigca_prod` según el entorno deseado. El comando se detiene si la base conectada no coincide o si ya existe un administrador. No escribir contraseñas ni URI en comandos que queden en el historial de la terminal. El administrador inicial de `sigca_prod` fue creado por el estudiante y confirmado mediante la salida del comando; sus credenciales no se guardan en el repositorio.
 
-La pantalla `/ingresar` y la administración `/usuarios` están preparadas en Vue. El navegador conserva el token solo durante la sesión de la pestaña; Express comprueba el permiso en cada solicitud protegida. El backend de autenticación está desplegado en Render y `GET /api/auth/me` sin token responde 401, como corresponde. La prueba de inicio de sesión desde Vercel sigue pendiente hasta publicar el frontend y configurar `CORS_ORIGIN` con su URL real.
+La pantalla `/ingresar` y la administración `/usuarios` están publicadas en Vue. El navegador conserva el token solo durante la sesión de la pestaña; Express comprueba el permiso en cada solicitud protegida. `GET /api/auth/me` sin token responde 401, como corresponde. Se observó que una sesión del administrador abrió `/usuarios` en Vercel y mostró la lista de usuarios; no se divulgaron sus credenciales.
 
 ## Pacientes y responsables — RF-03 y RF-04
 
@@ -87,6 +87,6 @@ El backend incorpora modelos y rutas para registrar, consultar, buscar y modific
 
 La asociación tiene una sola fuente de verdad: `Paciente.responsables` almacena identificadores de responsables; la lista inversa se consulta desde pacientes. La edad se calcula a partir de la fecha de nacimiento y del día actual en `America/Guatemala`; no se guarda una edad fija. Las fotografías son URL o rutas, sin binarios en MongoDB. La interfaz ofrece `/pacientes` y `/responsables` después de iniciar sesión. La consulta de citas y pagos por paciente se completará cuando existan esos módulos; por ahora la pantalla lo indica expresamente. La lista inicial devuelve como máximo 100 registros por búsqueda.
 
-Para comprobar la protección de rutas sin divulgar datos, abrir la URL pública de Render seguida de `/api/pacientes` o `/api/responsables` en una pestaña sin sesión debe devolver 401 y el mensaje de inicio de sesión requerido. La prueba funcional de registro, modificación, asociación y desactivación requiere desplegar esta etapa y acceder mediante el frontend con una cuenta autorizada; usar exclusivamente datos ficticios en las evidencias académicas.
+La versión nueva está publicada en ambos servicios. Para comprobar la protección de rutas sin divulgar datos, abrir la URL pública de Render seguida de `/api/pacientes` o `/api/responsables` en una pestaña sin sesión devuelve 401 y el mensaje de inicio de sesión requerido. La prueba funcional de registro, modificación, asociación y desactivación todavía requiere usar el frontend con una cuenta autorizada; usar exclusivamente datos ficticios en las evidencias académicas.
 
 Referencias: [build y monorepos en Vercel](https://vercel.com/docs/builds/configure-a-build), [rewrites de Vercel](https://vercel.com/docs/project-configuration/vercel-json), [variables de Vite](https://vite.dev/guide/env-and-mode), [monorepos de Render](https://render.com/docs/monorepo-support), [versión de Node en Render](https://render.com/docs/node-version), [puerto de servicios web](https://render.com/docs/web-services) y [health checks de Render](https://render.com/docs/health-checks).
