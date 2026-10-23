@@ -120,7 +120,7 @@ onMounted(cargar)
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
       <form @submit.prevent="cargar">
-        <label>Nombre, apellido, correo o teléfono<input v-model="buscar" maxlength="80" /></label>
+        <label>Identificador, nombre, apellido, correo o teléfono<input v-model="buscar" maxlength="80" /></label>
         <button type="submit">Buscar</button>
       </form>
       <p v-if="cargando">Cargando responsables…</p>

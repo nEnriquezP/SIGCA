@@ -8,6 +8,7 @@ const router = useRouter()
 const sesion = useSesionStore()
 const pacientes = ref([])
 const responsablesDisponibles = ref([])
+const buscarResponsable = ref('')
 const buscar = ref('')
 const estadoFiltro = ref('')
 const error = ref('')
@@ -55,8 +56,15 @@ async function cargar() {
 
 async function cargarResponsables() {
   try {
-    const datos = await solicitarApi('/api/responsables', { token: sesion.token })
-    responsablesDisponibles.value = datos.responsables
+    const query = buscarResponsable.value.trim() ?
+      `?buscar=${encodeURIComponent(buscarResponsable.value.trim())}` : ''
+    const datos = await solicitarApi(`/api/responsables${query}`, { token: sesion.token })
+    const seleccionados = new Set([
+      ...nuevo.value.responsables, ...(edicion.value?.responsables ?? []),
+    ])
+    const opciones = [...datos.responsables,
+      ...responsablesDisponibles.value.filter((item) => seleccionados.has(item.id))]
+    responsablesDisponibles.value = [...new Map(opciones.map((item) => [item.id, item])).values()]
   } catch (errorApi) {
     fallo(errorApi)
   }
@@ -95,6 +103,9 @@ async function editar(paciente) {
     const datos = await solicitarApi(`/api/pacientes/${paciente.id}`, { token: sesion.token })
     edicion.value = { ...datos.paciente,
       responsables: datos.paciente.responsables.map((responsable) => responsable.id) }
+    responsablesDisponibles.value = [...new Map([
+      ...responsablesDisponibles.value, ...datos.paciente.responsables,
+    ].map((item) => [item.id, item])).values()]
     detalle.value = null
   } catch (errorApi) {
     fallo(errorApi)
@@ -166,6 +177,10 @@ onMounted(async () => {
         <label>Observaciones administrativas<textarea v-model.trim="nuevo.observacionesAdministrativas" maxlength="2000" /></label>
         <fieldset>
           <legend>Responsables asociados</legend>
+          <label>Buscar responsable por nombre, correo o identificador
+            <input v-model="buscarResponsable" maxlength="80" />
+          </label>
+          <button type="button" class="secundario" @click="cargarResponsables">Buscar responsables</button>
           <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
             <input v-model="nuevo.responsables" type="checkbox" :value="responsable.id" />
             {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
@@ -179,7 +194,7 @@ onMounted(async () => {
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
       <form class="formulario-grid" @submit.prevent="cargar">
-        <label>Nombre, apellido o teléfono<input v-model="buscar" maxlength="80" /></label>
+        <label>Identificador, nombre, apellido o teléfono<input v-model="buscar" maxlength="80" /></label>
         <label>Estado
           <select v-model="estadoFiltro">
             <option value="">Todos</option><option value="ACTIVO">Activo</option>
@@ -249,6 +264,10 @@ onMounted(async () => {
         <label>Observaciones administrativas<textarea v-model.trim="edicion.observacionesAdministrativas" maxlength="2000" /></label>
         <fieldset>
           <legend>Responsables asociados</legend>
+          <label>Buscar responsable por nombre, correo o identificador
+            <input v-model="buscarResponsable" maxlength="80" />
+          </label>
+          <button type="button" class="secundario" @click="cargarResponsables">Buscar responsables</button>
           <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
             <input v-model="edicion.responsables" type="checkbox" :value="responsable.id" />
             {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})

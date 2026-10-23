@@ -41,11 +41,16 @@ function limpiar(datos) {
 
 function filtroBusqueda(texto) {
   const patron = texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return { $or: ['nombres', 'apellidos', 'correo', 'telefono'].map((campo) =>
-    ({ [campo]: { $regex: patron, $options: 'i' } })) }
+  const condiciones = ['nombres', 'apellidos', 'correo', 'telefono'].map((campo) =>
+    ({ [campo]: { $regex: patron, $options: 'i' } }))
+  if (mongoose.isValidObjectId(texto)) condiciones.push({ _id: texto })
+  return { $or: condiciones }
 }
 
 router.get('/', async (req, res) => {
+  if (req.query.buscar !== undefined && typeof req.query.buscar !== 'string') {
+    return res.status(400).json({ mensaje: 'Búsqueda inválida' })
+  }
   const buscar = typeof req.query.buscar === 'string' ? req.query.buscar.trim() : ''
   if (buscar.length > 80) return res.status(400).json({ mensaje: 'Búsqueda demasiado larga' })
   const responsables = await Responsable.find(buscar ? filtroBusqueda(buscar) : {})
@@ -80,7 +85,7 @@ router.put('/:id', async (req, res) => {
   const error = validar(req.body)
   if (error) return res.status(400).json({ mensaje: error })
   const responsable = await Responsable.findByIdAndUpdate(req.params.id, limpiar(req.body),
-    { new: true, runValidators: true })
+    { returnDocument: 'after', runValidators: true })
   if (!responsable) return res.status(404).json({ mensaje: 'Responsable no encontrado' })
   res.json({ responsable: respuesta(responsable) })
 })

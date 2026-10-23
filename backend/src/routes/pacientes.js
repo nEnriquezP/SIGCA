@@ -94,15 +94,21 @@ function respuesta(paciente) {
 
 function filtroBusqueda(texto) {
   const patron = texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return { $or: ['nombres', 'apellidos', 'telefono'].map((campo) =>
-    ({ [campo]: { $regex: patron, $options: 'i' } })) }
+  const condiciones = ['nombres', 'apellidos', 'telefono'].map((campo) =>
+    ({ [campo]: { $regex: patron, $options: 'i' } }))
+  if (mongoose.isValidObjectId(texto)) condiciones.push({ _id: texto })
+  return { $or: condiciones }
 }
 
 router.get('/', async (req, res) => {
+  if ((req.query.buscar !== undefined && typeof req.query.buscar !== 'string') ||
+      (req.query.estado !== undefined && typeof req.query.estado !== 'string')) {
+    return res.status(400).json({ mensaje: 'Filtros inválidos' })
+  }
   const buscar = typeof req.query.buscar === 'string' ? req.query.buscar.trim() : ''
   if (buscar.length > 80) return res.status(400).json({ mensaje: 'Búsqueda demasiado larga' })
   const filtro = buscar ? filtroBusqueda(buscar) : {}
-  if (req.query.estado) {
+  if (req.query.estado !== undefined) {
     if (!['ACTIVO', 'INACTIVO'].includes(req.query.estado)) {
       return res.status(400).json({ mensaje: 'Estado inválido' })
     }
@@ -144,7 +150,7 @@ router.put('/:id', async (req, res) => {
     return res.status(400).json({ mensaje: 'Uno o varios responsables no existen' })
   }
   const paciente = await Paciente.findByIdAndUpdate(req.params.id, datos,
-    { new: true, runValidators: true })
+    { returnDocument: 'after', runValidators: true })
   if (!paciente) return res.status(404).json({ mensaje: 'Paciente no encontrado' })
   res.json({ paciente: respuesta(paciente) })
 })
@@ -158,7 +164,7 @@ router.patch('/:id/estado', async (req, res) => {
     return res.status(400).json({ mensaje: 'Estado inválido' })
   }
   const paciente = await Paciente.findByIdAndUpdate(req.params.id,
-    { estado: req.body.estado }, { new: true, runValidators: true })
+    { estado: req.body.estado }, { returnDocument: 'after', runValidators: true })
   if (!paciente) return res.status(404).json({ mensaje: 'Paciente no encontrado' })
   res.json({ paciente: respuesta(paciente) })
 })
