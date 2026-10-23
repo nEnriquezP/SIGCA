@@ -175,7 +175,12 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
     datos: { ...paciente, responsables: ['111111111111111111111111'] } })).status, 400)
   const registro = await pedir('/api/pacientes', { metodo: 'POST', token, datos: paciente })
   assert.equal(registro.status, 201)
-  assert.equal(registro.body.paciente.edad, 11)
+  const partesHoy = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Guatemala',
+    year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+  const hoy = Object.fromEntries(partesHoy.map(({ type, value }) => [type, value]))
+  const yaCumplio = Number(hoy.month) > 5 ||
+    (Number(hoy.month) === 5 && Number(hoy.day) >= 10)
+  assert.equal(registro.body.paciente.edad, Number(hoy.year) - 2015 - (yaCumplio ? 0 : 1))
   assert.equal('edad' in pacientes.get(idPaciente), false)
   const baja = await pedir(`/api/pacientes/${idPaciente}/estado`, { metodo: 'PATCH', token,
     datos: { estado: 'INACTIVO' } })
