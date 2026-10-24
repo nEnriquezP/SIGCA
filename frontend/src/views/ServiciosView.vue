@@ -154,7 +154,7 @@ watch(() => props.administracion, () => {
   <main class="contenedor">
     <h1>{{ administracion ? 'Servicios internos' : 'Servicios' }}</h1>
     <p v-if="administracion">Administración y recepción consultan todos los servicios. Solo el administrador puede cambiarlos.</p>
-    <p v-else>Servicios activos disponibles. Los precios se muestran en quetzales.</p>
+    <p v-else>Servicios activos disponibles. Los precios se muestran en quetzales. La solicitud de citas se habilitará en la fase 6.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
@@ -186,6 +186,18 @@ watch(() => props.administracion, () => {
         <button type="submit">Buscar</button>
       </form>
       <p v-if="cargando">Cargando servicios…</p>
+      <div v-else-if="!administracion && !error" class="portal-grid">
+        <article v-for="servicio in servicios" :key="servicio.id" class="tarjeta">
+          <img class="portal-imagen" :src="servicio.imagen" :alt="`Imagen de ${servicio.nombre}`" />
+          <h3>{{ servicio.nombre }}</h3>
+          <p class="texto-preservado">{{ servicio.descripcion }}</p>
+          <p>Duración estimada: {{ servicio.duracionMinutos }} minutos</p>
+          <p>Precio: {{ mostrarPrecio(servicio.precioCentavos) }}</p>
+          <button type="button" disabled title="Disponible en la fase 6">Solicitar cita</button>
+          <p>El formulario y el envío de solicitudes estarán disponibles en la fase 6.</p>
+        </article>
+        <p v-if="!servicios.length">No hay servicios activos en esta búsqueda.</p>
+      </div>
       <div v-else class="tabla-contenedor">
         <table>
           <thead><tr><th>Servicio</th><th>Duración</th><th>Precio</th><th v-if="administracion">Estado</th><th>Acciones</th></tr></thead>

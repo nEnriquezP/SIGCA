@@ -8,6 +8,9 @@ import ResponsablesView from '../views/ResponsablesView.vue'
 import CambiarPasswordView from '../views/CambiarPasswordView.vue'
 import ServiciosView from '../views/ServiciosView.vue'
 import HorariosView from '../views/HorariosView.vue'
+import ContenidoPublicoView from '../views/ContenidoPublicoView.vue'
+import ContactoView from '../views/ContactoView.vue'
+import AdministracionPortalView from '../views/AdministracionPortalView.vue'
 import { useSesionStore } from '../stores/sesion.js'
 
 const router = createRouter({
@@ -23,6 +26,14 @@ const router = createRouter({
       meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
     { path: '/horarios', name: 'horarios', component: HorariosView,
       props: { administracion: false } },
+    { path: '/educacion', name: 'educacion', component: ContenidoPublicoView,
+      props: { tipo: 'educacion' } },
+    { path: '/corporativo', name: 'corporativo', component: ContenidoPublicoView,
+      props: { tipo: 'corporativo' } },
+    { path: '/contacto', name: 'contacto', component: ContactoView },
+    { path: '/administracion-portal', name: 'administracion-portal',
+      component: AdministracionPortalView,
+      meta: { requiereSesion: true, rol: 'ADMINISTRADOR' } },
     { path: '/gestion-horarios', name: 'gestion-horarios', component: HorariosView,
       props: { administracion: true },
       meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
