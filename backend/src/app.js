@@ -9,6 +9,10 @@ import rutasPacientes from './routes/pacientes.js'
 import rutasResponsables from './routes/responsables.js'
 import rutasServicios from './routes/servicios.js'
 import rutasHorarios from './routes/horarios.js'
+import rutasContenido from './routes/contenido.js'
+import rutasPublicaciones from './routes/publicaciones.js'
+import rutasActividades from './routes/actividades.js'
+import rutasMensajesContacto from './routes/mensajesContacto.js'
 
 const app = express()
 
@@ -36,6 +40,10 @@ app.use('/api/pacientes', rutasPacientes)
 app.use('/api/responsables', rutasResponsables)
 app.use('/api/servicios', rutasServicios)
 app.use('/api/horarios', rutasHorarios)
+app.use('/api/contenido', rutasContenido)
+app.use('/api/publicaciones', rutasPublicaciones)
+app.use('/api/actividades', rutasActividades)
+app.use('/api/mensajes-contacto', rutasMensajesContacto)
 
 app.use(rutaNoEncontrada)
 app.use(manejarError)
