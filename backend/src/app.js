@@ -7,6 +7,7 @@ import rutasAuth from './routes/auth.js'
 import rutasUsuarios from './routes/usuarios.js'
 import rutasPacientes from './routes/pacientes.js'
 import rutasResponsables from './routes/responsables.js'
+import rutasServicios from './routes/servicios.js'
 
 const app = express()
 
@@ -32,6 +33,7 @@ app.use('/api/auth', rutasAuth)
 app.use('/api/usuarios', rutasUsuarios)
 app.use('/api/pacientes', rutasPacientes)
 app.use('/api/responsables', rutasResponsables)
+app.use('/api/servicios', rutasServicios)
 
 app.use(rutaNoEncontrada)
 app.use(manejarError)
