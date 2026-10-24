@@ -97,7 +97,7 @@ Desde `backend/`, `npm test` ejecuta pruebas HTTP con modelos simulados, sin esc
 
 La versión anterior de pacientes y responsables se publicó en ambos servicios. Para comprobar la protección de rutas sin divulgar datos, abrir la URL pública de Render seguida de `/api/pacientes` o `/api/responsables` en una pestaña sin sesión debe devolver 401. Antes de atribuir cualquier resultado a esta revisión, confirmar que Render y Vercel han desplegado el commit correspondiente. Usar exclusivamente datos ficticios en las evidencias académicas.
 
-## Servicios y horarios — fase 4 local
+## Servicios y horarios — fase 4
 
 Los servicios se guardan con identificador, nombre, descripción, duración en minutos, `precioCentavos`, imagen como URL HTTP(S) o ruta, y estado `ACTIVO` o `INACTIVO`. El frontend muestra quetzales y convierte el importe a centavos enteros antes de enviarlo. La API acepta duraciones enteras de 1 a 1440 minutos y precios de Q0.01 a Q1,000,000.00. Desactivar un servicio conserva su documento.
 
@@ -119,8 +119,32 @@ Los horarios se guardan en MongoDB por día de la semana, con estado abierto o c
 
 Las pantallas son `/horarios` para visitantes y `/gestion-horarios` para administración y recepción; solo el administrador ve el formulario de cambios.
 
-**Integración pendiente:** el portal institucional de la fase 5 consumirá las rutas públicas. Cuando se construyan las citas, el backend deberá comprobar que el servicio siga `ACTIVO`, copiar `precioCentavos` y `duracionMinutos` a cada cita para conservar sus valores históricos y validar `fecha`, `horaInicio` y `horaFin` contra los intervalos del día en `America/Guatemala`. Esta fase no crea citas ni reservas.
+**Integración pendiente:** al construir las citas, el backend deberá comprobar que el servicio siga `ACTIVO`, copiar `precioCentavos` y `duracionMinutos` a cada cita para conservar sus valores históricos y validar `fecha`, `horaInicio` y `horaFin` contra los intervalos del día en `America/Guatemala`. Esta fase no crea citas ni reservas.
 
-Desde `backend/`, `npm test` comprueba reglas y permisos mediante HTTP con modelos simulados. `npm run test:atlas:modulo4` está preparado para `sigca_test`: cambia únicamente el nombre de base en la URI local, crea datos ficticios, elige un día todavía libre y limpia solo los identificadores creados. Este segundo comando escribe y elimina datos de prueba; ejecútalo únicamente cuando esté permitido el acceso a Atlas. Desde `frontend/`, `npm run build` comprueba la compilación. La fase 4 permanece local hasta que se autorice publicarla.
+Desde `backend/`, `npm test` comprueba reglas y permisos mediante HTTP con modelos simulados. `npm run test:atlas:modulo4` está preparado para `sigca_test`: cambia únicamente el nombre de base en la URI local, crea datos ficticios, elige un día todavía libre y limpia solo los identificadores creados. Este segundo comando escribe y elimina datos de prueba; ejecútalo únicamente cuando esté permitido el acceso a Atlas. Desde `frontend/`, `npm run build` comprueba la compilación. El estudiante indicó que la fase 4 fue probada y revisada en producción.
+
+## Portal público y administración institucional — fase 5
+
+El portal usa contenido de MongoDB. Al iniciar sin un documento institucional, `GET /api/contenido` devuelve `contenido: null`: la interfaz muestra un estado vacío y la marca provisional SIGCA, sin atribuir a la base imágenes o textos de ejemplo. El administrador guarda nombre del centro, URL o ruta del logotipo, información principal, misión, visión, imágenes del carrusel e información de contacto desde `/administracion-portal`. El carrusel acepta **ninguna imagen o de 5 a 10 imágenes**; esta regla evita publicar un carrusel incompleto. El formulario exige nombre, información principal, misión, visión, correo, teléfono y dirección. Los datos institucionales se guardan en `contenidoInstitucional`, separados de `servicios` y `horarios`.
+
+| Recurso | Acceso | Uso |
+| --- | --- | --- |
+| `GET /api/contenido` | Público | Identidad, misión, visión, carrusel y contacto; `null` antes de configurar. |
+| `PUT /api/contenido` | Administrador | Crea o actualiza el único documento institucional. |
+| `GET /api/publicaciones` y `GET /api/actividades` | Público | Hasta 100 registros visibles por sección; no exponen los ocultos. |
+| `GET /api/publicaciones/administracion` y `GET /api/actividades/administracion` | Administrador | Lista visible y oculta. |
+| `POST /api/publicaciones`, `POST /api/actividades` | Administrador | Crea contenido. |
+| `PUT /api/publicaciones/:id`, `PUT /api/actividades/:id` | Administrador | Edita contenido. |
+| `PATCH /api/publicaciones/:id/estado`, `PATCH /api/actividades/:id/estado` | Administrador | Publica u oculta sin eliminar. |
+| `POST /api/mensajes-contacto` | Público | Valida y guarda un mensaje; devuelve solo confirmación, con máximo de 10 intentos cada 15 minutos por IP. |
+| `GET /api/mensajes-contacto` | Administrador | Consulta hasta 100 mensajes recientes. |
+
+Las publicaciones educativas incluyen título, descripción, fecha `AAAA-MM-DD` válida, imagen y enlace opcionales. Las actividades se clasifican como capacitación, escuela para padres u otra actividad; incluyen descripción y hasta 10 URL o rutas de imágenes. Los enlaces y las imágenes solo aceptan HTTP(S) o rutas que empiecen por `/`; no se suben binarios. La lista pública muestra únicamente contenido activo. Los mensajes de contacto guardan nombre, correo, teléfono, asunto, mensaje y fecha de creación. La API no devuelve datos del remitente al enviar el mensaje; la lista solo permite `ADMINISTRADOR`.
+
+Las páginas públicas son `/`, `/servicios`, `/educacion`, `/corporativo`, `/horarios` y `/contacto`. Servicios y horarios consultan las rutas públicas existentes; el administrador sigue usando `/gestion-servicios` y `/gestion-horarios`. El botón **Solicitar cita** se muestra deshabilitado y explica que el formulario y su funcionamiento pertenecen a la fase 6. No crea solicitudes ni citas. El portal funciona en pantallas estrechas mediante menús flexibles, tarjetas y formularios de una columna.
+
+**Pruebas locales:** desde `backend/`, `npm test` ejecuta pruebas HTTP con modelos simulados para permisos, validaciones, visibilidad y confirmación de contacto, sin tocar Atlas. Desde `frontend/`, `npm run build` compila Vue. No se preparó ni ejecutó una prueba de integración con escritura en `sigca_test` para esta fase. La persistencia real y el aspecto en dispositivos deberán comprobarse por el estudiante antes de publicar o durante la revisión controlada. Esta fase no modifica Render, Vercel ni Atlas desde los scripts de prueba.
+
+**Publicación pendiente de autorización:** primero revisar los commits locales; después, cuando se autorice, enviar `main` al repositorio remoto y confirmar en Render y Vercel que se despliega ese commit. Probar entonces el portal público, guardar contenido real o ficticio de demostración desde el administrador, enviar un mensaje ficticio y comprobar que solo ese rol puede consultarlo. No usar datos reales de pacientes ni mostrar mensajes privados en capturas públicas.
 
 Referencias: [build y monorepos en Vercel](https://vercel.com/docs/builds/configure-a-build), [rewrites de Vercel](https://vercel.com/docs/project-configuration/vercel-json), [variables de Vite](https://vite.dev/guide/env-and-mode), [monorepos de Render](https://render.com/docs/monorepo-support), [versión de Node en Render](https://render.com/docs/node-version), [puerto de servicios web](https://render.com/docs/web-services) y [health checks de Render](https://render.com/docs/health-checks).
