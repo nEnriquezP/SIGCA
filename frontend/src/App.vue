@@ -22,6 +22,8 @@ function salir() {
     <nav aria-label="Navegación principal">
       <RouterLink to="/">Inicio</RouterLink>
       <RouterLink to="/estado">Estado</RouterLink>
+      <RouterLink to="/servicios">Servicios</RouterLink>
+      <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/gestion-servicios">Servicios internos</RouterLink>
       <RouterLink v-if="sesion.usuario?.rol === 'ADMINISTRADOR'" to="/usuarios">Usuarios</RouterLink>
       <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/pacientes">Pacientes</RouterLink>
       <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/responsables">Responsables</RouterLink>
