@@ -37,6 +37,8 @@ function salir() {
       <RouterLink to="/">Inicio</RouterLink>
       <RouterLink to="/estado">Estado</RouterLink>
       <RouterLink to="/servicios">Servicios</RouterLink>
+      <RouterLink to="/solicitar-cita">Solicitar cita</RouterLink>
+      <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/gestion-solicitudes">Solicitudes</RouterLink>
       <RouterLink to="/educacion">Educación</RouterLink>
       <RouterLink to="/corporativo">Corporativo</RouterLink>
       <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/gestion-servicios">Servicios internos</RouterLink>
@@ -58,6 +60,7 @@ function salir() {
     <nav aria-label="Navegación del pie de página">
       <RouterLink to="/">Inicio</RouterLink>
       <RouterLink to="/servicios">Servicios</RouterLink>
+      <RouterLink to="/solicitar-cita">Solicitar cita</RouterLink>
       <RouterLink to="/educacion">Educación</RouterLink>
       <RouterLink to="/corporativo">Corporativo</RouterLink>
       <RouterLink to="/horarios">Horarios</RouterLink>

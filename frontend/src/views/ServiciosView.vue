@@ -154,7 +154,7 @@ watch(() => props.administracion, () => {
   <main class="contenedor">
     <h1>{{ administracion ? 'Servicios internos' : 'Servicios' }}</h1>
     <p v-if="administracion">Administración y recepción consultan todos los servicios. Solo el administrador puede cambiarlos.</p>
-    <p v-else>Servicios activos disponibles. Los precios se muestran en quetzales. La solicitud de citas se habilitará en la fase 6.</p>
+    <p v-else>Servicios activos disponibles. Los precios se muestran en quetzales. Una solicitud expresa una fecha preferida y no reserva horario.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
@@ -193,8 +193,8 @@ watch(() => props.administracion, () => {
           <p class="texto-preservado">{{ servicio.descripcion }}</p>
           <p>Duración estimada: {{ servicio.duracionMinutos }} minutos</p>
           <p>Precio: {{ mostrarPrecio(servicio.precioCentavos) }}</p>
-          <button type="button" disabled title="Disponible en la fase 6">Solicitar cita</button>
-          <p>El formulario y el envío de solicitudes estarán disponibles en la fase 6.</p>
+          <button type="button" @click="router.push({ name: 'solicitar-cita', query: { servicio: servicio.id } })">Solicitar cita</button>
+          <p>La fecha preferida no es una cita confirmada.</p>
         </article>
         <p v-if="!servicios.length">No hay servicios activos en esta búsqueda.</p>
       </div>

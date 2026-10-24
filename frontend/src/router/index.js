@@ -11,6 +11,8 @@ import HorariosView from '../views/HorariosView.vue'
 import ContenidoPublicoView from '../views/ContenidoPublicoView.vue'
 import ContactoView from '../views/ContactoView.vue'
 import AdministracionPortalView from '../views/AdministracionPortalView.vue'
+import SolicitudCitaView from '../views/SolicitudCitaView.vue'
+import GestionSolicitudesView from '../views/GestionSolicitudesView.vue'
 import { useSesionStore } from '../stores/sesion.js'
 
 const router = createRouter({
@@ -21,6 +23,10 @@ const router = createRouter({
     { path: '/ingresar', name: 'ingresar', component: LoginView },
     { path: '/servicios', name: 'servicios', component: ServiciosView,
       props: { administracion: false } },
+    { path: '/solicitar-cita', name: 'solicitar-cita', component: SolicitudCitaView },
+    { path: '/gestion-solicitudes', name: 'gestion-solicitudes',
+      component: GestionSolicitudesView,
+      meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
     { path: '/gestion-servicios', name: 'gestion-servicios', component: ServiciosView,
       props: { administracion: true },
       meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
