@@ -16,7 +16,12 @@ async function ingresar() {
   try {
     await sesion.iniciar(correo.value, password.value)
     password.value = ''
-    await router.push(sesion.usuario.rol === 'ADMINISTRADOR' ? '/usuarios' : '/')
+    const destino = sesion.usuario.rol === 'ADMINISTRADOR'
+      ? '/administracion-portal'
+      : sesion.usuario.rol === 'RECEPCIONISTA'
+        ? '/gestion-solicitudes'
+        : '/mi-password'
+    await router.push(destino)
   } catch (error) {
     mensaje.value = error.message || 'No se pudo iniciar sesión'
   } finally {

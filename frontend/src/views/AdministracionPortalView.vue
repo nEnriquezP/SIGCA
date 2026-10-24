@@ -188,7 +188,7 @@ onMounted(cargar)
 <template>
   <main class="contenedor">
     <h1>Administrar portal</h1>
-    <p>Los cambios guardados se muestran en el portal público. Las imágenes se registran por URL o ruta.</p>
+    <p>Edita la información que aparece en el sitio público. Los cambios guardados se muestran allí; las imágenes se registran por URL o ruta.</p>
     <p v-if="cargando" role="status">Cargando administración…</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
