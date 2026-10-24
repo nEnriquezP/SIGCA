@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "test": "node --test",
     "test:atlas": "node scripts/probarModulos23.js",
+    "test:atlas:modulo4": "node scripts/probarModulo4.js",
     "crear-admin": "node scripts/crearAdministrador.js"
   },
   "engines": {

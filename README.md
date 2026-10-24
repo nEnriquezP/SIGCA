@@ -97,4 +97,30 @@ Desde `backend/`, `npm test` ejecuta pruebas HTTP con modelos simulados, sin esc
 
 La versión anterior de pacientes y responsables se publicó en ambos servicios. Para comprobar la protección de rutas sin divulgar datos, abrir la URL pública de Render seguida de `/api/pacientes` o `/api/responsables` en una pestaña sin sesión debe devolver 401. Antes de atribuir cualquier resultado a esta revisión, confirmar que Render y Vercel han desplegado el commit correspondiente. Usar exclusivamente datos ficticios en las evidencias académicas.
 
+## Servicios y horarios — fase 4 local
+
+Los servicios se guardan con identificador, nombre, descripción, duración en minutos, `precioCentavos`, imagen como URL HTTP(S) o ruta, y estado `ACTIVO` o `INACTIVO`. El frontend muestra quetzales y convierte el importe a centavos enteros antes de enviarlo. La API acepta duraciones enteras de 1 a 1440 minutos y precios de Q0.01 a Q1,000,000.00. Desactivar un servicio conserva su documento.
+
+| Ruta | Acceso | Uso |
+| --- | --- | --- |
+| `GET /api/servicios` y `GET /api/servicios/:id` | Público | Solo servicios activos; `buscar` filtra por nombre, descripción o identificador. Un inactivo no aparece ni en el detalle. |
+| `GET /api/servicios/administracion` y `GET /api/servicios/administracion/:id` | Administrador y recepcionista | Consulta interna de activos e inactivos; admite `buscar` y `estado` en el listado. |
+| `POST /api/servicios`, `PUT /api/servicios/:id`, `PATCH /api/servicios/:id/estado` | Administrador | Registro, modificación y cambio de estado. |
+
+La pantalla pública es `/servicios`; `/gestion-servicios` permite al administrador modificar y a recepción consultar. El profesional puede consultar los servicios activos públicos, sin acceso a la administración. No hay carga de imágenes: se guarda únicamente su URL o ruta.
+
+Los horarios se guardan en MongoDB por día de la semana, con estado abierto o cerrado e intervalos `horaInicio`–`horaFin` en **America/Guatemala**. Un día abierto necesita al menos un intervalo. Los intervalos deben usar `HH:mm`, terminar después de comenzar y no traslaparse; se admiten hasta ocho por día. No se publican horarios inventados cuando aún no están configurados.
+
+| Ruta | Acceso | Uso |
+| --- | --- | --- |
+| `GET /api/horarios` | Público | Muestra únicamente días abiertos e intervalos para visitantes. |
+| `GET /api/horarios/administracion` | Administrador y recepcionista | Consulta toda la configuración, incluidos días cerrados. |
+| `PUT /api/horarios/:dia` | Administrador | Configura uno de `LUNES`, `MARTES`, `MIERCOLES`, `JUEVES`, `VIERNES`, `SABADO` o `DOMINGO`. |
+
+Las pantallas son `/horarios` para visitantes y `/gestion-horarios` para administración y recepción; solo el administrador ve el formulario de cambios.
+
+**Integración pendiente:** el portal institucional de la fase 5 consumirá las rutas públicas. Cuando se construyan las citas, el backend deberá comprobar que el servicio siga `ACTIVO`, copiar `precioCentavos` y `duracionMinutos` a cada cita para conservar sus valores históricos y validar `fecha`, `horaInicio` y `horaFin` contra los intervalos del día en `America/Guatemala`. Esta fase no crea citas ni reservas.
+
+Desde `backend/`, `npm test` comprueba reglas y permisos mediante HTTP con modelos simulados. `npm run test:atlas:modulo4` está preparado para `sigca_test`: cambia únicamente el nombre de base en la URI local, crea datos ficticios, elige un día todavía libre y limpia solo los identificadores creados. Este segundo comando escribe y elimina datos de prueba; ejecútalo únicamente cuando esté permitido el acceso a Atlas. Desde `frontend/`, `npm run build` comprueba la compilación. La fase 4 permanece local hasta que se autorice publicarla.
+
 Referencias: [build y monorepos en Vercel](https://vercel.com/docs/builds/configure-a-build), [rewrites de Vercel](https://vercel.com/docs/project-configuration/vercel-json), [variables de Vite](https://vite.dev/guide/env-and-mode), [monorepos de Render](https://render.com/docs/monorepo-support), [versión de Node en Render](https://render.com/docs/node-version), [puerto de servicios web](https://render.com/docs/web-services) y [health checks de Render](https://render.com/docs/health-checks).
