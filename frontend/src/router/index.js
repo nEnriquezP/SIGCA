@@ -7,6 +7,7 @@ import PacientesView from '../views/PacientesView.vue'
 import ResponsablesView from '../views/ResponsablesView.vue'
 import CambiarPasswordView from '../views/CambiarPasswordView.vue'
 import ServiciosView from '../views/ServiciosView.vue'
+import HorariosView from '../views/HorariosView.vue'
 import { useSesionStore } from '../stores/sesion.js'
 
 const router = createRouter({
@@ -18,6 +19,11 @@ const router = createRouter({
     { path: '/servicios', name: 'servicios', component: ServiciosView,
       props: { administracion: false } },
     { path: '/gestion-servicios', name: 'gestion-servicios', component: ServiciosView,
+      props: { administracion: true },
+      meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
+    { path: '/horarios', name: 'horarios', component: HorariosView,
+      props: { administracion: false } },
+    { path: '/gestion-horarios', name: 'gestion-horarios', component: HorariosView,
       props: { administracion: true },
       meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
     { path: '/mi-password', name: 'mi-password', component: CambiarPasswordView,

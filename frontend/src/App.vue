@@ -24,6 +24,8 @@ function salir() {
       <RouterLink to="/estado">Estado</RouterLink>
       <RouterLink to="/servicios">Servicios</RouterLink>
       <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/gestion-servicios">Servicios internos</RouterLink>
+      <RouterLink to="/horarios">Horarios</RouterLink>
+      <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/gestion-horarios">Horarios internos</RouterLink>
       <RouterLink v-if="sesion.usuario?.rol === 'ADMINISTRADOR'" to="/usuarios">Usuarios</RouterLink>
       <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/pacientes">Pacientes</RouterLink>
       <RouterLink v-if="['ADMINISTRADOR', 'RECEPCIONISTA'].includes(sesion.usuario?.rol)" to="/responsables">Responsables</RouterLink>
