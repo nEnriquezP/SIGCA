@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import Usuario from '../src/models/Usuario.js'
 import Servicio from '../src/models/Servicio.js'
+import Horario from '../src/models/Horario.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 const { default: app } = await import('../src/app.js')
@@ -10,6 +11,7 @@ const { crearToken } = await import('../src/middleware/autenticacion.js')
 
 const cuentas = new Map()
 const servicios = new Map()
+const horarios = new Map()
 const ids = {
   admin: 'aaaaaaaaaaaaaaaaaaaaaaaa', recepcion: 'bbbbbbbbbbbbbbbbbbbbbbbb',
   profesional: 'cccccccccccccccccccccccc', servicio: 'dddddddddddddddddddddddd',
@@ -48,6 +50,13 @@ before(async () => {
     if (!servicio) return null
     Object.assign(servicio, datos)
     return servicio
+  }
+  Horario.find = async (filtro = {}) => [...horarios.values()].filter((item) =>
+    !filtro.activo || item.activo === filtro.activo)
+  Horario.findOneAndUpdate = async ({ dia }, { $set }) => {
+    const horario = { id: 'eeeeeeeeeeeeeeeeeeeeeeee', dia, ...$set }
+    horarios.set(dia, horario)
+    return horario
   }
   servidor = app.listen(0, '127.0.0.1')
   await new Promise((resolver, rechazar) => {
@@ -116,4 +125,52 @@ test('servicios: validación, importes, permisos y visibilidad pública', async 
     { token: recepcion })).body.servicios.length, 1)
   assert.equal((await pedir(`/api/servicios/administracion/${ids.servicio}`,
     { token: recepcion })).status, 200)
+})
+
+test('horarios: días, intervalos, permisos y consulta pública', async () => {
+  const admin = cuenta(ids.admin, 'ADMINISTRADOR')
+  const recepcion = cuenta(ids.recepcion, 'RECEPCIONISTA')
+  const profesional = cuenta(ids.profesional, 'PROFESIONAL')
+  const lunes = '/api/horarios/LUNES'
+  const validos = { activo: true, intervalos: [
+    { horaInicio: '13:00', horaFin: '17:00' },
+    { horaInicio: '08:00', horaFin: '12:00' },
+  ] }
+
+  const inicial = await pedir('/api/horarios')
+  assert.equal(inicial.status, 200)
+  assert.equal(inicial.body.zonaHoraria, 'America/Guatemala')
+  assert.equal(inicial.body.horarios.length, 0)
+  assert.equal((await pedir('/api/horarios/administracion')).status, 401)
+  assert.equal((await pedir('/api/horarios/administracion', { token: profesional })).status, 403)
+  assert.equal((await pedir(lunes, { metodo: 'PUT', datos: validos })).status, 401)
+  assert.equal((await pedir(lunes, { metodo: 'PUT', token: recepcion, datos: validos })).status, 403)
+  assert.equal((await pedir('/api/horarios/FESTIVO', { metodo: 'PUT', token: admin,
+    datos: validos })).status, 400)
+  for (const datos of [
+    { activo: true, intervalos: [] },
+    { activo: true, intervalos: [{ horaInicio: '17:00', horaFin: '08:00' }] },
+    { activo: true, intervalos: [{ horaInicio: '25:00', horaFin: '26:00' }] },
+    { activo: true, intervalos: [
+      { horaInicio: '08:00', horaFin: '12:00' },
+      { horaInicio: '11:30', horaFin: '15:00' },
+    ] },
+    { activo: 'sí', intervalos: validos.intervalos },
+  ]) {
+    assert.equal((await pedir(lunes, { metodo: 'PUT', token: admin, datos })).status, 400)
+  }
+
+  const guardado = await pedir(lunes, { metodo: 'PUT', token: admin, datos: validos })
+  assert.equal(guardado.status, 200)
+  assert.equal(guardado.body.horario.intervalos[0].horaInicio, '08:00')
+  const publico = await pedir('/api/horarios')
+  assert.equal(publico.body.horarios.length, 1)
+  assert.equal('activo' in publico.body.horarios[0], false)
+  assert.equal((await pedir('/api/horarios/administracion',
+    { token: recepcion })).body.horarios.length, 1)
+  assert.equal((await pedir(lunes, { metodo: 'PUT', token: admin,
+    datos: { activo: false, intervalos: [] } })).status, 200)
+  assert.equal((await pedir('/api/horarios')).body.horarios.length, 0)
+  assert.equal((await pedir('/api/horarios/administracion',
+    { token: recepcion })).body.horarios[0].activo, false)
 })

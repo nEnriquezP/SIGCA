@@ -8,6 +8,7 @@ import rutasUsuarios from './routes/usuarios.js'
 import rutasPacientes from './routes/pacientes.js'
 import rutasResponsables from './routes/responsables.js'
 import rutasServicios from './routes/servicios.js'
+import rutasHorarios from './routes/horarios.js'
 
 const app = express()
 
@@ -34,6 +35,7 @@ app.use('/api/usuarios', rutasUsuarios)
 app.use('/api/pacientes', rutasPacientes)
 app.use('/api/responsables', rutasResponsables)
 app.use('/api/servicios', rutasServicios)
+app.use('/api/horarios', rutasHorarios)
 
 app.use(rutaNoEncontrada)
 app.use(manejarError)
