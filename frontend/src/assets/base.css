@@ -207,6 +207,15 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .carrusel-controles { display: flex; gap: 12px; align-items: center; }
 .lista-imagenes { display: grid; gap: 10px; }
 .lista-imagenes label { min-width: 0; }
+.campo-imagen { min-width: 0; border: 1px solid #d9e2ed; border-radius: 8px; padding: 16px; }
+.campo-imagen legend { font-weight: 650; }
+.imagen-vista img, .vista-previa-imagen { display: block; max-width: min(100%, 300px); max-height: 240px; object-fit: contain; border-radius: 6px; margin: 10px 0; }
+.entrada-archivo-oculta { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.dialogo-recorte { width: min(92vw, 690px); max-height: 90vh; border: 0; border-radius: 12px; padding: 24px; overflow: auto; }
+.dialogo-recorte::backdrop { background: #102e50b8; }
+.dialogo-recorte canvas { display: block; width: 100%; height: auto; border: 1px solid #d9e2ed; margin: 12px 0; }
+.dialogo-recorte label { display: grid; gap: 5px; margin: 10px 0; }
+.dialogo-recorte input[type="range"] { width: 100%; }
 .texto-preservado { white-space: pre-wrap; }
 
 @media (max-width: 1000px) {

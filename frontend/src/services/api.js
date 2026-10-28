@@ -38,3 +38,31 @@ export async function obtenerEstadoApi() {
 
   return datos
 }
+
+export async function subirArchivoImagen(categoria, archivo, token) {
+  const cuerpo = new FormData()
+  cuerpo.append('categoria', categoria)
+  cuerpo.append('archivo', archivo, 'recorte.jpg')
+  const respuesta = await fetch(`${obtenerUrlBase()}/api/imagenes`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: cuerpo,
+  })
+  const datos = await respuesta.json().catch(() => null)
+  if (!respuesta.ok) {
+    const error = new Error(datos?.mensaje || 'No se pudo cargar la imagen')
+    error.status = respuesta.status
+    throw error
+  }
+  return datos.imagen.valor
+}
+
+export async function obtenerImagenPrivada(ruta, token) {
+  const respuesta = await fetch(`${obtenerUrlBase()}${ruta}`, {
+    headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+  })
+  if (!respuesta.ok) {
+    const error = new Error('No se pudo mostrar la fotografía privada')
+    error.status = respuesta.status
+    throw error
+  }
+  return respuesta.blob()
+}

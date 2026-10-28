@@ -3,6 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
+import ImagenCampo from '../components/ImagenCampo.vue'
 
 const props = defineProps({ administracion: { type: Boolean, default: false } })
 const router = useRouter()
@@ -39,6 +40,7 @@ function precioACentavos(valor) {
 }
 
 function datosFormulario() {
+  if (!formulario.value.imagen) throw new Error('Carga una imagen del servicio')
   const duracion = String(formulario.value.duracionMinutos).trim()
   if (!/^\d+$/.test(duracion) || Number(duracion) < 1 || Number(duracion) > 1440) {
     throw new Error('La duración debe ser un número entero entre 1 y 1440 minutos')
@@ -164,7 +166,7 @@ watch(() => props.administracion, () => {
         <label>Nombre<input v-model.trim="formulario.nombre" required maxlength="120" /></label>
         <label>Duración en minutos<input v-model="formulario.duracionMinutos" type="number" min="1" max="1440" step="1" required /></label>
         <label>Precio en quetzales<input v-model.trim="formulario.precioQuetzales" type="text" inputmode="decimal" placeholder="250.00" required /></label>
-        <label>Imagen (URL HTTP(S) o ruta)<input v-model.trim="formulario.imagen" required maxlength="500" placeholder="https://… o /imagenes/…" /></label>
+        <ImagenCampo v-model="formulario.imagen" categoria="servicio" etiqueta="Imagen del servicio" obligatoria />
         <label>Descripción<textarea v-model.trim="formulario.descripcion" required maxlength="2000" /></label>
         <div class="acciones">
           <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : editandoId ? 'Guardar cambios' : 'Registrar' }}</button>

@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
+import ImagenCampo from '../components/ImagenCampo.vue'
+import ImagenVista from '../components/ImagenVista.vue'
 
 const router = useRouter()
 const sesion = useSesionStore()
@@ -43,6 +45,7 @@ async function cargar() {
 }
 
 async function crear() {
+  if (!nuevo.value.fotografia) return fallo(new Error('Carga una fotografía del responsable'))
   guardando.value = true
   error.value = ''
   aviso.value = ''
@@ -66,6 +69,7 @@ function editar(responsable) {
 }
 
 async function guardar() {
+  if (!edicion.value.fotografia) return fallo(new Error('Carga una fotografía del responsable'))
   guardando.value = true
   error.value = ''
   aviso.value = ''
@@ -106,7 +110,7 @@ onMounted(cargar)
     <section class="tarjeta">
       <h2>Registrar responsable</h2>
       <form class="formulario-grid" @submit.prevent="crear">
-        <label>Fotografía (URL o ruta)<input v-model.trim="nuevo.fotografia" required maxlength="500" placeholder="https://… o /imagenes/…" /></label>
+        <ImagenCampo v-model="nuevo.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria proporcion="1:1" />
         <label>Nombres<input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
         <label>Apellidos<input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
         <label>Parentesco<input v-model.trim="nuevo.parentesco" required maxlength="80" /></label>
@@ -149,7 +153,7 @@ onMounted(cargar)
       <p><strong>{{ detalle.nombres }} {{ detalle.apellidos }}</strong> · {{ detalle.parentesco }}</p>
       <p>Correo: {{ detalle.correo }} · Teléfono: {{ detalle.telefono }}</p>
       <p>Dirección: {{ detalle.direccion }}</p>
-      <p>Fotografía: <a :href="detalle.fotografia" target="_blank" rel="noopener noreferrer">Abrir</a></p>
+      <ImagenVista :valor="detalle.fotografia" alt="Fotografía del responsable" />
       <h3>Pacientes asociados</h3>
       <ul v-if="detalle.pacientes.length">
         <li v-for="paciente in detalle.pacientes" :key="paciente.id">
@@ -162,7 +166,7 @@ onMounted(cargar)
     <section v-if="edicion" class="tarjeta">
       <h2>Modificar responsable</h2>
       <form class="formulario-grid" @submit.prevent="guardar">
-        <label>Fotografía (URL o ruta)<input v-model.trim="edicion.fotografia" required maxlength="500" /></label>
+        <ImagenCampo v-model="edicion.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria proporcion="1:1" />
         <label>Nombres<input v-model.trim="edicion.nombres" required maxlength="120" /></label>
         <label>Apellidos<input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
         <label>Parentesco<input v-model.trim="edicion.parentesco" required maxlength="80" /></label>

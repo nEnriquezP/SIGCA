@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
+import ImagenCampo from '../components/ImagenCampo.vue'
 
 const emit = defineEmits(['contenido-actualizado'])
 const router = useRouter()
@@ -188,7 +189,7 @@ onMounted(cargar)
 <template>
   <main class="contenedor">
     <h1>Administrar portal</h1>
-    <p>Edita la información que aparece en el sitio público. Los cambios guardados se muestran allí; las imágenes se registran por URL o ruta.</p>
+    <p>Edita la información que aparece en el sitio público. Elige y recorta las imágenes antes de guardar.</p>
     <p v-if="cargando" role="status">Cargando administración…</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
@@ -199,7 +200,7 @@ onMounted(cargar)
         <h2>Identidad e información institucional</h2>
         <form class="formulario-grid" @submit.prevent="guardarContenido">
           <label>Nombre del centro<input v-model="contenido.nombreCentro" required maxlength="120" /></label>
-          <label>Logotipo (URL o ruta, opcional)<input v-model="contenido.logo" maxlength="500" /></label>
+          <ImagenCampo v-model="contenido.logo" categoria="logo" etiqueta="Logotipo institucional" proporcion="1:1" />
           <label>Información principal<textarea v-model="contenido.informacionPrincipal" required maxlength="2000" /></label>
           <label>Misión<textarea v-model="contenido.mision" required maxlength="2000" /></label>
           <label>Visión<textarea v-model="contenido.vision" required maxlength="2000" /></label>
@@ -210,10 +211,10 @@ onMounted(cargar)
             <legend>Imágenes del carrusel</legend>
             <p>Guarda ninguna imagen o entre 5 y 10. No se muestran imágenes de ejemplo.</p>
             <div class="lista-imagenes">
-              <label v-for="(_, indice) in contenido.carrusel" :key="indice">Imagen {{ indice + 1 }}
-                <input v-model="contenido.carrusel[indice]" required maxlength="500" />
-                <button type="button" class="secundario" @click="contenido.carrusel.splice(indice, 1)">Quitar</button>
-              </label>
+              <ImagenCampo v-for="(_, indice) in contenido.carrusel" :key="indice"
+                :model-value="contenido.carrusel[indice]" categoria="carrusel"
+                :etiqueta="`Imagen ${indice + 1} del carrusel`" obligatoria proporcion="16:9"
+                @update:model-value="valor => valor ? contenido.carrusel[indice] = valor : contenido.carrusel.splice(indice, 1)" />
             </div>
             <button type="button" class="secundario" :disabled="contenido.carrusel.length >= 10"
               @click="contenido.carrusel.push('')">Agregar imagen</button>
@@ -228,7 +229,7 @@ onMounted(cargar)
           <label>Título<input v-model="publicacion.titulo" required maxlength="160" /></label>
           <label>Fecha de publicación<input v-model="publicacion.fechaPublicacion" type="date" required /></label>
           <label>Descripción<textarea v-model="publicacion.descripcion" required maxlength="4000" /></label>
-          <label>Imagen opcional<input v-model="publicacion.imagen" maxlength="500" /></label>
+          <ImagenCampo v-model="publicacion.imagen" categoria="publicacion" etiqueta="Imagen de publicación" />
           <label>Enlace opcional<input v-model="publicacion.enlace" maxlength="500" /></label>
           <div class="acciones"><button type="submit" :disabled="guardando">{{ publicacionId ? 'Guardar cambios' : 'Crear publicación' }}</button>
             <button v-if="publicacionId" type="button" class="secundario" @click="cancelarPublicacion">Cancelar</button></div>
@@ -252,10 +253,10 @@ onMounted(cargar)
           <label>Título<input v-model="actividad.titulo" required maxlength="160" /></label>
           <label>Descripción<textarea v-model="actividad.descripcion" required maxlength="4000" /></label>
           <fieldset><legend>Imágenes relacionadas</legend>
-            <div class="lista-imagenes"><label v-for="(_, indice) in actividad.imagenes" :key="indice">Imagen {{ indice + 1 }}
-              <input v-model="actividad.imagenes[indice]" required maxlength="500" />
-              <button type="button" class="secundario" @click="actividad.imagenes.splice(indice, 1)">Quitar</button>
-            </label></div>
+            <div class="lista-imagenes"><ImagenCampo v-for="(_, indice) in actividad.imagenes" :key="indice"
+              :model-value="actividad.imagenes[indice]" categoria="actividad"
+              :etiqueta="`Imagen ${indice + 1} de la actividad`" obligatoria
+              @update:model-value="valor => valor ? actividad.imagenes[indice] = valor : actividad.imagenes.splice(indice, 1)" /></div>
             <button type="button" class="secundario" :disabled="actividad.imagenes.length >= 10"
               @click="actividad.imagenes.push('')">Agregar imagen</button>
           </fieldset>

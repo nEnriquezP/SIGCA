@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
+import ImagenCampo from '../components/ImagenCampo.vue'
+import ImagenVista from '../components/ImagenVista.vue'
 
 const router = useRouter()
 const sesion = useSesionStore()
@@ -76,6 +78,7 @@ async function cargarResponsables() {
 }
 
 async function crear() {
+  if (!nuevo.value.fotografia) return fallo(new Error('Carga una fotografía del paciente'))
   guardando.value = true
   error.value = ''
   aviso.value = ''
@@ -118,6 +121,7 @@ async function editar(paciente) {
 }
 
 async function guardar() {
+  if (!edicion.value.fotografia) return fallo(new Error('Carga una fotografía del paciente'))
   guardando.value = true
   error.value = ''
   aviso.value = ''
@@ -166,7 +170,7 @@ onMounted(async () => {
     <section class="tarjeta">
       <h2>Registrar paciente</h2>
       <form class="formulario-grid" @submit.prevent="crear">
-        <label>Fotografía (URL o ruta)<input v-model.trim="nuevo.fotografia" required maxlength="500" placeholder="https://… o /imagenes/…" /></label>
+        <ImagenCampo v-model="nuevo.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria proporcion="1:1" />
         <label>Nombres<input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
         <label>Apellidos<input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
         <label>Fecha de nacimiento<input v-model="nuevo.fechaNacimiento" type="date" required /></label>
@@ -240,7 +244,7 @@ onMounted(async () => {
       <p>Teléfono: {{ detalle.telefono }} · Dirección: {{ detalle.direccion }}</p>
       <p>Inicio del proceso: {{ formatearFecha(detalle.fechaInicioProceso) }}</p>
       <p>Observaciones administrativas: {{ detalle.observacionesAdministrativas || 'Sin observaciones' }}</p>
-      <p>Fotografía: <a :href="detalle.fotografia" target="_blank" rel="noopener noreferrer">Abrir</a></p>
+      <ImagenVista :valor="detalle.fotografia" alt="Fotografía del paciente" />
       <h3>Responsables</h3>
       <ul v-if="detalle.responsables.length">
         <li v-for="responsable in detalle.responsables" :key="responsable.id">
@@ -255,7 +259,7 @@ onMounted(async () => {
     <section v-if="edicion" class="tarjeta">
       <h2>Actualizar paciente</h2>
       <form class="formulario-grid" @submit.prevent="guardar">
-        <label>Fotografía (URL o ruta)<input v-model.trim="edicion.fotografia" required maxlength="500" /></label>
+        <ImagenCampo v-model="edicion.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria proporcion="1:1" />
         <label>Nombres<input v-model.trim="edicion.nombres" required maxlength="120" /></label>
         <label>Apellidos<input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
         <label>Fecha de nacimiento<input v-model="edicion.fechaNacimiento" type="date" required /></label>
