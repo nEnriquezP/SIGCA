@@ -92,7 +92,7 @@ router.get('/opciones', async (req, res) => {
   const filtro = { estado: 'ACTIVO' }
   if (buscar) {
     const patron = buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    filtro.$or = ['nombres', 'apellidos'].map((campo) =>
+    filtro.$or = ['codigo', 'nombres', 'apellidos'].map((campo) =>
       ({ [campo]: { $regex: patron, $options: 'i' } }))
     if (mongoose.isValidObjectId(buscar)) filtro.$or.push({ _id: buscar })
   }
@@ -101,7 +101,7 @@ router.get('/opciones', async (req, res) => {
     Usuario.find({ rol: 'PROFESIONAL', activo: true }).select('nombre rol activo')
       .sort({ nombre: 1 }).limit(100),
   ])
-  res.json({ pacientes: pacientes.map((p) => ({ id: p.id,
+  res.json({ pacientes: pacientes.map((p) => ({ id: p.id, codigo: p.codigo ?? null,
     nombre: `${p.nombres} ${p.apellidos}` })),
   profesionales: profesionales.map((p) => ({ id: p.id, nombre: p.nombre })) })
 })

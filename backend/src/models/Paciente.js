@@ -9,6 +9,7 @@ function fechaCalendarioValida(valor) {
 }
 
 const pacienteSchema = new mongoose.Schema({
+  codigo: { type: String, required: true, immutable: true, match: /^PAC-\d{6,}$/ },
   fotografia: { type: String, required: true, trim: true, maxlength: 500 },
   nombres: { type: String, required: true, trim: true, maxlength: 120 },
   apellidos: { type: String, required: true, trim: true, maxlength: 120 },
@@ -25,5 +26,8 @@ const pacienteSchema = new mongoose.Schema({
   estado: { type: String, enum: ['ACTIVO', 'INACTIVO'], default: 'ACTIVO' },
   responsables: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Responsable' }],
 }, { timestamps: true })
+
+pacienteSchema.index({ codigo: 1 }, { unique: true,
+  partialFilterExpression: { codigo: { $type: 'string' } } })
 
 export default mongoose.model('Paciente', pacienteSchema)

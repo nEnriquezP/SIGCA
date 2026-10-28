@@ -22,7 +22,7 @@ const solicitudes = new Map()
 const citas = new Map()
 const servicio = { id: ids.servicio, estado: 'ACTIVO', duracionMinutos: 60,
   precioCentavos: 25000 }
-const paciente = { id: ids.paciente, estado: 'ACTIVO', fechaNacimiento: '2000-01-01',
+const paciente = { id: ids.paciente, codigo: 'PAC-000001', estado: 'ACTIVO', fechaNacimiento: '2000-01-01',
   responsables: [], nombres: 'Paciente', apellidos: 'Ficticio' }
 let horarioActivo = true
 let fallarCreacion = false
@@ -166,7 +166,10 @@ test('consulta y rechazo protegidos conservan solicitud', async () => {
   const profesional = token(ids.profesional, 'PROFESIONAL')
   assert.equal((await pedir('/api/solicitudes-cita', { token: profesional })).status, 403)
   assert.equal((await pedir('/api/solicitudes-cita', { token: recepcion })).status, 200)
-  assert.equal((await pedir('/api/solicitudes-cita/opciones', { token: recepcion })).status, 200)
+  const opciones = await pedir('/api/solicitudes-cita/opciones', { token: recepcion })
+  assert.equal(opciones.status, 200)
+  assert.equal(opciones.body.pacientes[0].codigo, 'PAC-000001')
+  assert.equal(opciones.body.pacientes[0].id, ids.paciente)
   const item = nuevaSolicitud()
   assert.equal((await pedir(`/api/solicitudes-cita/${item.id}`, { token: admin })).status, 200)
   assert.equal((await pedir(`/api/solicitudes-cita/${item.id}/rechazar`,

@@ -7,8 +7,10 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "node --test",
+    "test:codigos:local": "SIGCA_PROBAR_MONGO_LOCAL=1 node --test test/codigos-pacientes.test.js",
     "test:atlas": "node scripts/probarModulos23.js",
     "test:atlas:modulo4": "node scripts/probarModulo4.js",
+    "codigos:pacientes": "node scripts/asignarCodigosPacientes.js",
     "crear-admin": "node scripts/crearAdministrador.js"
   },
   "engines": {

@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import Usuario from '../src/models/Usuario.js'
 import Paciente from '../src/models/Paciente.js'
 import Responsable from '../src/models/Responsable.js'
+import Contador from '../src/models/Contador.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 process.env.CORS_ORIGIN = 'http://localhost:5173'
@@ -13,6 +14,7 @@ const { default: app } = await import('../src/app.js')
 const usuarios = new Map()
 const pacientes = new Map()
 const responsables = new Map()
+let secuenciaPacientes = 0
 let servidor
 let base
 
@@ -66,6 +68,8 @@ before(async () => {
     return responsable
   }
   Responsable.findById = (id) => consulta(responsables.get(String(id)) ?? null)
+  Contador.findOneAndUpdate = async () => ({ secuencia: ++secuenciaPacientes })
+  Paciente.exists = async () => null
   Paciente.create = async (datos) => {
     const paciente = { ...datos, id: idPaciente, estado: 'ACTIVO' }
     pacientes.set(idPaciente, paciente)
@@ -175,6 +179,13 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
     datos: { ...paciente, responsables: ['111111111111111111111111'] } })).status, 400)
   const registro = await pedir('/api/pacientes', { metodo: 'POST', token, datos: paciente })
   assert.equal(registro.status, 201)
+  assert.equal(registro.body.paciente.codigo, 'PAC-000001')
+  assert.equal(pacientes.get(idPaciente).codigo, 'PAC-000001')
+  assert.equal((await pedir('/api/pacientes', { metodo: 'POST', token,
+    datos: { ...paciente, codigo: 'PAC-999999' } })).status, 400)
+  assert.equal((await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
+    datos: { ...paciente, codigo: 'PAC-999999' } })).status, 400)
+  assert.equal(pacientes.get(idPaciente).codigo, 'PAC-000001')
   const partesHoy = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Guatemala',
     year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
   const hoy = Object.fromEntries(partesHoy.map(({ type, value }) => [type, value]))

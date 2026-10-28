@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Paciente from '../models/Paciente.js'
 import Responsable from '../models/Responsable.js'
+import { siguienteCodigoPaciente } from '../services/codigosPaciente.js'
 
 const router = Router()
 const campos = ['fotografia', 'nombres', 'apellidos', 'fechaNacimiento', 'sexo', 'telefono',
@@ -79,7 +80,8 @@ function limpiar(datos) {
 }
 
 function respuesta(paciente) {
-  return { id: paciente.id, fotografia: paciente.fotografia, nombres: paciente.nombres,
+  return { id: paciente.id, codigo: paciente.codigo ?? null,
+    fotografia: paciente.fotografia, nombres: paciente.nombres,
     apellidos: paciente.apellidos, fechaNacimiento: paciente.fechaNacimiento,
     edad: edad(paciente.fechaNacimiento), sexo: paciente.sexo, telefono: paciente.telefono,
     direccion: paciente.direccion, fechaInicioProceso: paciente.fechaInicioProceso,
@@ -94,7 +96,7 @@ function respuesta(paciente) {
 
 function filtroBusqueda(texto) {
   const patron = texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const condiciones = ['nombres', 'apellidos', 'telefono'].map((campo) =>
+  const condiciones = ['codigo', 'nombres', 'apellidos', 'telefono'].map((campo) =>
     ({ [campo]: { $regex: patron, $options: 'i' } }))
   if (mongoose.isValidObjectId(texto)) condiciones.push({ _id: texto })
   return { $or: condiciones }
@@ -135,7 +137,11 @@ router.post('/', async (req, res) => {
   if (!await validarResponsables(datos.responsables)) {
     return res.status(400).json({ mensaje: 'Uno o varios responsables no existen' })
   }
-  const paciente = await Paciente.create(datos)
+  if (await Paciente.exists({ codigo: null })) {
+    return res.status(503).json({ mensaje: 'Primero deben asignarse códigos a los pacientes existentes' })
+  }
+  const codigo = await siguienteCodigoPaciente()
+  const paciente = await Paciente.create({ ...datos, codigo })
   res.status(201).json({ paciente: respuesta(paciente) })
 })
 

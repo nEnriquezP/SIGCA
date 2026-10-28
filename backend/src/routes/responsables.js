@@ -65,9 +65,10 @@ router.get('/:id', async (req, res) => {
   const responsable = await Responsable.findById(req.params.id)
   if (!responsable) return res.status(404).json({ mensaje: 'Responsable no encontrado' })
   const pacientes = await Paciente.find({ responsables: responsable.id })
-    .select('nombres apellidos estado').sort({ apellidos: 1, nombres: 1 })
+    .select('codigo nombres apellidos estado').sort({ apellidos: 1, nombres: 1 })
   res.json({ responsable: { ...respuesta(responsable), pacientes: pacientes.map((paciente) => ({
-    id: paciente.id, nombres: paciente.nombres, apellidos: paciente.apellidos, estado: paciente.estado,
+    id: paciente.id, codigo: paciente.codigo ?? null, nombres: paciente.nombres,
+    apellidos: paciente.apellidos, estado: paciente.estado,
   })) } })
 })
 
