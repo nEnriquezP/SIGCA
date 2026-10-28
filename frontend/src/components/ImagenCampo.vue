@@ -26,6 +26,7 @@ const horizontal = ref(0)
 const vertical = ref(0)
 const cargando = ref(false)
 const error = ref('')
+const arrastre = ref(null)
 const [proporcionAncho, proporcionAlto] = props.proporcion.split(':').map(Number)
 const ancho = 600
 const alto = Math.round(ancho * proporcionAlto / proporcionAncho)
@@ -55,6 +56,31 @@ function dibujar() {
   const y = (alto - dibujadoAlto) / 2 + vertical.value / 100 * (dibujadoAlto - alto) / 2
   contexto.clearRect(0, 0, ancho, alto)
   contexto.drawImage(foto, x, y, dibujadoAncho, dibujadoAlto)
+}
+
+function iniciarArrastre(evento) {
+  if (!imagen.value || cargando.value) return
+  arrastre.value = { x: evento.clientX, y: evento.clientY,
+    horizontal: horizontal.value, vertical: vertical.value }
+  evento.currentTarget.setPointerCapture(evento.pointerId)
+}
+
+function moverArrastre(evento) {
+  if (!arrastre.value || !imagen.value || !lienzo.value) return
+  const foto = imagen.value
+  const escala = Math.max(ancho / foto.naturalWidth, alto / foto.naturalHeight) * zoom.value
+  const sobranteX = foto.naturalWidth * escala - ancho
+  const sobranteY = foto.naturalHeight * escala - alto
+  const escalaPantalla = ancho / lienzo.value.getBoundingClientRect().width
+  const limitar = (valor) => Math.max(-100, Math.min(100, valor))
+  horizontal.value = sobranteX > 0 ? limitar(arrastre.value.horizontal +
+    (evento.clientX - arrastre.value.x) * escalaPantalla * 200 / sobranteX) : 0
+  vertical.value = sobranteY > 0 ? limitar(arrastre.value.vertical +
+    (evento.clientY - arrastre.value.y) * escalaPantalla * 200 / sobranteY) : 0
+}
+
+function terminarArrastre() {
+  arrastre.value = null
 }
 
 async function abrirConBlob(blob) {
@@ -110,6 +136,7 @@ async function recortarActual() {
 }
 
 function cancelar() {
+  terminarArrastre()
   dialogo.value?.close()
   imagen.value = null
   if (fuenteTemporal.value) URL.revokeObjectURL(fuenteTemporal.value)
@@ -159,13 +186,16 @@ function quitar() {
     </div>
     <input ref="archivoInput" class="entrada-archivo-oculta" type="file" tabindex="-1" accept="image/jpeg,image/png,image/webp" :aria-label="`Elegir ${etiqueta}`" @change="seleccionar" />
     <input ref="camaraInput" class="entrada-archivo-oculta" type="file" tabindex="-1" accept="image/jpeg,image/png,image/webp" capture="environment" :aria-label="`Fotografiar ${etiqueta}`" @change="seleccionar" />
-    <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
+    <p v-if="error && !imagen" class="mensaje-error" role="alert">{{ error }}</p>
     <dialog ref="dialogo" class="dialogo-recorte" :aria-label="`Recortar ${etiqueta}`" @cancel.prevent="cancelar">
       <h3>Recortar {{ etiqueta }}</h3>
-      <canvas ref="lienzo" :width="ancho" :height="alto" role="img" :aria-label="`Vista del recorte de ${etiqueta}`"></canvas>
+      <p class="ayuda-recorte">Arrastra la imagen para acomodarla. Si no se mueve en una dirección, aumenta primero la ampliación.</p>
+      <canvas ref="lienzo" :width="ancho" :height="alto" role="img" :aria-label="`Vista del recorte de ${etiqueta}`"
+        @pointerdown="iniciarArrastre" @pointermove="moverArrastre" @pointerup="terminarArrastre" @pointercancel="terminarArrastre"></canvas>
       <label>Ampliación <input v-model.number="zoom" type="range" min="1" max="3" step="0.01" /></label>
       <label>Desplazamiento horizontal <input v-model.number="horizontal" type="range" min="-100" max="100" step="1" /></label>
       <label>Desplazamiento vertical <input v-model.number="vertical" type="range" min="-100" max="100" step="1" /></label>
+      <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
       <div class="acciones">
         <button type="button" :disabled="cargando" @click="confirmar">{{ cargando ? 'Cargando…' : 'Confirmar recorte' }}</button>
         <button type="button" class="secundario" :disabled="cargando" @click="cancelar">Cancelar</button>

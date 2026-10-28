@@ -68,12 +68,24 @@ export async function subirImagen(buffer, categoria) {
   const privada = privadas.has(categoria)
   const publicId = `${prefijo}/${categoria}/${id}`
   const tipo = privada ? 'authenticated' : 'upload'
-  const resultado = await new Promise((resolver, rechazar) => {
-    const destino = cloudinary.uploader.upload_stream({ resource_type: 'image', type: tipo,
-      public_id: publicId, overwrite: false, unique_filename: false,
-      filename_override: 'imagen' }, (error, datos) => error ? rechazar(error) : resolver(datos))
-    Readable.from([buffer]).pipe(destino)
-  })
+  let resultado
+  try {
+    resultado = await new Promise((resolver, rechazar) => {
+      const destino = cloudinary.uploader.upload_stream({ resource_type: 'image', type: tipo,
+        public_id: publicId, overwrite: false, unique_filename: false,
+        filename_override: 'imagen' }, (error, datos) => error ? rechazar(error) : resolver(datos))
+      Readable.from([buffer]).pipe(destino)
+    })
+  } catch (error) {
+    const codigo = Number(error?.http_code)
+    console.error('Cloudinary rechazó la carga. Código HTTP:',
+      Number.isInteger(codigo) && codigo >= 400 && codigo < 600 ? codigo : 'desconocido')
+    throw errorImagen(codigo === 401 ?
+      'Cloudinary rechazó las credenciales. Revisa API Key y API Secret en Render.' :
+      codigo === 403 ?
+        'La clave de Cloudinary no tiene permiso para cargar imágenes.' :
+        'Cloudinary no pudo cargar la imagen. Revisa su configuración en Render.', 502)
+  }
   const valor = privada ? `/api/imagenes/privadas/${id}` : resultado.secure_url
   if (!valor || valor.length > 500) throw errorImagen('La imagen cargada no tiene una dirección válida', 502)
   return { id, categoria, publicId, privada, valor }

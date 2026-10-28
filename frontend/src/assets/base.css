@@ -211,9 +211,12 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .campo-imagen legend { font-weight: 650; }
 .imagen-vista img, .vista-previa-imagen { display: block; max-width: min(100%, 300px); max-height: 240px; object-fit: contain; border-radius: 6px; margin: 10px 0; }
 .entrada-archivo-oculta { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
-.dialogo-recorte { width: min(92vw, 690px); max-height: 90vh; border: 0; border-radius: 12px; padding: 24px; overflow: auto; }
+.dialogo-recorte { width: min(92vw, 460px); max-height: 90dvh; border: 0; border-radius: 12px; padding: 18px; overflow: auto; }
 .dialogo-recorte::backdrop { background: #102e50b8; }
-.dialogo-recorte canvas { display: block; width: 100%; height: auto; border: 1px solid #d9e2ed; margin: 12px 0; }
+.dialogo-recorte h3 { margin: 0 0 6px; }
+.dialogo-recorte .ayuda-recorte { margin: 0; font-size: .875rem; }
+.dialogo-recorte canvas { display: block; width: min(100%, 340px); height: auto; max-height: 38dvh; border: 1px solid #d9e2ed; margin: 10px auto; cursor: grab; touch-action: none; }
+.dialogo-recorte canvas:active { cursor: grabbing; }
 .dialogo-recorte label { display: grid; gap: 5px; margin: 10px 0; }
 .dialogo-recorte input[type="range"] { width: 100%; }
 .texto-preservado { white-space: pre-wrap; }
