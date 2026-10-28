@@ -39,6 +39,12 @@ const grupos = [
       { texto: 'Usuarios', ruta: '/usuarios', roles: ['ADMINISTRADOR'], icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 8h5 M19.5 5.5v5' },
     ],
   },
+  {
+    titulo: 'Sistema',
+    opciones: [
+      { texto: 'Estado del sistema', ruta: '/estado-sistema', roles: ['ADMINISTRADOR', 'RECEPCIONISTA', 'PROFESIONAL'], icono: 'M3 12h4l3-7 4 14 3-7h4' },
+    ],
+  },
 ]
 
 const gruposVisibles = computed(() => grupos

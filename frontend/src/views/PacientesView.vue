@@ -29,6 +29,11 @@ function vacio() {
     responsables: [] }
 }
 
+function formatearFecha(fecha) {
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha)
+  return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : fecha
+}
+
 function fallo(errorApi) {
   if (errorApi.status === 401) {
     sesion.cerrar()
@@ -230,9 +235,9 @@ onMounted(async () => {
     <section v-if="detalle" class="tarjeta">
       <h2>Detalle del paciente</h2>
       <p><strong>{{ detalle.nombres }} {{ detalle.apellidos }}</strong> · {{ detalle.edad }} años · {{ detalle.estado }}</p>
-      <p>Fecha de nacimiento: {{ detalle.fechaNacimiento }} · Sexo: {{ detalle.sexo }}</p>
+      <p>Fecha de nacimiento: {{ formatearFecha(detalle.fechaNacimiento) }} · Sexo: {{ detalle.sexo }}</p>
       <p>Teléfono: {{ detalle.telefono }} · Dirección: {{ detalle.direccion }}</p>
-      <p>Inicio del proceso: {{ detalle.fechaInicioProceso }}</p>
+      <p>Inicio del proceso: {{ formatearFecha(detalle.fechaInicioProceso) }}</p>
       <p>Observaciones administrativas: {{ detalle.observacionesAdministrativas || 'Sin observaciones' }}</p>
       <p>Fotografía: <a :href="detalle.fotografia" target="_blank" rel="noopener noreferrer">Abrir</a></p>
       <h3>Responsables</h3>

@@ -20,6 +20,8 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'inicio', component: InicioView },
     { path: '/estado', name: 'estado', component: EstadoView },
+    { path: '/estado-sistema', name: 'estado-sistema', component: EstadoView,
+      meta: { requiereSesion: true } },
     { path: '/ingresar', name: 'ingresar', component: LoginView },
     { path: '/servicios', name: 'servicios', component: ServiciosView,
       props: { administracion: false } },
