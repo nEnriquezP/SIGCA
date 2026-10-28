@@ -1,0 +1,70 @@
+import { Router } from 'express'
+import multer from 'multer'
+import { autenticar } from '../middleware/autenticacion.js'
+import ImagenCargada from '../models/ImagenCargada.js'
+import Paciente from '../models/Paciente.js'
+import Responsable from '../models/Responsable.js'
+import { borrarCargaFallida, descargarImagenPrivada, prepararImagen,
+  subirImagen } from '../services/imagenes.js'
+
+const router = Router()
+const carga = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024,
+  files: 1, fields: 1 } }).single('archivo')
+const categorias = new Set(['paciente', 'responsable', 'servicio', 'logo', 'carrusel',
+  'publicacion', 'actividad'])
+
+router.use(autenticar)
+
+function rolesPermitidos(rol, categoria) {
+  return rol === 'ADMINISTRADOR' ||
+    (rol === 'RECEPCIONISTA' && ['paciente', 'responsable'].includes(categoria))
+}
+
+router.post('/', (req, res, next) => {
+  carga(req, res, (error) => {
+    if (!error) return next()
+    return res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400)
+      .json({ mensaje: 'Archivo inválido o demasiado grande (máximo 5 MB)' })
+  })
+}, async (req, res) => {
+  const categoria = req.body?.categoria
+  if (!categorias.has(categoria)) return res.status(400).json({ mensaje: 'Categoría de imagen inválida' })
+  if (!rolesPermitidos(req.usuario.rol, categoria)) {
+    return res.status(403).json({ mensaje: 'Acceso no permitido' })
+  }
+  if (!req.file) return res.status(400).json({ mensaje: 'Selecciona una imagen' })
+  const buffer = await prepararImagen(req.file.buffer)
+  const imagen = await subirImagen(buffer, categoria)
+  try {
+    await ImagenCargada.create({ _id: imagen.id, categoria: imagen.categoria,
+      publicId: imagen.publicId, valor: imagen.valor, privada: imagen.privada })
+  } catch (error) {
+    await borrarCargaFallida(imagen)
+    throw error
+  }
+  res.status(201).json({ imagen: { valor: imagen.valor } })
+})
+
+router.get('/privadas/:id', async (req, res) => {
+  res.set('Cache-Control', 'no-store')
+  if (!rolesPermitidos(req.usuario.rol, 'paciente')) {
+    return res.status(403).json({ mensaje: 'Acceso no permitido' })
+  }
+  if (!/^[0-9a-f-]{36}$/.test(req.params.id)) {
+    return res.status(404).json({ mensaje: 'Imagen no encontrada' })
+  }
+  const imagen = await ImagenCargada.findById(req.params.id)
+  if (!imagen?.privada || !['paciente', 'responsable'].includes(imagen.categoria)) {
+    return res.status(404).json({ mensaje: 'Imagen no encontrada' })
+  }
+  const asociada = imagen.categoria === 'paciente' ?
+    await Paciente.exists({ fotografia: imagen.valor }) :
+    await Responsable.exists({ fotografia: imagen.valor })
+  if (!asociada) return res.status(404).json({ mensaje: 'Imagen no encontrada' })
+  const buffer = await descargarImagenPrivada(imagen)
+  res.set('Content-Type', 'image/jpeg')
+  res.set('X-Content-Type-Options', 'nosniff')
+  res.send(buffer)
+})
+
+export default router

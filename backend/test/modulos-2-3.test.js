@@ -6,6 +6,7 @@ import Usuario from '../src/models/Usuario.js'
 import Paciente from '../src/models/Paciente.js'
 import Responsable from '../src/models/Responsable.js'
 import Contador from '../src/models/Contador.js'
+import ImagenCargada from '../src/models/ImagenCargada.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 process.env.CORS_ORIGIN = 'http://localhost:5173'
@@ -68,8 +69,10 @@ before(async () => {
     return responsable
   }
   Responsable.findById = (id) => consulta(responsables.get(String(id)) ?? null)
+  ImagenCargada.exists = async () => ({ _id: 'imagen-de-prueba' })
   Contador.findOneAndUpdate = async () => ({ secuencia: ++secuenciaPacientes })
   Paciente.exists = async () => null
+  Paciente.findById = (id) => consulta(pacientes.get(String(id)) ?? null)
   Paciente.create = async (datos) => {
     const paciente = { ...datos, id: idPaciente, estado: 'ACTIVO' }
     pacientes.set(idPaciente, paciente)
@@ -167,11 +170,13 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
   const token = (await entrar('recepcionista@example.test')).body.token
   assert.equal((await pedir('/api/pacientes?estado=DESCONOCIDO', { token })).status, 400)
   assert.equal((await pedir('/api/responsables?buscar=a&buscar=b', { token })).status, 400)
-  const responsable = { fotografia: '/imagenes/prueba.png', nombres: 'Ana', apellidos: 'Prueba',
+  const responsable = { fotografia: '/api/imagenes/privadas/11111111-1111-4111-8111-111111111111', nombres: 'Ana', apellidos: 'Prueba',
     parentesco: 'Madre', telefono: '5555 5555', correo: 'ana@example.test', direccion: 'Prueba' }
+  assert.equal((await pedir('/api/responsables', { metodo: 'POST', token,
+    datos: { ...responsable, fotografia: 'https://example.test/publica.jpg' } })).status, 400)
   const creado = await pedir('/api/responsables', { metodo: 'POST', token, datos: responsable })
   assert.equal(creado.status, 201)
-  const paciente = { fotografia: '/imagenes/prueba.png', nombres: 'Luis', apellidos: 'Prueba',
+  const paciente = { fotografia: '/api/imagenes/privadas/22222222-2222-4222-8222-222222222222', nombres: 'Luis', apellidos: 'Prueba',
     fechaNacimiento: '2015-05-10', sexo: 'MASCULINO', telefono: '5555 5555',
     direccion: 'Prueba', fechaInicioProceso: '2026-10-20',
     observacionesAdministrativas: '', responsables: [idResponsable] }

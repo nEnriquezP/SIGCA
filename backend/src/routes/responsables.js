@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Paciente from '../models/Paciente.js'
 import Responsable from '../models/Responsable.js'
+import { fotoPrivadaValida } from '../services/imagenes.js'
 
 const router = Router()
 const campos = ['fotografia', 'nombres', 'apellidos', 'parentesco', 'telefono', 'correo', 'direccion']
@@ -75,6 +76,9 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   const error = validar(req.body)
   if (error) return res.status(400).json({ mensaje: error })
+  if (!await fotoPrivadaValida(req.body.fotografia.trim(), 'responsable')) {
+    return res.status(400).json({ mensaje: 'Carga una fotografía privada para el responsable' })
+  }
   const responsable = await Responsable.create(limpiar(req.body))
   res.status(201).json({ responsable: respuesta(responsable) })
 })
@@ -85,6 +89,11 @@ router.put('/:id', async (req, res) => {
   }
   const error = validar(req.body)
   if (error) return res.status(400).json({ mensaje: error })
+  const actual = await Responsable.findById(req.params.id)
+  if (!actual) return res.status(404).json({ mensaje: 'Responsable no encontrado' })
+  if (!await fotoPrivadaValida(req.body.fotografia.trim(), 'responsable', actual.fotografia)) {
+    return res.status(400).json({ mensaje: 'Carga una fotografía privada para el responsable' })
+  }
   const responsable = await Responsable.findByIdAndUpdate(req.params.id, limpiar(req.body),
     { returnDocument: 'after', runValidators: true })
   if (!responsable) return res.status(404).json({ mensaje: 'Responsable no encontrado' })

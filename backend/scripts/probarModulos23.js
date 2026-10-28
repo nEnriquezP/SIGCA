@@ -1,16 +1,17 @@
 import 'dotenv/config'
 import assert from 'node:assert/strict'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import app from '../src/app.js'
 import Usuario from '../src/models/Usuario.js'
 import Paciente from '../src/models/Paciente.js'
 import Responsable from '../src/models/Responsable.js'
+import ImagenCargada from '../src/models/ImagenCargada.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 
-const creados = { usuarios: [], pacientes: [], responsables: [] }
+const creados = { usuarios: [], pacientes: [], responsables: [], imagenes: [] }
 const sufijo = randomBytes(8).toString('hex')
 const passwordInicial = randomBytes(18).toString('base64url')
 const passwordNueva = randomBytes(18).toString('base64url')
@@ -37,6 +38,15 @@ async function pedir(ruta, { metodo = 'GET', token, datos } = {}) {
 
 async function iniciar(correo, password) {
   return pedir('/api/auth/login', { metodo: 'POST', datos: { correo, password } })
+}
+
+async function fotoFicticia(categoria) {
+  const id = randomUUID()
+  const valor = `/api/imagenes/privadas/${id}`
+  await ImagenCargada.create({ _id: id, categoria, valor, privada: true,
+    publicId: `sigca/test/${categoria}/${id}` })
+  creados.imagenes.push(id)
+  return valor
 }
 
 async function ejecutar() {
@@ -136,7 +146,7 @@ async function ejecutar() {
     'La sesión vieja sigue revocada después de reactivar')
   const tokenRecepcionNuevo = (await iniciar(recepcion.correo, passwordInicial)).body.token
 
-  const responsableDatos = { fotografia: '/imagenes/prueba-ficticia.png', nombres: 'Ana',
+  const responsableDatos = { fotografia: await fotoFicticia('responsable'), nombres: 'Ana',
     apellidos: `Prueba ${sufijo}`, parentesco: 'Madre', telefono: '5555 5555',
     correo: `responsable-${sufijo}@example.test`, direccion: 'Dirección ficticia' }
   const responsable = await pedir('/api/responsables', { metodo: 'POST', token: tokenRecepcionNuevo,
@@ -145,7 +155,7 @@ async function ejecutar() {
   creados.responsables.push(responsable.body.responsable.id)
   const idResponsable = responsable.body.responsable.id
 
-  const pacienteDatos = { fotografia: '/imagenes/prueba-ficticia.png', nombres: 'Luis',
+  const pacienteDatos = { fotografia: await fotoFicticia('paciente'), nombres: 'Luis',
     apellidos: `Prueba ${sufijo}`, fechaNacimiento: '2015-05-10', sexo: 'MASCULINO',
     telefono: '5555 5555', direccion: 'Dirección ficticia', fechaInicioProceso: '2026-10-20',
     observacionesAdministrativas: 'Dato ficticio', responsables: [idResponsable] }
@@ -202,6 +212,7 @@ try {
     try {
       await Paciente.deleteMany({ _id: { $in: creados.pacientes } })
       await Responsable.deleteMany({ _id: { $in: creados.responsables } })
+      await ImagenCargada.deleteMany({ _id: { $in: creados.imagenes } })
       await Usuario.deleteMany({ _id: { $in: creados.usuarios } })
       console.log('Limpieza de datos ficticios: completada')
     } catch {

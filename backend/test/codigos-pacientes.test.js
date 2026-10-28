@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { execFile, spawn } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { createServer } from 'node:net'
@@ -12,6 +12,7 @@ import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import Cita from '../src/models/Cita.js'
 import Contador from '../src/models/Contador.js'
+import ImagenCargada from '../src/models/ImagenCargada.js'
 import Paciente from '../src/models/Paciente.js'
 import Responsable from '../src/models/Responsable.js'
 import Usuario from '../src/models/Usuario.js'
@@ -113,9 +114,14 @@ test('códigos de pacientes con MongoDB local, migración y relaciones',
       direccion: 'Dirección de prueba' })
     const primeroId = new mongoose.Types.ObjectId()
     const segundoId = new mongoose.Types.ObjectId()
+    const fotoId = randomUUID()
+    const fotoPrivada = `/api/imagenes/privadas/${fotoId}`
+    await ImagenCargada.create({ _id: fotoId, categoria: 'paciente',
+      publicId: `sigca/test/paciente/${fotoId}`, valor: fotoPrivada, privada: true })
     await Paciente.init()
     await Paciente.collection.insertMany([
-      { _id: segundoId, ...datosPaciente, responsables: [responsable._id],
+      { _id: segundoId, ...datosPaciente, fotografia: 'https://example.test/imagen.jpg',
+        responsables: [responsable._id],
         estado: 'ACTIVO', createdAt: new Date('2024-01-02T00:00:00Z') },
       { _id: primeroId, ...datosPaciente, responsables: [responsable._id],
         estado: 'ACTIVO', createdAt: new Date('2024-01-01T00:00:00Z') },
@@ -125,7 +131,8 @@ test('códigos de pacientes con MongoDB local, migración y relaciones',
       minutosOcupados: [600], duracionMinutos: 1, precioCentavos: 100 })
 
     const antes = await pedir(base, '/api/pacientes', token,
-      { metodo: 'POST', datos: { ...datosPaciente, responsables: [] } })
+      { metodo: 'POST', datos: { ...datosPaciente, fotografia: fotoPrivada,
+        responsables: [] } })
     assert.equal(antes.status, 503)
     await assert.rejects(asignarCodigosExistentes('sigca_prod'), /no coincide/)
     const { stdout: salidaMigracion } = await ejecutarArchivo(process.execPath,
@@ -142,7 +149,8 @@ test('códigos de pacientes con MongoDB local, migración y relaciones',
     assert.equal(repeticion.asignados, 0)
     assert.equal(repeticion.ultimoNumero, 2)
 
-    const cuerpo = { ...datosPaciente, responsables: [String(responsable._id)] }
+    const cuerpo = { ...datosPaciente, fotografia: fotoPrivada,
+      responsables: [String(responsable._id)] }
     const nuevoA = await pedir(base, '/api/pacientes', token, { metodo: 'POST', datos: cuerpo })
     const nuevoB = await pedir(base, '/api/pacientes', token, { metodo: 'POST', datos: cuerpo })
     assert.equal(nuevoA.status, 201)
@@ -175,7 +183,8 @@ test('códigos de pacientes con MongoDB local, migración y relaciones',
     assert.equal(rechazoEditar.status, 400)
     assert.equal((await Paciente.findById(primeroId)).codigo, 'PAC-000001')
     const edicionValida = await pedir(base, `/api/pacientes/${primeroId}`, token,
-      { metodo: 'PUT', datos: { ...cuerpo, telefono: '5555 0000' } })
+      { metodo: 'PUT', datos: { ...datosPaciente, telefono: '5555 0000',
+        responsables: [String(responsable._id)] } })
     assert.equal(edicionValida.status, 200)
     assert.equal(edicionValida.body.paciente.codigo, 'PAC-000001')
 
@@ -206,10 +215,9 @@ test('códigos de pacientes con MongoDB local, migración y relaciones',
       { metodo: 'POST', datos: cuerpo })
     assert.equal(posterior.body.paciente.codigo, 'PAC-000022')
     assert.equal((await Paciente.findById(primeroId)).fotografia, '/imagenes/existente.png')
-    const fotografiaUrl = 'https://example.test/imagen.jpg'
+    assert.equal((await Paciente.findById(segundoId)).fotografia, 'https://example.test/imagen.jpg')
     const conUrl = await pedir(base, '/api/pacientes', token,
-      { metodo: 'POST', datos: { ...cuerpo, fotografia: fotografiaUrl } })
-    assert.equal(conUrl.status, 201)
-    assert.equal(conUrl.body.paciente.fotografia, fotografiaUrl)
+      { metodo: 'POST', datos: { ...cuerpo, fotografia: 'https://example.test/imagen.jpg' } })
+    assert.equal(conUrl.status, 400)
     console.log('MongoDB temporal: códigos, concurrencia, búsqueda, inmutabilidad y ObjectId correctos')
   })

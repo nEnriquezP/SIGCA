@@ -4,6 +4,7 @@ import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Paciente from '../models/Paciente.js'
 import Responsable from '../models/Responsable.js'
 import { siguienteCodigoPaciente } from '../services/codigosPaciente.js'
+import { fotoPrivadaValida } from '../services/imagenes.js'
 
 const router = Router()
 const campos = ['fotografia', 'nombres', 'apellidos', 'fechaNacimiento', 'sexo', 'telefono',
@@ -134,6 +135,9 @@ router.post('/', async (req, res) => {
   const error = validar(req.body)
   if (error) return res.status(400).json({ mensaje: error })
   const datos = limpiar(req.body)
+  if (!await fotoPrivadaValida(datos.fotografia, 'paciente')) {
+    return res.status(400).json({ mensaje: 'Carga una fotografía privada para el paciente' })
+  }
   if (!await validarResponsables(datos.responsables)) {
     return res.status(400).json({ mensaje: 'Uno o varios responsables no existen' })
   }
@@ -152,6 +156,11 @@ router.put('/:id', async (req, res) => {
   const error = validar(req.body)
   if (error) return res.status(400).json({ mensaje: error })
   const datos = limpiar(req.body)
+  const actual = await Paciente.findById(req.params.id)
+  if (!actual) return res.status(404).json({ mensaje: 'Paciente no encontrado' })
+  if (!await fotoPrivadaValida(datos.fotografia, 'paciente', actual.fotografia)) {
+    return res.status(400).json({ mensaje: 'Carga una fotografía privada para el paciente' })
+  }
   if (!await validarResponsables(datos.responsables)) {
     return res.status(400).json({ mensaje: 'Uno o varios responsables no existen' })
   }
