@@ -122,7 +122,7 @@ async function guardar() {
   error.value = ''
   aviso.value = ''
   try {
-    const { id, edad, estado, ...datos } = edicion.value
+    const { id, codigo, edad, estado, ...datos } = edicion.value
     await solicitarApi(`/api/pacientes/${id}`, { method: 'PUT', token: sesion.token, body: datos })
     edicion.value = null
     aviso.value = 'Paciente actualizado'
@@ -199,7 +199,7 @@ onMounted(async () => {
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
       <form class="formulario-grid" @submit.prevent="cargar">
-        <label>Identificador, nombre, apellido o teléfono<input v-model="buscar" maxlength="80" /></label>
+        <label>Código, identificador, nombre, apellido o teléfono<input v-model="buscar" maxlength="80" /></label>
         <label>Estado
           <select v-model="estadoFiltro">
             <option value="">Todos</option><option value="ACTIVO">Activo</option>
@@ -211,10 +211,10 @@ onMounted(async () => {
       <p v-if="cargando">Cargando pacientes…</p>
       <div v-else class="tabla-contenedor">
         <table>
-          <thead><tr><th>Identificador</th><th>Nombre</th><th>Edad</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Código</th><th>Nombre</th><th>Edad</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             <tr v-for="paciente in pacientes" :key="paciente.id">
-              <td>{{ paciente.id }}</td>
+              <td>{{ paciente.codigo || 'Pendiente de asignación' }}</td>
               <td>{{ paciente.nombres }} {{ paciente.apellidos }}</td>
               <td>{{ paciente.edad }}</td>
               <td>{{ paciente.estado }}</td>
@@ -234,6 +234,7 @@ onMounted(async () => {
 
     <section v-if="detalle" class="tarjeta">
       <h2>Detalle del paciente</h2>
+      <p>Código: <strong>{{ detalle.codigo || 'Pendiente de asignación' }}</strong></p>
       <p><strong>{{ detalle.nombres }} {{ detalle.apellidos }}</strong> · {{ detalle.edad }} años · {{ detalle.estado }}</p>
       <p>Fecha de nacimiento: {{ formatearFecha(detalle.fechaNacimiento) }} · Sexo: {{ detalle.sexo }}</p>
       <p>Teléfono: {{ detalle.telefono }} · Dirección: {{ detalle.direccion }}</p>

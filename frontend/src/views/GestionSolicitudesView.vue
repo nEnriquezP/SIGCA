@@ -178,10 +178,10 @@ onMounted(cargar)
         <h3>Convertir en cita</h3>
         <p>Selecciona un paciente ya registrado y un profesional activo. La fecha y hora efectiva pueden diferir de la fecha preferida.</p>
         <form class="formulario-grid" @submit.prevent="convertir">
-          <label>Buscar paciente<input v-model="buscarPaciente" maxlength="80" /></label>
+          <label>Buscar paciente por nombre o código<input v-model="buscarPaciente" maxlength="80" /></label>
           <button type="button" class="secundario" @click="buscarPacientes">Buscar pacientes</button>
           <label>Paciente activo<select v-model="conversion.paciente" required><option disabled value="">Selecciona un paciente</option>
-            <option v-for="p in pacientes" :key="p.id" :value="p.id">{{ p.nombre }} ({{ p.id }})</option></select></label>
+            <option v-for="p in pacientes" :key="p.id" :value="p.id">{{ p.nombre }} ({{ p.codigo || p.id }})</option></select></label>
           <label>Profesional activo<select v-model="conversion.profesional" required><option disabled value="">Selecciona un profesional</option>
             <option v-for="p in profesionales" :key="p.id" :value="p.id">{{ p.nombre }}</option></select></label>
           <label>Fecha efectiva<input v-model="conversion.fecha" type="date" required /></label>

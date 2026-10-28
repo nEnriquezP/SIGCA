@@ -153,7 +153,7 @@ onMounted(cargar)
       <h3>Pacientes asociados</h3>
       <ul v-if="detalle.pacientes.length">
         <li v-for="paciente in detalle.pacientes" :key="paciente.id">
-          {{ paciente.nombres }} {{ paciente.apellidos }} ({{ paciente.estado }})
+          {{ paciente.nombres }} {{ paciente.apellidos }} ({{ paciente.codigo || paciente.id }} · {{ paciente.estado }})
         </li>
       </ul>
       <p v-else>No tiene pacientes asociados.</p>
