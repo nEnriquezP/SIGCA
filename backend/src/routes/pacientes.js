@@ -31,6 +31,12 @@ function hoyEnGuatemala() {
   return `${valor.year}-${valor.month}-${valor.day}`
 }
 
+function restarAnios(fecha, anios) {
+  const dia = new Date(`${fecha}T12:00:00Z`)
+  dia.setUTCFullYear(dia.getUTCFullYear() - anios)
+  return dia.toISOString().slice(0, 10)
+}
+
 function edad(fechaNacimiento) {
   const hoy = hoyEnGuatemala()
   let anios = Number(hoy.slice(0, 4)) - Number(fechaNacimiento.slice(0, 4))
@@ -50,10 +56,18 @@ function validar(datos) {
   if (!/^(https?:\/\/[^\s]+|\/(?!\/)[^\s]*)$/i.test(datos.fotografia.trim())) {
     return 'La fotografía debe ser una URL o una ruta que inicie con /'
   }
-  if (!fechaValida(datos.fechaNacimiento) || datos.fechaNacimiento > hoyEnGuatemala()) {
-    return 'Fecha de nacimiento inválida'
+  if (!/^[1-9][0-9]{7}$/.test(datos.telefono)) {
+    return 'El teléfono debe tener 8 dígitos y no comenzar con 0'
   }
-  if (!fechaValida(datos.fechaInicioProceso)) return 'Fecha de inicio del proceso inválida'
+  const hoy = hoyEnGuatemala()
+  if (!fechaValida(datos.fechaNacimiento) || datos.fechaNacimiento > hoy ||
+      datos.fechaNacimiento < restarAnios(hoy, 120)) {
+    return 'La fecha de nacimiento debe estar entre hace 120 años y hoy'
+  }
+  if (!fechaValida(datos.fechaInicioProceso) || datos.fechaInicioProceso > hoy ||
+      datos.fechaInicioProceso < datos.fechaNacimiento) {
+    return 'El inicio del proceso debe estar entre el nacimiento del paciente y hoy'
+  }
   if (!sexos.has(datos.sexo)) return 'Sexo inválido'
   if (datos.responsables !== undefined &&
       (!Array.isArray(datos.responsables) || datos.responsables.some((id) =>

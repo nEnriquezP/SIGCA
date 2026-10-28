@@ -177,13 +177,30 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
   const creado = await pedir('/api/responsables', { metodo: 'POST', token, datos: responsable })
   assert.equal(creado.status, 201)
   const paciente = { fotografia: '/api/imagenes/privadas/22222222-2222-4222-8222-222222222222', nombres: 'Luis', apellidos: 'Prueba',
-    fechaNacimiento: '2015-05-10', sexo: 'MASCULINO', telefono: '5555 5555',
+    fechaNacimiento: '2015-05-10', sexo: 'MASCULINO', telefono: '55551234',
     direccion: 'Prueba', fechaInicioProceso: '2026-10-20',
     observacionesAdministrativas: '', responsables: [idResponsable] }
   assert.equal((await pedir('/api/pacientes', { metodo: 'POST', token,
     datos: { ...paciente, responsables: ['111111111111111111111111'] } })).status, 400)
   const registro = await pedir('/api/pacientes', { metodo: 'POST', token, datos: paciente })
   assert.equal(registro.status, 201)
+  for (const telefono of ['05551234', '5555123', '555512345', '5555 1234', '5555ABCD']) {
+    const rechazo = await pedir('/api/pacientes', { metodo: 'POST', token,
+      datos: { ...paciente, telefono } })
+    assert.equal(rechazo.status, 400)
+  }
+  for (const fechas of [
+    { fechaNacimiento: '2099-01-01' },
+    { fechaNacimiento: '1800-01-01' },
+    { fechaInicioProceso: '2099-01-01' },
+    { fechaInicioProceso: '2010-01-01' },
+  ]) {
+    const rechazo = await pedir('/api/pacientes', { metodo: 'POST', token,
+      datos: { ...paciente, ...fechas } })
+    assert.equal(rechazo.status, 400)
+  }
+  assert.equal((await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
+    datos: { ...paciente, telefono: '01234567' } })).status, 400)
   assert.equal(registro.body.paciente.codigo, 'PAC-000001')
   assert.equal(pacientes.get(idPaciente).codigo, 'PAC-000001')
   assert.equal((await pedir('/api/pacientes', { metodo: 'POST', token,

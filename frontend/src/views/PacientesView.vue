@@ -20,6 +20,8 @@ const guardando = ref(false)
 const edicion = ref(null)
 const detalle = ref(null)
 const nuevo = ref(vacio())
+const hoy = hoyEnGuatemala()
+const fechaMinimaNacimiento = restarAnios(hoy, 120)
 const sexos = [
   ['FEMENINO', 'Femenino'], ['MASCULINO', 'Masculino'], ['OTRO', 'Otro'],
   ['PREFIERE_NO_DECIR', 'Prefiere no decir'],
@@ -34,6 +36,25 @@ function vacio() {
 function formatearFecha(fecha) {
   const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha)
   return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : fecha
+}
+
+function hoyEnGuatemala() {
+  const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Guatemala',
+    year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+  const fecha = Object.fromEntries(partes.map(({ type, value }) => [type, value]))
+  return `${fecha.year}-${fecha.month}-${fecha.day}`
+}
+
+function restarAnios(fecha, anios) {
+  const dia = new Date(`${fecha}T12:00:00Z`)
+  dia.setUTCFullYear(dia.getUTCFullYear() - anios)
+  return dia.toISOString().slice(0, 10)
+}
+
+function capturarTelefono(evento, datos) {
+  const telefono = evento.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 8)
+  evento.target.value = telefono
+  datos.telefono = telefono
 }
 
 function fallo(errorApi) {
@@ -169,22 +190,40 @@ onMounted(async () => {
 
     <section class="tarjeta">
       <h2>Registrar paciente</h2>
-      <form class="formulario-grid" @submit.prevent="crear">
-        <ImagenCampo v-model="nuevo.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria proporcion="1:1" />
-        <label>Nombres<input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
-        <label>Apellidos<input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
-        <label>Fecha de nacimiento<input v-model="nuevo.fechaNacimiento" type="date" required /></label>
-        <label>Sexo
-          <select v-model="nuevo.sexo" required>
-            <option disabled value="">Selecciona una opción</option>
-            <option v-for="[valor, texto] in sexos" :key="valor" :value="valor">{{ texto }}</option>
-          </select>
-        </label>
-        <label>Teléfono<input v-model.trim="nuevo.telefono" type="tel" required maxlength="30" /></label>
-        <label>Dirección<input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
-        <label>Inicio del proceso<input v-model="nuevo.fechaInicioProceso" type="date" required /></label>
+      <form class="formulario-paciente" @submit.prevent="crear">
+        <div class="paciente-form-layout">
+          <div class="paciente-form-datos">
+            <h3>Datos del paciente</h3>
+            <div class="paciente-campos">
+              <label>Nombres<input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
+              <label>Apellidos<input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
+              <label>Fecha de nacimiento
+                <input v-model="nuevo.fechaNacimiento" type="date" required :min="fechaMinimaNacimiento" :max="hoy" />
+                <small>Entre {{ formatearFecha(fechaMinimaNacimiento) }} y hoy.</small>
+              </label>
+              <label>Sexo
+                <select v-model="nuevo.sexo" required>
+                  <option disabled value="">Selecciona una opción</option>
+                  <option v-for="[valor, texto] in sexos" :key="valor" :value="valor">{{ texto }}</option>
+                </select>
+              </label>
+              <label>Teléfono
+                <input :value="nuevo.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
+                  required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
+                  title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, nuevo)" />
+                <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
+              </label>
+              <label>Inicio del proceso
+                <input v-model="nuevo.fechaInicioProceso" type="date" required :min="nuevo.fechaNacimiento || undefined" :max="hoy" />
+                <small>Desde el nacimiento del paciente hasta hoy.</small>
+              </label>
+              <label class="paciente-campo-ancho">Dirección<input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
+            </div>
+          </div>
+          <ImagenCampo v-model="nuevo.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria proporcion="1:1" />
+        </div>
         <label>Observaciones administrativas<textarea v-model.trim="nuevo.observacionesAdministrativas" maxlength="2000" /></label>
-        <fieldset>
+        <fieldset class="paciente-responsables">
           <legend>Responsables asociados</legend>
           <label>Buscar responsable por nombre, correo o identificador
             <input v-model="buscarResponsable" maxlength="80" />
@@ -258,21 +297,39 @@ onMounted(async () => {
 
     <section v-if="edicion" class="tarjeta">
       <h2>Actualizar paciente</h2>
-      <form class="formulario-grid" @submit.prevent="guardar">
-        <ImagenCampo v-model="edicion.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria proporcion="1:1" />
-        <label>Nombres<input v-model.trim="edicion.nombres" required maxlength="120" /></label>
-        <label>Apellidos<input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
-        <label>Fecha de nacimiento<input v-model="edicion.fechaNacimiento" type="date" required /></label>
-        <label>Sexo
-          <select v-model="edicion.sexo" required>
-            <option v-for="[valor, texto] in sexos" :key="valor" :value="valor">{{ texto }}</option>
-          </select>
-        </label>
-        <label>Teléfono<input v-model.trim="edicion.telefono" type="tel" required maxlength="30" /></label>
-        <label>Dirección<input v-model.trim="edicion.direccion" required maxlength="300" /></label>
-        <label>Inicio del proceso<input v-model="edicion.fechaInicioProceso" type="date" required /></label>
+      <form class="formulario-paciente" @submit.prevent="guardar">
+        <div class="paciente-form-layout">
+          <div class="paciente-form-datos">
+            <h3>Datos del paciente</h3>
+            <div class="paciente-campos">
+              <label>Nombres<input v-model.trim="edicion.nombres" required maxlength="120" /></label>
+              <label>Apellidos<input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
+              <label>Fecha de nacimiento
+                <input v-model="edicion.fechaNacimiento" type="date" required :min="fechaMinimaNacimiento" :max="hoy" />
+                <small>Entre {{ formatearFecha(fechaMinimaNacimiento) }} y hoy.</small>
+              </label>
+              <label>Sexo
+                <select v-model="edicion.sexo" required>
+                  <option v-for="[valor, texto] in sexos" :key="valor" :value="valor">{{ texto }}</option>
+                </select>
+              </label>
+              <label>Teléfono
+                <input :value="edicion.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
+                  required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
+                  title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, edicion)" />
+                <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
+              </label>
+              <label>Inicio del proceso
+                <input v-model="edicion.fechaInicioProceso" type="date" required :min="edicion.fechaNacimiento || undefined" :max="hoy" />
+                <small>Desde el nacimiento del paciente hasta hoy.</small>
+              </label>
+              <label class="paciente-campo-ancho">Dirección<input v-model.trim="edicion.direccion" required maxlength="300" /></label>
+            </div>
+          </div>
+          <ImagenCampo v-model="edicion.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria proporcion="1:1" />
+        </div>
         <label>Observaciones administrativas<textarea v-model.trim="edicion.observacionesAdministrativas" maxlength="2000" /></label>
-        <fieldset>
+        <fieldset class="paciente-responsables">
           <legend>Responsables asociados</legend>
           <label>Buscar responsable por nombre, correo o identificador
             <input v-model="buscarResponsable" maxlength="80" />

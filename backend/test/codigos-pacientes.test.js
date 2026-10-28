@@ -78,7 +78,7 @@ async function pedir(base, ruta, token, { metodo = 'GET', datos } = {}) {
 
 const datosPaciente = { fotografia: '/imagenes/existente.png', nombres: 'Paciente',
   apellidos: 'Ficticio', fechaNacimiento: '2000-01-01', sexo: 'FEMENINO',
-  telefono: '5555 5555', direccion: 'Dirección de prueba',
+  telefono: '55551234', direccion: 'Dirección de prueba',
   fechaInicioProceso: '2026-01-01', observacionesAdministrativas: '' }
 
 test('códigos de pacientes con MongoDB local, migración y relaciones',
@@ -183,7 +183,7 @@ test('códigos de pacientes con MongoDB local, migración y relaciones',
     assert.equal(rechazoEditar.status, 400)
     assert.equal((await Paciente.findById(primeroId)).codigo, 'PAC-000001')
     const edicionValida = await pedir(base, `/api/pacientes/${primeroId}`, token,
-      { metodo: 'PUT', datos: { ...datosPaciente, telefono: '5555 0000',
+      { metodo: 'PUT', datos: { ...datosPaciente, telefono: '55550000',
         responsables: [String(responsable._id)] } })
     assert.equal(edicionValida.status, 200)
     assert.equal(edicionValida.body.paciente.codigo, 'PAC-000001')

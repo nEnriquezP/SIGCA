@@ -179,6 +179,23 @@ h1 {
 .tarjeta h2 { margin-top: 0; }
 form { display: grid; gap: 12px; }
 .formulario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+.formulario-paciente { gap: 22px; }
+.paciente-form-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 24px; align-items: start; }
+.paciente-form-datos { min-width: 0; }
+.paciente-form-datos h3 { margin: 0 0 18px; color: #133a5f; }
+.paciente-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+.paciente-campos label { min-width: 0; align-content: start; }
+.paciente-campos small { color: #5c6d7e; font-size: .8rem; font-weight: 400; }
+.paciente-campo-ancho { grid-column: 1 / -1; }
+.formulario-paciente > label { min-width: 0; }
+.formulario-paciente > label textarea { min-height: 100px; }
+.formulario-paciente .campo-imagen { margin: 0; }
+.formulario-paciente .vista-previa-imagen, .formulario-paciente .imagen-vista img { max-height: 190px; margin-inline: auto; }
+.formulario-paciente .campo-imagen .acciones { justify-content: center; }
+.formulario-paciente .campo-imagen .acciones button { padding: 8px 10px; font-size: .875rem; }
+.paciente-responsables { padding: 14px 18px; }
+.paciente-responsables legend { font-weight: 650; }
+.paciente-responsables > label:first-of-type { display: grid; align-items: initial; max-width: 440px; font-weight: 600; }
 label { display: grid; gap: 6px; font-weight: 600; }
 input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #aab9c9; border-radius: 6px; font: inherit; }
 textarea { min-height: 90px; resize: vertical; }
@@ -277,6 +294,8 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
     background: #102e5066;
   }
   .contenido-panel { padding: 24px 20px 46px; }
+  .paciente-form-layout { grid-template-columns: 1fr; }
+  .paciente-form-layout .campo-imagen { max-width: 420px; }
 }
 
 @media (max-width: 640px) {
@@ -287,5 +306,6 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
   .contenido-panel > .contenedor { margin-top: 17px; }
   .contenido-panel .tarjeta { padding: 18px; }
   .formulario-grid { grid-template-columns: 1fr; }
+  .paciente-campos { grid-template-columns: 1fr; }
   .carrusel img { aspect-ratio: 4 / 3; }
 }
