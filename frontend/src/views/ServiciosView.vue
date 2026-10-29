@@ -203,9 +203,11 @@ async function guardar() {
   try {
     const datos = datosFormulario()
     const eraEdicion = Boolean(editandoId.value)
-    await solicitarApi(eraEdicion ? `/api/servicios/${editandoId.value}` : '/api/servicios', {
+    const idEditado = editandoId.value
+    const respuesta = await solicitarApi(eraEdicion ? `/api/servicios/${idEditado}` : '/api/servicios', {
       method: eraEdicion ? 'PUT' : 'POST', token: sesion.token, body: datos,
     })
+    if (idEditado && detalle.value?.id === idEditado) detalle.value = respuesta.servicio
     resultadoGuardado.value = eraEdicion ? 'Servicio interno actualizado con éxito' :
       'Servicio interno creado con éxito'
     limpiarFormulario()
