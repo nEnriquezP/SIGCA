@@ -109,13 +109,13 @@ watch(() => props.administracion, cargar)
       <p v-if="cargando">Cargando horarios…</p>
       <div v-else-if="administracion" class="tabla-contenedor">
         <table>
-          <thead><tr><th>Día</th><th>Estado</th><th>Intervalos</th><th v-if="sesion.usuario?.rol === 'ADMINISTRADOR'">Acción</th></tr></thead>
+          <thead><tr><th>Día</th><th>Estado</th><th>Intervalos</th><th v-if="sesion.tienePermiso('HORARIOS_GESTIONAR')">Acción</th></tr></thead>
           <tbody>
             <tr v-for="[dia, nombre] in dias" :key="dia">
               <td>{{ nombre }}</td>
               <td>{{ horarioDe(dia) ? horarioDe(dia).activo ? 'Abierto' : 'Cerrado' : 'Sin configurar' }}</td>
               <td>{{ horarioDe(dia)?.intervalos.length ? textoIntervalos(horarioDe(dia).intervalos) : '—' }}</td>
-              <td v-if="sesion.usuario?.rol === 'ADMINISTRADOR'"><button type="button" class="secundario" @click="seleccionar(dia)">Configurar</button></td>
+              <td v-if="sesion.tienePermiso('HORARIOS_GESTIONAR')"><button type="button" class="secundario" @click="seleccionar(dia)">Configurar</button></td>
             </tr>
           </tbody>
         </table>
@@ -134,7 +134,7 @@ watch(() => props.administracion, cargar)
       <p v-else>Aún no hay horarios de atención configurados.</p>
     </section>
 
-    <section v-if="administracion && sesion.usuario?.rol === 'ADMINISTRADOR'" class="tarjeta">
+    <section v-if="administracion && sesion.tienePermiso('HORARIOS_GESTIONAR')" class="tarjeta">
       <h2>Configurar {{ nombreDia(seleccionado) }}</h2>
       <form @submit.prevent="guardar">
         <label>Día

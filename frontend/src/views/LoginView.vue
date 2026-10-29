@@ -16,11 +16,12 @@ async function ingresar() {
   try {
     await sesion.iniciar(correo.value, password.value)
     password.value = ''
-    const destino = sesion.usuario.rol === 'ADMINISTRADOR'
-      ? '/administracion-portal'
-      : sesion.usuario.rol === 'RECEPCIONISTA'
-        ? '/gestion-solicitudes'
-        : '/mi-password'
+    const destino = sesion.tienePermiso('PORTAL_GESTIONAR') ? '/administracion-portal'
+      : sesion.tienePermiso('SOLICITUDES_VER') ? '/gestion-solicitudes'
+        : sesion.tienePermiso('PACIENTES_VER') ? '/pacientes'
+          : sesion.tienePermiso('RESPONSABLES_VER') ? '/responsables'
+            : sesion.tienePermiso('SERVICIOS_VER') ? '/gestion-servicios'
+              : sesion.tienePermiso('HORARIOS_VER') ? '/gestion-horarios' : '/mi-password'
     await router.push(destino)
   } catch (error) {
     mensaje.value = error.message || 'No se pudo iniciar sesión'

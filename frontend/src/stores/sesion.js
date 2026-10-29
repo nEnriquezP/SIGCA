@@ -9,6 +9,9 @@ export const useSesionStore = defineStore('sesion', () => {
   const usuario = ref(null)
   const comprobada = ref(false)
   const autenticado = computed(() => Boolean(token.value && usuario.value))
+  function tienePermiso(codigo) {
+    return Boolean(usuario.value?.permisos?.includes(codigo))
+  }
 
   function cerrar() {
     token.value = ''
@@ -45,5 +48,5 @@ export const useSesionStore = defineStore('sesion', () => {
     }
   }
 
-  return { token, usuario, autenticado, iniciar, restaurar, cerrar }
+  return { token, usuario, autenticado, tienePermiso, iniciar, restaurar, cerrar }
 })

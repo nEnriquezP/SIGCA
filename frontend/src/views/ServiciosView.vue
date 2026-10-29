@@ -29,18 +29,41 @@ function mostrarPrecio(centavos) {
 }
 
 function precioACentavos(valor) {
-  const coincidencia = /^(0|[1-9]\d*)(?:[.,](\d{1,2}))?$/.exec(String(valor).trim())
-  if (!coincidencia) throw new Error('Escribe el precio en quetzales con hasta dos decimales')
-  const centavos = Number(coincidencia[1]) * 100 +
-    Number((coincidencia[2] ?? '').padEnd(2, '0'))
-  if (!Number.isSafeInteger(centavos) || centavos < 1 || centavos > 100000000) {
-    throw new Error('El precio debe estar entre Q0.01 y Q1,000,000.00')
+  const texto = String(valor).trim()
+  if (!/^Q (?:0|[1-9]\d{0,2}(?:,\d{3})*)\.\d{2}$/.test(texto)) {
+    throw new Error('Escribe el precio en quetzales con dos decimales')
+  }
+  const centavos = Number(texto.replace(/\D/g, ''))
+  if (!Number.isSafeInteger(centavos) || centavos < 100 || centavos > 3000000000) {
+    throw new Error('El precio debe estar entre Q 1.00 y Q 30,000,000.00')
   }
   return centavos
 }
 
+function formatoPrecio(centavos) {
+  return `Q ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(centavos / 100)}`
+}
+
+function actualizarPrecio(evento) {
+  const digitos = evento.target.value.replace(/\D/g, '')
+  const centavos = Number(digitos)
+  if (!digitos) formulario.value.precioQuetzales = ''
+  else if (centavos <= 3000000000) formulario.value.precioQuetzales = formatoPrecio(centavos)
+  evento.target.value = formulario.value.precioQuetzales
+  evento.target.setSelectionRange(evento.target.value.length, evento.target.value.length)
+}
+
+function actualizarNombre(evento) {
+  const limpio = evento.target.value.replace(/[^\p{L}\p{N} _-]/gu, '')
+  evento.target.value = limpio
+  formulario.value.nombre = limpio
+}
+
 function datosFormulario() {
   if (!formulario.value.imagen) throw new Error('Carga una imagen del servicio')
+  if (!/^[\p{L}\p{N}]+(?:[ _-][\p{L}\p{N}]+)*$/u.test(formulario.value.nombre.trim())) {
+    throw new Error('El nombre solo admite letras, números, espacios, guion y guion bajo')
+  }
   const duracion = String(formulario.value.duracionMinutos).trim()
   if (!/^\d+$/.test(duracion) || Number(duracion) < 1 || Number(duracion) > 1440) {
     throw new Error('La duración debe ser un número entero entre 1 y 1440 minutos')
@@ -97,7 +120,7 @@ function editar(servicio) {
   formulario.value = {
     nombre: servicio.nombre, descripcion: servicio.descripcion,
     duracionMinutos: String(servicio.duracionMinutos),
-    precioQuetzales: (servicio.precioCentavos / 100).toFixed(2), imagen: servicio.imagen,
+    precioQuetzales: formatoPrecio(servicio.precioCentavos), imagen: servicio.imagen,
   }
   error.value = ''
   aviso.value = ''
@@ -160,14 +183,35 @@ watch(() => props.administracion, () => {
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
-    <section v-if="administracion && sesion.usuario?.rol === 'ADMINISTRADOR'" class="tarjeta">
+    <section v-if="administracion && sesion.tienePermiso('SERVICIOS_GESTIONAR')" class="tarjeta">
       <h2>{{ editandoId ? 'Actualizar servicio' : 'Registrar servicio' }}</h2>
-      <form class="formulario-grid" @submit.prevent="guardar">
-        <label>Nombre<input v-model.trim="formulario.nombre" required maxlength="120" /></label>
-        <label>Duración en minutos<input v-model="formulario.duracionMinutos" type="number" min="1" max="1440" step="1" required /></label>
-        <label>Precio en quetzales<input v-model.trim="formulario.precioQuetzales" type="text" inputmode="decimal" placeholder="250.00" required /></label>
-        <ImagenCampo v-model="formulario.imagen" categoria="servicio" etiqueta="Imagen del servicio" obligatoria />
-        <label>Descripción<textarea v-model.trim="formulario.descripcion" required maxlength="2000" /></label>
+      <form class="formulario-servicio" @submit.prevent="guardar">
+        <div class="servicio-form-layout">
+          <div class="servicio-form-datos">
+            <h3>Datos del servicio</h3>
+            <div class="servicio-campos">
+              <label class="servicio-campo-ancho">Nombre <span class="requisito-campo">Obligatorio</span>
+                <input v-model.trim="formulario.nombre" @input="actualizarNombre" required maxlength="120"
+                  placeholder="Ej. Consulta general" />
+                <small>Se admiten letras, números, espacios, guion (-) y guion bajo (_).</small>
+              </label>
+              <label>Duración en minutos <span class="requisito-campo">Obligatorio</span>
+                <input v-model="formulario.duracionMinutos" type="number" min="1" max="1440" step="1" required />
+                <small>Entre 1 y 1,440 minutos; las citas terminan el mismo día.</small>
+              </label>
+              <label>Precio en quetzales <span class="requisito-campo">Obligatorio</span>
+                <input :value="formulario.precioQuetzales" @input="actualizarPrecio" type="text"
+                  inputmode="numeric" class="servicio-precio" placeholder="Q 1.00" required />
+                <small>Escribe las cifras; los centavos y miles se muestran automáticamente. De Q 1.00 a Q 30,000,000.00.</small>
+              </label>
+              <label class="servicio-campo-ancho">Descripción <span class="requisito-campo">Obligatorio</span>
+                <textarea v-model.trim="formulario.descripcion" required maxlength="2000" />
+              </label>
+            </div>
+          </div>
+          <ImagenCampo v-model="formulario.imagen" categoria="servicio" etiqueta="Imagen del servicio"
+            obligatoria mostrar-requisito />
+        </div>
         <div class="acciones">
           <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : editandoId ? 'Guardar cambios' : 'Registrar' }}</button>
           <button v-if="editandoId" type="button" class="secundario" @click="cancelarEdicion">Cancelar</button>
@@ -211,8 +255,8 @@ watch(() => props.administracion, () => {
               <td v-if="administracion">{{ servicio.estado }}</td>
               <td class="acciones">
                 <button type="button" class="secundario" @click="consultar(servicio)">Consultar</button>
-                <button v-if="administracion && sesion.usuario?.rol === 'ADMINISTRADOR'" type="button" class="secundario" @click="editar(servicio)">Modificar</button>
-                <button v-if="administracion && sesion.usuario?.rol === 'ADMINISTRADOR'" type="button" class="secundario" @click="cambiarEstado(servicio)">
+                <button v-if="administracion && sesion.tienePermiso('SERVICIOS_GESTIONAR')" type="button" class="secundario" @click="editar(servicio)">Modificar</button>
+                <button v-if="administracion && sesion.tienePermiso('SERVICIOS_GESTIONAR')" type="button" class="secundario" @click="cambiarEstado(servicio)">
                   {{ servicio.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
                 </button>
               </td>

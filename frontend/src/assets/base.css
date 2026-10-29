@@ -179,6 +179,27 @@ h1 {
 .tarjeta h2 { margin-top: 0; }
 form { display: grid; gap: 12px; }
 .formulario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+.formulario-servicio { gap: 22px; }
+.servicio-form-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 24px; align-items: start; }
+.servicio-form-datos { min-width: 0; }
+.servicio-form-datos h3 { margin: 0 0 18px; color: #133a5f; }
+.servicio-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+.servicio-campos label { min-width: 0; align-content: start; }
+.servicio-campos small, label > small { color: #5c6d7e; font-size: .8rem; font-weight: 400; }
+.servicio-campo-ancho { grid-column: 1 / -1; }
+.servicio-campos .servicio-precio { max-width: 230px; font-variant-numeric: tabular-nums; }
+.formulario-servicio .campo-imagen { margin: 0; }
+.formulario-servicio .vista-previa-imagen, .formulario-servicio .imagen-vista img { max-height: 190px; margin-inline: auto; }
+.formulario-servicio .campo-imagen .acciones { justify-content: center; }
+.formulario-servicio .campo-imagen .acciones button { padding: 8px 10px; font-size: .875rem; }
+.encabezado-usuarios { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.encabezado-usuarios h1 { margin-bottom: 0; }
+.roles-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.rol-resumen { border: 1px solid #d9e2ed; border-radius: 8px; padding: 14px; }
+.rol-resumen-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.rol-resumen h3 { margin: 0; }
+.rol-resumen ul { padding-left: 20px; margin-bottom: 0; }
+.permisos-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 16px; padding: 14px; }
 .formulario-paciente { gap: 22px; }
 .paciente-form-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 24px; align-items: start; }
 .paciente-form-datos { min-width: 0; }
@@ -323,6 +344,7 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
   .contenido-panel > .contenedor { margin-top: 17px; }
   .contenido-panel .tarjeta { padding: 18px; }
   .formulario-grid { grid-template-columns: 1fr; }
+  .servicio-form-layout, .servicio-campos { grid-template-columns: 1fr; }
   .paciente-campos { grid-template-columns: 1fr; }
   .carrusel img { aspect-ratio: 4 / 3; }
 }

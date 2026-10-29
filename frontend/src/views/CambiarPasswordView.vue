@@ -45,8 +45,11 @@ async function cambiar() {
         <label>Contraseña actual
           <input v-model="passwordActual" type="password" required autocomplete="current-password" />
         </label>
-        <label>Nueva contraseña, al menos 12 caracteres
-          <input v-model="passwordNueva" type="password" required minlength="12" autocomplete="new-password" />
+        <label>Nueva contraseña
+          <input v-model="passwordNueva" type="password" required minlength="8" maxlength="30"
+            pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[@#$_])[A-Za-z0-9@#$_]{8,30}"
+            autocomplete="new-password" />
+          <small>De 8 a 30 caracteres. Incluye mayúscula, minúscula, número y uno de estos símbolos: @ # $ _.</small>
         </label>
         <button type="submit" :disabled="enviando">{{ enviando ? 'Guardando…' : 'Cambiar contraseña' }}</button>
       </form>

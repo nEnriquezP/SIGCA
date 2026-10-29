@@ -173,7 +173,7 @@ onMounted(cargar)
       <p>Fecha preferida: {{ detalle.fechaPreferida }}. Esta fecha no es una cita confirmada.</p>
       <p class="texto-preservado">Mensaje: {{ detalle.mensajeAdicional || 'Sin mensaje adicional' }}</p>
       <p v-if="detalle.cita"><strong>Cita relacionada:</strong> {{ detalle.cita }}</p>
-      <template v-if="detalle.estado === 'PENDIENTE'">
+      <template v-if="detalle.estado === 'PENDIENTE' && sesion.tienePermiso('SOLICITUDES_GESTIONAR')">
         <button type="button" class="secundario" :disabled="operando" @click="rechazar">Rechazar solicitud</button>
         <h3>Convertir en cita</h3>
         <p>Selecciona un paciente ya registrado y un profesional activo. La fecha y hora efectiva pueden diferir de la fecha preferida.</p>

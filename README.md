@@ -67,7 +67,9 @@ La API usa `https://sigca-api-nelson.onrender.com` y el frontend `https://sigca-
 
 ## Autenticación — primera pieza de Avance 1
 
-El backend contiene el modelo `Usuario` con roles `ADMINISTRADOR`, `RECEPCIONISTA` y `PROFESIONAL`. `POST /api/auth/login` recibe `correo` y `password` en JSON, y devuelve un token de 8 horas y datos públicos del usuario. Limita los intentos repetidos de acceso. `GET /api/auth/me` requiere la cabecera `Authorization: Bearer <token>`; comprueba el token y vuelve a consultar si el usuario sigue activo. Las contraseñas se guardan como hashes bcrypt y no aparecen en las respuestas. `GET /api/usuarios`, `GET /api/usuarios/:id`, `POST /api/usuarios`, `PUT /api/usuarios/:id` y el `PATCH` anterior requieren un administrador autenticado. El administrador puede crear, consultar, editar, cambiar roles y activar o desactivar usuarios sin borrar su historial. El backend impide desactivar la propia cuenta o dejar el sistema sin un administrador activo.
+El backend contiene el modelo `Usuario` con roles `ADMINISTRADOR`, `RECEPCIONISTA` y `PROFESIONAL`. `POST /api/auth/login` recibe `correo` y `password` en JSON, y devuelve un token de 8 horas, los datos públicos del usuario y sus permisos. Limita los intentos repetidos de acceso. `GET /api/auth/me` requiere la cabecera `Authorization: Bearer <token>`; comprueba el token y vuelve a consultar si el usuario sigue activo. Las contraseñas se guardan como hashes bcrypt y no aparecen en las respuestas. `GET /api/usuarios`, `GET /api/usuarios/:id`, `POST /api/usuarios`, `PUT /api/usuarios/:id` y el `PATCH` anterior requieren un administrador autenticado. El administrador puede crear, consultar, editar, cambiar roles y activar o desactivar usuarios sin borrar su historial. El backend impide desactivar la propia cuenta o dejar el sistema sin un administrador activo.
+
+El panel de Usuarios muestra los permisos de los tres roles originales, que permanecen fijos. El administrador puede crear y editar roles adicionales en `/api/roles` y asignar permisos de consulta o gestión por módulo; la administración de usuarios y roles queda reservada al Administrador. La API comprueba los permisos en cada solicitud. Para cuentas nuevas y cambios de contraseña se exigen de 8 a 30 caracteres con mayúscula, minúscula, número y uno de `@`, `#`, `$` o `_`. Los nombres de usuario solo admiten letras y espacios, y los correos se validan como dirección `usuario@dominio.tld`. Las cuentas existentes pueden seguir iniciando sesión con su contraseña anterior; la nueva regla se aplica al cambiarla.
 
 El cambio de contraseña está separado de la edición general: `PUT /api/auth/password` exige la contraseña actual del propio usuario. `PUT /api/usuarios/:id/password` permite al administrador restablecer otra cuenta solo tras comprobar su propia contraseña. Ambos cambios invalidan los tokens anteriores de la cuenta afectada. Cambiar el rol o estado también invalida sus tokens anteriores. La interfaz ofrece `/mi-password` a cada usuario y el restablecimiento en `/usuarios` al administrador. Nunca se envía un hash en la respuesta.
 
@@ -121,7 +123,7 @@ La versión anterior de pacientes y responsables se publicó en ambos servicios.
 
 ## Servicios y horarios — fase 4
 
-Los servicios se guardan con identificador, nombre, descripción, duración en minutos, `precioCentavos`, imagen como URL HTTP(S) o ruta, y estado `ACTIVO` o `INACTIVO`. El frontend muestra quetzales y convierte el importe a centavos enteros antes de enviarlo. La API acepta duraciones enteras de 1 a 1440 minutos y precios de Q0.01 a Q1,000,000.00. Desactivar un servicio conserva su documento.
+Los servicios se guardan con identificador, nombre, descripción, duración en minutos, `precioCentavos`, imagen como URL HTTP(S) o ruta, y estado `ACTIVO` o `INACTIVO`. El formulario muestra el precio en quetzales con dos decimales y separadores de miles; la API recibe centavos enteros. Acepta duraciones enteras de 1 a 1440 minutos y precios de Q1.00 a Q30,000,000.00. El nombre admite letras, números, espacios, guion y guion bajo. Desactivar un servicio conserva su documento.
 
 | Ruta | Acceso | Uso |
 | --- | --- | --- |
@@ -129,7 +131,7 @@ Los servicios se guardan con identificador, nombre, descripción, duración en m
 | `GET /api/servicios/administracion` y `GET /api/servicios/administracion/:id` | Administrador y recepcionista | Consulta interna de activos e inactivos; admite `buscar` y `estado` en el listado. |
 | `POST /api/servicios`, `PUT /api/servicios/:id`, `PATCH /api/servicios/:id/estado` | Administrador | Registro, modificación y cambio de estado. |
 
-La pantalla pública es `/servicios`; `/gestion-servicios` permite al administrador modificar y a recepción consultar. El profesional puede consultar los servicios activos públicos, sin acceso a la administración. No hay carga de imágenes: se guarda únicamente su URL o ruta.
+La pantalla pública es `/servicios`; `/gestion-servicios` permite modificar a quienes tengan el permiso correspondiente y consultar a quienes tengan permiso de lectura. El profesional puede consultar los servicios activos públicos. El formulario admite cargar y recortar una imagen mediante Cloudinary o conservar una URL o ruta anterior.
 
 Los horarios se guardan en MongoDB por día de la semana, con estado abierto o cerrado e intervalos `horaInicio`–`horaFin` en **America/Guatemala**. Un día abierto necesita al menos un intervalo. Los intervalos deben usar `HH:mm`, terminar después de comenzar y no traslaparse; se admiten hasta ocho por día. No se publican horarios inventados cuando aún no están configurados.
 

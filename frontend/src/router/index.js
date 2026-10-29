@@ -28,10 +28,10 @@ const router = createRouter({
     { path: '/solicitar-cita', name: 'solicitar-cita', component: SolicitudCitaView },
     { path: '/gestion-solicitudes', name: 'gestion-solicitudes',
       component: GestionSolicitudesView,
-      meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
+      meta: { requiereSesion: true, permiso: 'SOLICITUDES_VER' } },
     { path: '/gestion-servicios', name: 'gestion-servicios', component: ServiciosView,
       props: { administracion: true },
-      meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
+      meta: { requiereSesion: true, permiso: 'SERVICIOS_VER' } },
     { path: '/horarios', name: 'horarios', component: HorariosView,
       props: { administracion: false } },
     { path: '/educacion', name: 'educacion', component: ContenidoPublicoView,
@@ -41,18 +41,18 @@ const router = createRouter({
     { path: '/contacto', name: 'contacto', component: ContactoView },
     { path: '/administracion-portal', name: 'administracion-portal',
       component: AdministracionPortalView,
-      meta: { requiereSesion: true, rol: 'ADMINISTRADOR' } },
+      meta: { requiereSesion: true, permiso: 'PORTAL_GESTIONAR' } },
     { path: '/gestion-horarios', name: 'gestion-horarios', component: HorariosView,
       props: { administracion: true },
-      meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
+      meta: { requiereSesion: true, permiso: 'HORARIOS_VER' } },
     { path: '/mi-password', name: 'mi-password', component: CambiarPasswordView,
       meta: { requiereSesion: true } },
     { path: '/usuarios', name: 'usuarios', component: UsuariosView,
-      meta: { requiereSesion: true, rol: 'ADMINISTRADOR' } },
+      meta: { requiereSesion: true, permiso: 'USUARIOS_GESTIONAR' } },
     { path: '/pacientes', name: 'pacientes', component: PacientesView,
-      meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
+      meta: { requiereSesion: true, permiso: 'PACIENTES_VER' } },
     { path: '/responsables', name: 'responsables', component: ResponsablesView,
-      meta: { requiereSesion: true, roles: ['ADMINISTRADOR', 'RECEPCIONISTA'] } },
+      meta: { requiereSesion: true, permiso: 'RESPONSABLES_VER' } },
   ],
 })
 
@@ -62,8 +62,7 @@ router.beforeEach(async (destino) => {
   const sesion = useSesionStore()
   await sesion.restaurar()
   if (!sesion.autenticado) return { name: 'ingresar' }
-  if (destino.meta.rol && sesion.usuario.rol !== destino.meta.rol) return { name: 'inicio' }
-  if (destino.meta.roles && !destino.meta.roles.includes(sesion.usuario.rol)) return { name: 'inicio' }
+  if (destino.meta.permiso && !sesion.tienePermiso(destino.meta.permiso)) return { name: 'inicio' }
 })
 
 export default router

@@ -11,7 +11,11 @@ const esPanel = computed(() => Boolean(route.meta.requiereSesion))
 const destinoVolver = computed(() => {
   if (!esPanel.value) return '/'
   if (sesion.usuario?.rol === 'ADMINISTRADOR') return '/administracion-portal'
-  if (sesion.usuario?.rol === 'RECEPCIONISTA') return '/gestion-solicitudes'
+  if (sesion.tienePermiso('SOLICITUDES_VER')) return '/gestion-solicitudes'
+  if (sesion.tienePermiso('PACIENTES_VER')) return '/pacientes'
+  if (sesion.tienePermiso('RESPONSABLES_VER')) return '/responsables'
+  if (sesion.tienePermiso('SERVICIOS_VER')) return '/gestion-servicios'
+  if (sesion.tienePermiso('HORARIOS_VER')) return '/gestion-horarios'
   return '/mi-password'
 })
 

@@ -134,7 +134,7 @@ onMounted(cargar)
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
-    <section class="tarjeta">
+    <section v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" class="tarjeta">
       <h2>Registrar responsable</h2>
       <form class="formulario-responsable" @submit.prevent="crear">
         <div class="paciente-form-layout">
@@ -185,7 +185,7 @@ onMounted(cargar)
               <td>{{ responsable.telefono }}</td>
               <td class="acciones">
                 <button type="button" class="secundario" @click="consultar(responsable)">Consultar</button>
-                <button type="button" class="secundario" @click="editar(responsable)">Modificar</button>
+                <button v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" type="button" class="secundario" @click="editar(responsable)">Modificar</button>
               </td>
             </tr>
             <tr v-if="!responsables.length"><td colspan="5">No hay responsables en esta búsqueda.</td></tr>
@@ -210,7 +210,7 @@ onMounted(cargar)
       <p v-else>No tiene pacientes asociados.</p>
     </section>
 
-    <section v-if="edicion" class="tarjeta">
+    <section v-if="edicion && sesion.tienePermiso('RESPONSABLES_GESTIONAR')" class="tarjeta">
       <h2>Modificar responsable</h2>
       <form class="formulario-responsable" @submit.prevent="guardar">
         <div class="paciente-form-layout">

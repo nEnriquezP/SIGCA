@@ -15,34 +15,33 @@ const informacionMenu = ref(null)
 const botonLateral = ref(null)
 const botonPublico = ref(null)
 
-const rolesOperacion = ['ADMINISTRADOR', 'RECEPCIONISTA']
 const grupos = [
   {
     titulo: 'Atención',
     opciones: [
-      { texto: 'Solicitudes', ruta: '/gestion-solicitudes', roles: rolesOperacion, icono: 'M4 5h16v14H4z M4 9h16 M8 13h8 M8 16h5' },
-      { texto: 'Pacientes', ruta: '/pacientes', roles: rolesOperacion, icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 7h5 M19.5 4.5v5' },
-      { texto: 'Responsables', ruta: '/responsables', roles: rolesOperacion, icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 20v-2a4 4 0 0 0-3-3.87 M16 2.13a4 4 0 0 1 0 7.75' },
+      { texto: 'Solicitudes', ruta: '/gestion-solicitudes', permiso: 'SOLICITUDES_VER', icono: 'M4 5h16v14H4z M4 9h16 M8 13h8 M8 16h5' },
+      { texto: 'Pacientes', ruta: '/pacientes', permiso: 'PACIENTES_VER', icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 7h5 M19.5 4.5v5' },
+      { texto: 'Responsables', ruta: '/responsables', permiso: 'RESPONSABLES_VER', icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 20v-2a4 4 0 0 0-3-3.87 M16 2.13a4 4 0 0 1 0 7.75' },
     ],
   },
   {
     titulo: 'Operación',
     opciones: [
-      { texto: 'Servicios internos', ruta: '/gestion-servicios', roles: rolesOperacion, icono: 'M3 7h18v14H3z M3 7l3-4h12l3 4 M8 12h8 M12 10v5' },
-      { texto: 'Horarios internos', ruta: '/gestion-horarios', roles: rolesOperacion, icono: 'M3 5h18v16H3z M7 3v4 M17 3v4 M3 10h18 M8 14h3 M14 14h3 M8 18h3' },
+      { texto: 'Servicios internos', ruta: '/gestion-servicios', permiso: 'SERVICIOS_VER', icono: 'M3 7h18v14H3z M3 7l3-4h12l3 4 M8 12h8 M12 10v5' },
+      { texto: 'Horarios internos', ruta: '/gestion-horarios', permiso: 'HORARIOS_VER', icono: 'M3 5h18v16H3z M7 3v4 M17 3v4 M3 10h18 M8 14h3 M14 14h3 M8 18h3' },
     ],
   },
   {
     titulo: 'Administración',
     opciones: [
-      { texto: 'Administrar portal', ruta: '/administracion-portal', roles: ['ADMINISTRADOR'], icono: 'M3 4h18v16H3z M3 9h18 M8 14h8 M8 17h5' },
-      { texto: 'Usuarios', ruta: '/usuarios', roles: ['ADMINISTRADOR'], icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 8h5 M19.5 5.5v5' },
+      { texto: 'Administrar portal', ruta: '/administracion-portal', permiso: 'PORTAL_GESTIONAR', icono: 'M3 4h18v16H3z M3 9h18 M8 14h8 M8 17h5' },
+      { texto: 'Usuarios', ruta: '/usuarios', permiso: 'USUARIOS_GESTIONAR', icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 8h5 M19.5 5.5v5' },
     ],
   },
   {
     titulo: 'Sistema',
     opciones: [
-      { texto: 'Estado del sistema', ruta: '/estado-sistema', roles: ['ADMINISTRADOR', 'RECEPCIONISTA', 'PROFESIONAL'], icono: 'M3 12h4l3-7 4 14 3-7h4' },
+      { texto: 'Estado del sistema', ruta: '/estado-sistema', icono: 'M3 12h4l3-7 4 14 3-7h4' },
     ],
   },
 ]
@@ -50,7 +49,8 @@ const grupos = [
 const gruposVisibles = computed(() => grupos
   .map((grupo) => ({
     ...grupo,
-    opciones: grupo.opciones.filter((opcion) => opcion.roles.includes(sesion.usuario?.rol)),
+    opciones: grupo.opciones.filter((opcion) => sesion.autenticado &&
+      (!opcion.permiso || sesion.tienePermiso(opcion.permiso))),
   }))
   .filter((grupo) => grupo.opciones.length))
 const esPanel = computed(() => Boolean(route.meta.requiereSesion))
@@ -67,8 +67,8 @@ const nombreCuenta = computed(() => {
 })
 const destinoPanel = computed(() => {
   if (sesion.usuario?.rol === 'ADMINISTRADOR') return '/administracion-portal'
-  if (sesion.usuario?.rol === 'RECEPCIONISTA') return '/gestion-solicitudes'
-  return '/mi-password'
+  return gruposVisibles.value.flatMap((grupo) => grupo.opciones)
+    .find((opcion) => opcion.ruta !== '/estado-sistema')?.ruta || '/mi-password'
 })
 
 async function cargarIdentidad() {

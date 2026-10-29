@@ -14,7 +14,25 @@ const guardando = ref(false)
 const nuevo = ref({ nombre: '', correo: '', rol: 'RECEPCIONISTA', password: '' })
 const edicion = ref(null)
 const restablecimiento = ref(null)
-const roles = ['ADMINISTRADOR', 'RECEPCIONISTA', 'PROFESIONAL']
+const roles = ref([])
+const catalogoPermisos = ref([])
+const configuracionRoles = ref(false)
+const formularioRol = ref({ codigo: '', nombre: '', permisos: [] })
+const dependenciasPermisos = {
+  SOLICITUDES_GESTIONAR: ['SOLICITUDES_VER', 'PACIENTES_VER'],
+  PACIENTES_GESTIONAR: ['PACIENTES_VER', 'RESPONSABLES_VER'],
+  RESPONSABLES_GESTIONAR: ['RESPONSABLES_VER'],
+  SERVICIOS_GESTIONAR: ['SERVICIOS_VER'],
+  HORARIOS_GESTIONAR: ['HORARIOS_VER'],
+}
+const patronCorreo = '[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\\.)+[A-Za-z]{2,63}'
+const patronPassword = '(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[@#$_])[A-Za-z0-9@#$_]{8,30}'
+
+function limpiarNombre(evento) {
+  const limpio = evento.target.value.replace(/[^\p{L} ]/gu, '')
+  evento.target.value = limpio
+  return limpio
+}
 
 function manejarError(fallo) {
   if (fallo.status === 401) {
@@ -22,6 +40,62 @@ function manejarError(fallo) {
     router.push({ name: 'ingresar' })
   }
   error.value = fallo.message || 'No se pudo completar la operación'
+}
+
+async function cargarRoles() {
+  try {
+    const datos = await solicitarApi('/api/roles', { token: sesion.token })
+    roles.value = datos.roles
+    catalogoPermisos.value = datos.catalogo
+  } catch (fallo) {
+    manejarError(fallo)
+  }
+}
+
+function nombrePermiso(codigo) {
+  return catalogoPermisos.value.find((permiso) => permiso.codigo === codigo)?.nombre || codigo
+}
+
+function nombreRol(codigo) {
+  return roles.value.find((rol) => rol.codigo === codigo)?.nombre || codigo
+}
+
+function nuevoRol() {
+  formularioRol.value = { codigo: '', nombre: '', permisos: [] }
+}
+
+function editarRol(rol) {
+  if (rol.predefinido) return
+  formularioRol.value = { codigo: rol.codigo, nombre: rol.nombre, permisos: [...rol.permisos] }
+  configuracionRoles.value = true
+}
+
+function ajustarDependencias() {
+  const permisos = new Set(formularioRol.value.permisos)
+  for (const [permiso, dependencias] of Object.entries(dependenciasPermisos)) {
+    if (permisos.has(permiso)) dependencias.forEach((dependencia) => permisos.add(dependencia))
+  }
+  formularioRol.value.permisos = [...permisos]
+}
+
+async function guardarRol() {
+  error.value = ''
+  aviso.value = ''
+  guardando.value = true
+  try {
+    const { codigo, nombre, permisos } = formularioRol.value
+    await solicitarApi(codigo ? `/api/roles/${codigo}` : '/api/roles', {
+      method: codigo ? 'PUT' : 'POST', token: sesion.token,
+      body: { nombre, permisos },
+    })
+    aviso.value = codigo ? 'Rol actualizado. Sus permisos se aplicarán al volver a iniciar sesión.' : 'Rol creado'
+    nuevoRol()
+    await cargarRoles()
+  } catch (fallo) {
+    manejarError(fallo)
+  } finally {
+    guardando.value = false
+  }
 }
 
 async function cargar() {
@@ -125,28 +199,67 @@ async function restablecerPassword() {
   }
 }
 
-onMounted(cargar)
+onMounted(() => Promise.all([cargar(), cargarRoles()]))
 </script>
 
 <template>
   <main class="contenedor">
-    <h1>Usuarios</h1>
+    <div class="encabezado-usuarios">
+      <h1>Usuarios</h1>
+      <button type="button" class="secundario" :aria-expanded="configuracionRoles"
+        @click="configuracionRoles = !configuracionRoles">⚙ Configuración de roles y permisos</button>
+    </div>
     <p>Solo los administradores pueden crear y administrar cuentas.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
+    <section v-if="configuracionRoles" class="tarjeta" aria-label="Configuración de roles y permisos">
+      <h2>Roles y permisos</h2>
+      <p>Los tres roles originales conservan sus permisos. Puedes crear y editar roles adicionales para tareas específicas.</p>
+      <div class="roles-lista">
+        <article v-for="rol in roles" :key="rol.codigo" class="rol-resumen">
+          <div class="rol-resumen-cabecera">
+            <h3>{{ rol.nombre }}</h3>
+            <button v-if="!rol.predefinido" type="button" class="secundario" @click="editarRol(rol)">Editar rol</button>
+            <span v-else class="requisito-campo">Rol original</span>
+          </div>
+          <p v-if="!rol.permisos.length">Sin acceso a módulos operativos; conserva el acceso a su cuenta y al estado del sistema.</p>
+          <ul v-else><li v-for="permiso in rol.permisos" :key="permiso">{{ nombrePermiso(permiso) }}</li></ul>
+        </article>
+      </div>
+      <h3>{{ formularioRol.codigo ? `Editar ${formularioRol.nombre}` : 'Crear rol' }}</h3>
+      <form @submit.prevent="guardarRol">
+        <label>Nombre del rol <span class="requisito-campo">Obligatorio</span>
+          <input v-model.trim="formularioRol.nombre" required maxlength="60" placeholder="Ej. Coordinación de citas" />
+        </label>
+        <fieldset class="permisos-lista">
+          <legend>Permisos <span class="requisito-campo">Opcional</span></legend>
+          <label v-for="permiso in catalogoPermisos.filter((item) => item.asignable !== false)" :key="permiso.codigo">
+            <input v-model="formularioRol.permisos" type="checkbox" :value="permiso.codigo" @change="ajustarDependencias" />
+            <span>{{ permiso.nombre }}</span>
+          </label>
+        </fieldset>
+        <p>Para gestionar un módulo también se necesita permiso de consulta; se agrega automáticamente. Administrar usuarios y roles queda reservado al Administrador.</p>
+        <div class="acciones">
+          <button type="submit" :disabled="guardando">{{ formularioRol.codigo ? 'Guardar rol' : 'Crear rol' }}</button>
+          <button v-if="formularioRol.codigo" type="button" class="secundario" @click="nuevoRol">Cancelar edición</button>
+        </div>
+      </form>
+    </section>
+
     <section class="tarjeta">
       <h2>Crear usuario</h2>
       <form class="formulario-grid" @submit.prevent="crear">
-        <label>Nombre<input v-model.trim="nuevo.nombre" required maxlength="120" /></label>
-        <label>Correo<input v-model.trim="nuevo.correo" type="email" required autocomplete="off" /></label>
+        <label>Nombre<input v-model.trim="nuevo.nombre" @input="nuevo.nombre = limpiarNombre($event)" required maxlength="120" placeholder="Solo letras y espacios" /></label>
+        <label>Correo electrónico<input v-model.trim="nuevo.correo" type="email" :pattern="patronCorreo" title="Escribe un correo válido, por ejemplo usuario@dominio.com" required autocomplete="off" /></label>
         <label>Rol
           <select v-model="nuevo.rol">
-            <option v-for="rol in roles" :key="rol" :value="rol">{{ rol }}</option>
+            <option v-for="rol in roles" :key="rol.codigo" :value="rol.codigo">{{ rol.nombre }}</option>
           </select>
         </label>
         <label>Contraseña inicial
-          <input v-model="nuevo.password" type="password" required minlength="12" autocomplete="new-password" />
+          <input v-model="nuevo.password" type="password" required minlength="8" maxlength="30" :pattern="patronPassword" autocomplete="new-password" />
+          <small>De 8 a 30 caracteres. Incluye mayúscula, minúscula, número y uno de estos símbolos: @ # $ _.</small>
         </label>
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Crear usuario' }}</button>
       </form>
@@ -162,7 +275,7 @@ onMounted(cargar)
             <tr v-for="usuario in usuarios" :key="usuario.id">
               <td>{{ usuario.nombre }}</td>
               <td>{{ usuario.correo }}</td>
-              <td>{{ usuario.rol }}</td>
+              <td>{{ nombreRol(usuario.rol) }}</td>
               <td>{{ usuario.activo ? 'Activo' : 'Inactivo' }}</td>
               <td class="acciones">
                 <button type="button" class="secundario" @click="editar(usuario)">Editar</button>
@@ -182,11 +295,11 @@ onMounted(cargar)
     <section v-if="edicion" class="tarjeta">
       <h2>Editar usuario</h2>
       <form class="formulario-grid" @submit.prevent="guardar">
-        <label>Nombre<input v-model.trim="edicion.nombre" required maxlength="120" /></label>
-        <label>Correo<input v-model.trim="edicion.correo" type="email" required /></label>
+        <label>Nombre<input v-model.trim="edicion.nombre" @input="edicion.nombre = limpiarNombre($event)" required maxlength="120" placeholder="Solo letras y espacios" /></label>
+        <label>Correo electrónico<input v-model.trim="edicion.correo" type="email" :pattern="patronCorreo" title="Escribe un correo válido, por ejemplo usuario@dominio.com" required /></label>
         <label>Rol
           <select v-model="edicion.rol" :disabled="edicion.id === sesion.usuario?.id">
-            <option v-for="rol in roles" :key="rol" :value="rol">{{ rol }}</option>
+            <option v-for="rol in roles" :key="rol.codigo" :value="rol.codigo">{{ rol.nombre }}</option>
           </select>
         </label>
         <div class="acciones">
@@ -201,7 +314,8 @@ onMounted(cargar)
       <p>Confirma la operación con tu contraseña de administrador. La cuenta deberá iniciar sesión de nuevo.</p>
       <form class="formulario-grid" @submit.prevent="restablecerPassword">
         <label>Nueva contraseña
-          <input v-model="restablecimiento.passwordNueva" type="password" required minlength="12" autocomplete="new-password" />
+          <input v-model="restablecimiento.passwordNueva" type="password" required minlength="8" maxlength="30" :pattern="patronPassword" autocomplete="new-password" />
+          <small>De 8 a 30 caracteres. Incluye mayúscula, minúscula, número y uno de estos símbolos: @ # $ _.</small>
         </label>
         <label>Tu contraseña actual
           <input v-model="restablecimiento.passwordAdministrador" type="password" required autocomplete="current-password" />

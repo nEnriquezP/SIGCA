@@ -203,7 +203,7 @@ async function cambiarEstado(paciente) {
 }
 
 onMounted(async () => {
-  await Promise.all([cargar(), cargarResponsables()])
+  await Promise.all([cargar(), sesion.tienePermiso('RESPONSABLES_VER') ? cargarResponsables() : Promise.resolve()])
 })
 </script>
 
@@ -214,7 +214,7 @@ onMounted(async () => {
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
-    <section class="tarjeta">
+    <section v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')" class="tarjeta">
       <h2>Registrar paciente</h2>
       <form class="formulario-paciente" @submit.prevent="crear">
         <div class="paciente-form-layout">
@@ -289,8 +289,8 @@ onMounted(async () => {
               <td>{{ paciente.estado }}</td>
               <td class="acciones">
                 <button type="button" class="secundario" @click="consultar(paciente)">Consultar</button>
-                <button type="button" class="secundario" @click="editar(paciente)">Actualizar</button>
-                <button type="button" class="secundario" @click="cambiarEstado(paciente)">
+                <button v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')" type="button" class="secundario" @click="editar(paciente)">Actualizar</button>
+                <button v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')" type="button" class="secundario" @click="cambiarEstado(paciente)">
                   {{ paciente.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
                 </button>
               </td>
@@ -321,7 +321,7 @@ onMounted(async () => {
       <p>La consulta de citas y pagos estará disponible al implementar esos módulos.</p>
     </section>
 
-    <section v-if="edicion" class="tarjeta">
+    <section v-if="edicion && sesion.tienePermiso('PACIENTES_GESTIONAR')" class="tarjeta">
       <h2>Actualizar paciente</h2>
       <form class="formulario-paciente" @submit.prevent="guardar">
         <div class="paciente-form-layout">
