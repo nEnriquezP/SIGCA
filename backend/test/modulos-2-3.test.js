@@ -7,15 +7,18 @@ import Paciente from '../src/models/Paciente.js'
 import Responsable from '../src/models/Responsable.js'
 import Contador from '../src/models/Contador.js'
 import ImagenCargada from '../src/models/ImagenCargada.js'
+import Rol from '../src/models/Rol.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 process.env.CORS_ORIGIN = 'http://localhost:5173'
 
 const { default: app } = await import('../src/app.js')
+const { crearToken } = await import('../src/middleware/autenticacion.js')
 const usuarios = new Map()
 const pacientes = new Map()
 const responsables = new Map()
 const secuencias = new Map()
+const rolesPersonalizados = new Map()
 let servidor
 let base
 
@@ -60,6 +63,25 @@ before(async () => {
       async save() { usuarios.set(this.id, this) } }
     usuarios.set(usuario.id, usuario)
     return usuario
+  }
+  Rol.find = () => ({ sort: () => ({ lean: async () => [...rolesPersonalizados.values()] }) })
+  Rol.findOne = ({ codigo }) => ({ lean: async () => rolesPersonalizados.get(codigo) ?? null })
+  Rol.exists = async ({ codigo }) => rolesPersonalizados.has(codigo)
+  Rol.create = async (datos) => {
+    if (rolesPersonalizados.has(datos.codigo)) {
+      const error = new Error('Duplicado')
+      error.code = 11000
+      throw error
+    }
+    const rol = { ...datos }
+    rolesPersonalizados.set(rol.codigo, rol)
+    return rol
+  }
+  Rol.findOneAndUpdate = async ({ codigo }, datos) => {
+    const rol = rolesPersonalizados.get(codigo)
+    if (!rol) return null
+    Object.assign(rol, datos)
+    return rol
   }
 
   Responsable.countDocuments = async ({ _id }) => _id.$in.filter((id) => responsables.has(id)).length
@@ -160,15 +182,46 @@ test('restablecimiento protegido invalida sesiones anteriores', async () => {
   const anterior = (await entrar('profesional@example.test')).body.token
   const ruta = `/api/usuarios/${idProfesional}/password`
   assert.equal((await pedir(ruta, { metodo: 'PUT', token: admin,
-    datos: { passwordAdministrador: 'incorrecta', passwordNueva: 'NuevaClave456' } })).status, 403)
+    datos: { passwordAdministrador: 'incorrecta', passwordNueva: 'NuevaClave#456' } })).status, 403)
   assert.equal((await pedir(ruta, { metodo: 'PUT', token: admin,
-    datos: { passwordAdministrador: 'ClaveInicial123', passwordNueva: 'NuevaClave456' } })).status, 200)
+    datos: { passwordAdministrador: 'ClaveInicial123', passwordNueva: 'NuevaClave#456' } })).status, 200)
   assert.equal((await pedir('/api/auth/me', { token: anterior })).status, 401)
   assert.equal((await entrar('profesional@example.test')).status, 401)
   const propia = await pedir('/api/auth/password', { metodo: 'PUT', token: admin,
-    datos: { passwordActual: 'ClaveInicial123', passwordNueva: 'OtraClave7891' } })
+    datos: { passwordActual: 'ClaveInicial123', passwordNueva: 'OtraClave#7891' } })
   assert.equal(propia.status, 200)
   assert.equal((await pedir('/api/auth/me', { token: admin })).status, 401)
+})
+
+test('administrador crea y edita un rol personalizado; la API aplica permisos de lectura y escritura', async () => {
+  const admin = crearToken(usuarios.get(idAdmin))
+  const lista = await pedir('/api/roles', { token: admin })
+  assert.equal(lista.status, 200)
+  assert.equal(lista.body.roles.length, 3)
+  assert.equal((await pedir('/api/roles', { token: crearToken(usuarios.get(idRecepcion)) })).status, 403)
+  const rol = await pedir('/api/roles', { metodo: 'POST', token: admin,
+    datos: { nombre: 'Consulta de pacientes', permisos: ['PACIENTES_VER'] } })
+  assert.equal(rol.status, 201)
+  assert.equal(rol.body.rol.codigo, 'ROL_CONSULTA_DE_PACIENTES')
+  assert.equal((await pedir('/api/roles', { metodo: 'POST', token: admin,
+    datos: { nombre: 'Rol riesgoso', permisos: ['USUARIOS_GESTIONAR'] } })).status, 400)
+  const nuevo = await pedir('/api/usuarios', { metodo: 'POST', token: admin,
+    datos: { nombre: 'María Prueba', correo: 'maria@miumg.edu.gt',
+      rol: rol.body.rol.codigo, password: 'Segura#8a' } })
+  assert.equal(nuevo.status, 201)
+  const token = crearToken(usuarios.get(nuevo.body.usuario.id))
+  const sesion = await pedir('/api/auth/me', { token })
+  assert.equal(sesion.status, 200)
+  assert.deepEqual(sesion.body.usuario.permisos, ['PACIENTES_VER'])
+  assert.equal((await pedir('/api/pacientes?estado=DESCONOCIDO', { token })).status, 400)
+  assert.equal((await pedir('/api/pacientes', { metodo: 'POST', token, datos: {} })).status, 403)
+  assert.equal((await pedir('/api/usuarios', { token })).status, 403)
+  const actualizado = await pedir(`/api/roles/${rol.body.rol.codigo}`, { metodo: 'PUT', token: admin,
+    datos: { nombre: 'Consulta y registro',
+      permisos: ['PACIENTES_VER', 'PACIENTES_GESTIONAR', 'RESPONSABLES_VER'] } })
+  assert.equal(actualizado.status, 200)
+  assert.equal((await pedir('/api/pacientes', { metodo: 'POST', token, datos: {} })).status, 400)
+  assert.equal((await pedir('/api/usuarios', { token })).status, 403)
 })
 
 test('pacientes y responsables validan asociación y baja lógica', async () => {

@@ -12,14 +12,16 @@ function validar(datos) {
       Object.keys(datos).some((campo) => !campos.includes(campo))) {
     return 'Debes completar los campos del servicio'
   }
-  if (typeof datos.nombre !== 'string' || !datos.nombre.trim() ||
-      datos.nombre.trim().length > 120) return 'Nombre inválido'
+  if (typeof datos.nombre !== 'string' || datos.nombre.trim().length > 120 ||
+      !/^[\p{L}\p{N}]+(?:[ _-][\p{L}\p{N}]+)*$/u.test(datos.nombre.trim())) {
+    return 'El nombre solo admite letras, números, espacios, guion y guion bajo'
+  }
   if (typeof datos.descripcion !== 'string' || !datos.descripcion.trim() ||
       datos.descripcion.trim().length > 2000) return 'Descripción inválida'
   if (!Number.isInteger(datos.duracionMinutos) || datos.duracionMinutos < 1 ||
       datos.duracionMinutos > 1440) return 'Duración inválida'
-  if (!Number.isSafeInteger(datos.precioCentavos) || datos.precioCentavos < 1 ||
-      datos.precioCentavos > 100000000) return 'Precio inválido'
+  if (!Number.isSafeInteger(datos.precioCentavos) || datos.precioCentavos < 100 ||
+      datos.precioCentavos > 3000000000) return 'El precio debe estar entre Q1.00 y Q30,000,000.00'
   if (!imagenValida(datos.imagen)) return 'Imagen inválida: usa una URL HTTP(S) o ruta que inicie con /'
   return null
 }

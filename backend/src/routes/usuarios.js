@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Usuario from '../models/Usuario.js'
+import Rol from '../models/Rol.js'
+import { correoCuentaValido, nombreCuentaValido, passwordNuevaValida,
+  REGLA_PASSWORD } from '../services/validacionCuenta.js'
 
 const router = Router()
 const roles = new Set(['ADMINISTRADOR', 'RECEPCIONISTA', 'PROFESIONAL'])
@@ -34,24 +37,14 @@ function validarCampos(datos, { nuevo = false } = {}) {
   if (nuevo && !['nombre', 'correo', 'rol', 'password'].every((campo) => campo in datos)) {
     return 'Nombre, correo, rol y contraseña son obligatorios'
   }
-  if ('nombre' in datos &&
-      (typeof datos.nombre !== 'string' || !datos.nombre.trim() || datos.nombre.trim().length > 120)) {
-    return 'Nombre inválido'
-  }
+  if ('nombre' in datos && !nombreCuentaValido(datos.nombre)) return 'El nombre solo puede contener letras y espacios'
 
-  if ('correo' in datos &&
-      (typeof datos.correo !== 'string' || datos.correo.length > 254 ||
-       !/^\S+@\S+\.\S+$/.test(datos.correo.trim()))) {
-    return 'Correo inválido'
-  }
+  if ('correo' in datos && !correoCuentaValido(datos.correo)) return 'Correo electrónico inválido'
 
-  if ('rol' in datos && !roles.has(datos.rol)) return 'Rol inválido'
+  if ('rol' in datos && !roles.has(datos.rol) &&
+      (typeof datos.rol !== 'string' || !/^ROL_[A-Z0-9_]{2,40}$/.test(datos.rol))) return 'Rol inválido'
   if ('activo' in datos && typeof datos.activo !== 'boolean') return 'Estado inválido'
-  if ('password' in datos &&
-      (typeof datos.password !== 'string' || datos.password.length < 12 ||
-       Buffer.byteLength(datos.password, 'utf8') > 72)) {
-    return 'La contraseña debe tener entre 12 caracteres y 72 bytes'
-  }
+  if ('password' in datos && !passwordNuevaValida(datos.password)) return REGLA_PASSWORD
 
   return null
 }
@@ -83,6 +76,9 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   const error = validarCampos(req.body, { nuevo: true })
   if (error) return res.status(400).json({ mensaje: error })
+  if (!roles.has(req.body.rol) && !await Rol.exists({ codigo: req.body.rol })) {
+    return res.status(400).json({ mensaje: 'Rol no encontrado' })
+  }
 
   const { nombre, correo, password, rol } = req.body
   try {
@@ -106,6 +102,9 @@ async function actualizarUsuario(req, res) {
 
   const error = validarCampos(req.body)
   if (error) return res.status(400).json({ mensaje: error })
+  if (req.body.rol && !roles.has(req.body.rol) && !await Rol.exists({ codigo: req.body.rol })) {
+    return res.status(400).json({ mensaje: 'Rol no encontrado' })
+  }
 
   const usuario = await Usuario.findById(req.params.id).select('+tokenVersion')
   if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' })
@@ -150,9 +149,8 @@ router.put('/:id/password', async (req, res) => {
       Object.keys(datos).length !== 2 || !('passwordAdministrador' in datos) ||
       !('passwordNueva' in datos) || typeof datos.passwordAdministrador !== 'string' ||
       Buffer.byteLength(datos.passwordAdministrador, 'utf8') > 72 ||
-      typeof datos.passwordNueva !== 'string' || datos.passwordNueva.length < 12 ||
-      Buffer.byteLength(datos.passwordNueva, 'utf8') > 72) {
-    return res.status(400).json({ mensaje: 'Contraseñas inválidas' })
+      !passwordNuevaValida(datos.passwordNueva)) {
+    return res.status(400).json({ mensaje: REGLA_PASSWORD })
   }
 
   const administrador = await Usuario.findById(req.usuario.id).select('+passwordHash')

@@ -12,11 +12,7 @@ const usuarioSchema = new mongoose.Schema({
   },
   passwordHash: { type: String, required: true, select: false },
   tokenVersion: { type: Number, default: 0, select: false },
-  rol: {
-    type: String,
-    required: true,
-    enum: ['ADMINISTRADOR', 'RECEPCIONISTA', 'PROFESIONAL'],
-  },
+  rol: { type: String, required: true, maxlength: 44 },
   activo: { type: Boolean, default: true },
 }, { timestamps: true })
 

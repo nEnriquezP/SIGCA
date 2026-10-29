@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import Usuario from '../models/Usuario.js'
+import { permisoParaRuta, permisosDeUsuario } from '../services/permisos.js'
 
 function obtenerSecreto() {
   const secreto = process.env.JWT_SECRET
@@ -51,6 +52,7 @@ export async function autenticar(req, res, next) {
   }
 
   req.usuario = usuario
+  req.permisos = new Set(await permisosDeUsuario(usuario))
   next()
 }
 
@@ -61,7 +63,8 @@ function mongooseIdValido(valor) {
 export function permitirRoles(...roles) {
   return (req, res, next) => {
     if (!req.usuario) return res.status(401).json({ mensaje: 'Se requiere iniciar sesión' })
-    if (!roles.includes(req.usuario.rol)) {
+    if (!roles.includes(req.usuario.rol) &&
+        !req.permisos?.has(permisoParaRuta(req))) {
       return res.status(403).json({ mensaje: 'Acceso no permitido' })
     }
     next()

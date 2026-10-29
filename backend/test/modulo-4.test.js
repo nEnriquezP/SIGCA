@@ -92,8 +92,10 @@ test('servicios: validación, importes, permisos y visibilidad pública', async 
   assert.equal((await pedir('/api/servicios', { metodo: 'POST', token: recepcion, datos })).status, 403)
   assert.equal((await pedir('/api/servicios', { metodo: 'POST', token: profesional, datos })).status, 403)
   for (const cambio of [
-    { duracionMinutos: 0 }, { duracionMinutos: 1.5 }, { precioCentavos: 0 },
-    { precioCentavos: 250.5 }, { imagen: 'javascript:alert(1)' },
+    { duracionMinutos: 0 }, { duracionMinutos: 1.5 }, { duracionMinutos: 1441 },
+    { precioCentavos: 0 }, { precioCentavos: 99 }, { precioCentavos: 3000000001 },
+    { precioCentavos: 250.5 }, { nombre: 'Consulta @ casa' },
+    { imagen: 'javascript:alert(1)' },
   ]) {
     assert.equal((await pedir('/api/servicios', { metodo: 'POST', token: admin,
       datos: { ...datos, ...cambio } })).status, 400)
@@ -104,6 +106,9 @@ test('servicios: validación, importes, permisos y visibilidad pública', async 
   const creado = await pedir('/api/servicios', { metodo: 'POST', token: admin, datos })
   assert.equal(creado.status, 201)
   assert.equal(creado.body.servicio.precioCentavos, 25025)
+  assert.equal((await pedir(`/api/servicios/${ids.servicio}`, { metodo: 'PUT', token: admin,
+    datos: { ...datos, nombre: 'Consulta_interna-2', precioCentavos: 3000000000,
+      duracionMinutos: 1440 } })).status, 200)
   assert.equal((await pedir('/api/servicios')).body.servicios.length, 1)
   assert.equal((await pedir(`/api/servicios/${ids.servicio}`)).status, 200)
   assert.equal((await pedir('/api/servicios/administracion', { token: recepcion })).status, 200)

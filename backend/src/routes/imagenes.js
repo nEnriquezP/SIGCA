@@ -15,9 +15,15 @@ const categorias = new Set(['paciente', 'responsable', 'servicio', 'logo', 'carr
 
 router.use(autenticar)
 
-function rolesPermitidos(rol, categoria) {
-  return rol === 'ADMINISTRADOR' ||
-    (rol === 'RECEPCIONISTA' && ['paciente', 'responsable'].includes(categoria))
+function accesoImagen(req, categoria, lectura = false) {
+  const permiso = {
+    paciente: lectura ? 'PACIENTES_VER' : 'PACIENTES_GESTIONAR',
+    responsable: lectura ? 'RESPONSABLES_VER' : 'RESPONSABLES_GESTIONAR',
+    servicio: 'SERVICIOS_GESTIONAR', logo: 'PORTAL_GESTIONAR',
+    carrusel: 'PORTAL_GESTIONAR', publicacion: 'PORTAL_GESTIONAR',
+    actividad: 'PORTAL_GESTIONAR',
+  }[categoria]
+  return Boolean(permiso && req.permisos?.has(permiso))
 }
 
 router.post('/', (req, res, next) => {
@@ -29,7 +35,7 @@ router.post('/', (req, res, next) => {
 }, async (req, res) => {
   const categoria = req.body?.categoria
   if (!categorias.has(categoria)) return res.status(400).json({ mensaje: 'Categoría de imagen inválida' })
-  if (!rolesPermitidos(req.usuario.rol, categoria)) {
+  if (!accesoImagen(req, categoria)) {
     return res.status(403).json({ mensaje: 'Acceso no permitido' })
   }
   if (!req.file) return res.status(400).json({ mensaje: 'Selecciona una imagen' })
@@ -47,7 +53,7 @@ router.post('/', (req, res, next) => {
 
 router.get('/privadas/:id', async (req, res) => {
   res.set('Cache-Control', 'no-store')
-  if (!rolesPermitidos(req.usuario.rol, 'paciente')) {
+  if (!accesoImagen(req, 'paciente', true) && !accesoImagen(req, 'responsable', true)) {
     return res.status(403).json({ mensaje: 'Acceso no permitido' })
   }
   if (!/^[0-9a-f-]{36}$/.test(req.params.id)) {
@@ -56,6 +62,9 @@ router.get('/privadas/:id', async (req, res) => {
   const imagen = await ImagenCargada.findById(req.params.id)
   if (!imagen?.privada || !['paciente', 'responsable'].includes(imagen.categoria)) {
     return res.status(404).json({ mensaje: 'Imagen no encontrada' })
+  }
+  if (!accesoImagen(req, imagen.categoria, true)) {
+    return res.status(403).json({ mensaje: 'Acceso no permitido' })
   }
   const asociada = imagen.categoria === 'paciente' ?
     await Paciente.exists({ fotografia: imagen.valor }) :

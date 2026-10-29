@@ -19,7 +19,7 @@ const servicioSchema = new mongoose.Schema({
   descripcion: { type: String, required: true, trim: true, maxlength: 2000 },
   duracionMinutos: { type: Number, required: true, min: 1, max: 1440,
     validate: Number.isInteger },
-  precioCentavos: { type: Number, required: true, min: 1, max: 100000000,
+  precioCentavos: { type: Number, required: true, min: 100, max: 3000000000,
     validate: Number.isSafeInteger },
   imagen: { type: String, required: true, trim: true, validate: imagenValida },
   estado: { type: String, enum: ['ACTIVO', 'INACTIVO'], default: 'ACTIVO' },

@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs'
 import { rateLimit } from 'express-rate-limit'
 import Usuario from '../models/Usuario.js'
 import { autenticar, crearToken } from '../middleware/autenticacion.js'
+import { passwordNuevaValida, REGLA_PASSWORD } from '../services/validacionCuenta.js'
+import { permisosDeUsuario } from '../services/permisos.js'
 
 const router = Router()
 const limitarIntentos = rateLimit({
@@ -13,18 +15,14 @@ const limitarIntentos = rateLimit({
   message: { mensaje: 'Demasiados intentos. Intenta de nuevo en 15 minutos.' },
 })
 
-function datosPublicos(usuario) {
+function datosPublicos(usuario, permisos) {
   return {
     id: usuario.id,
     nombre: usuario.nombre,
     correo: usuario.correo,
     rol: usuario.rol,
+    permisos,
   }
-}
-
-function passwordValida(valor) {
-  return typeof valor === 'string' && valor.length >= 12 &&
-    Buffer.byteLength(valor, 'utf8') <= 72
 }
 
 router.post('/login', limitarIntentos, async (req, res) => {
@@ -41,21 +39,22 @@ router.post('/login', limitarIntentos, async (req, res) => {
     return res.status(401).json({ mensaje: 'Credenciales incorrectas' })
   }
 
-  res.json({ token: crearToken(usuario), usuario: datosPublicos(usuario) })
+  res.json({ token: crearToken(usuario), usuario: datosPublicos(usuario,
+    await permisosDeUsuario(usuario)) })
 })
 
 router.get('/me', autenticar, (req, res) => {
-  res.json({ usuario: datosPublicos(req.usuario) })
+  res.json({ usuario: datosPublicos(req.usuario, [...req.permisos]) })
 })
 
 router.put('/password', autenticar, async (req, res) => {
   const datos = req.body
   if (!datos || typeof datos !== 'object' || Array.isArray(datos) ||
       Object.keys(datos).length !== 2 || !('passwordActual' in datos) ||
-      !('passwordNueva' in datos) || !passwordValida(datos.passwordNueva) ||
+      !('passwordNueva' in datos) || !passwordNuevaValida(datos.passwordNueva) ||
       typeof datos.passwordActual !== 'string' ||
       Buffer.byteLength(datos.passwordActual, 'utf8') > 72) {
-    return res.status(400).json({ mensaje: 'Contraseñas inválidas' })
+    return res.status(400).json({ mensaje: REGLA_PASSWORD })
   }
 
   const usuario = await Usuario.findById(req.usuario.id).select('+passwordHash +tokenVersion')

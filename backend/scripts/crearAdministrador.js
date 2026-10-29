@@ -2,17 +2,18 @@ import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import Usuario from '../src/models/Usuario.js'
+import { correoCuentaValido, nombreCuentaValido, passwordNuevaValida,
+  REGLA_PASSWORD } from '../src/services/validacionCuenta.js'
 
 const nombre = process.env.ADMIN_NOMBRE?.trim()
 const correo = process.env.ADMIN_CORREO?.trim().toLowerCase()
 const password = process.env.ADMIN_PASSWORD
 const expectedDb = process.env.ADMIN_EXPECTED_DB
 
-if (!process.env.MONGO_URI || !nombre || !correo || !password ||
-    !/^\S+@\S+\.\S+$/.test(correo) || password.length < 12 ||
-    Buffer.byteLength(password, 'utf8') > 72 ||
+if (!process.env.MONGO_URI || !nombreCuentaValido(nombre) || !correoCuentaValido(correo) ||
+    !passwordNuevaValida(password) ||
     !['sigca_dev', 'sigca_test', 'sigca_prod'].includes(expectedDb)) {
-  console.error('Faltan datos del administrador o ADMIN_EXPECTED_DB; la contraseña debe tener 12 a 72 bytes')
+  console.error(`Faltan datos del administrador o ADMIN_EXPECTED_DB. ${REGLA_PASSWORD}`)
   process.exitCode = 1
 } else {
   try {

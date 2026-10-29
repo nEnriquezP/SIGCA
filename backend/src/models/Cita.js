@@ -13,7 +13,7 @@ const schema = new mongoose.Schema({
       v.every((minuto) => Number.isInteger(minuto) && minuto >= 0 && minuto < 1440) },
   duracionMinutos: { type: Number, required: true, min: 1, max: 1440,
     validate: Number.isInteger },
-  precioCentavos: { type: Number, required: true, min: 1, max: 100000000,
+  precioCentavos: { type: Number, required: true, min: 1, max: 3000000000,
     validate: Number.isSafeInteger },
   estado: { type: String, enum: ['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA'],
     default: 'PENDIENTE' },
