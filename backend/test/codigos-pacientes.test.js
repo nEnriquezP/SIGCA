@@ -108,7 +108,8 @@ test('códigos de pacientes con MongoDB local, migración y relaciones',
       correo: 'admin@example.test', passwordHash: await bcrypt.hash('SoloPrueba123', 4),
       rol: 'ADMINISTRADOR' })
     const token = crearToken(admin)
-    const responsable = await Responsable.create({ fotografia: '/imagenes/existente.png',
+    const responsable = await Responsable.create({ codigo: 'RESPO-000001',
+      fotografia: '/imagenes/existente.png',
       nombres: 'Responsable', apellidos: 'Ficticio', parentesco: 'Madre',
       telefono: '55551234', correo: 'responsable@example.test',
       direccion: 'Dirección de prueba' })

@@ -8,9 +8,11 @@
     "start": "node src/server.js",
     "test": "node --test",
     "test:codigos:local": "SIGCA_PROBAR_MONGO_LOCAL=1 node --test test/codigos-pacientes.test.js",
+    "test:codigos:responsables:local": "SIGCA_PROBAR_MONGO_LOCAL=1 node --test test/codigos-responsables.test.js",
     "test:atlas": "node scripts/probarModulos23.js",
     "test:atlas:modulo4": "node scripts/probarModulo4.js",
     "codigos:pacientes": "node scripts/asignarCodigosPacientes.js",
+    "codigos:responsables": "node scripts/asignarCodigosResponsables.js",
     "crear-admin": "node scripts/crearAdministrador.js"
   },
   "engines": {

@@ -103,7 +103,8 @@ function respuesta(paciente) {
     observacionesAdministrativas: paciente.observacionesAdministrativas, estado: paciente.estado,
     responsables: paciente.responsables.map((responsable) =>
       typeof responsable === 'object' && responsable.nombres ? {
-        id: responsable.id, nombres: responsable.nombres, apellidos: responsable.apellidos,
+        id: responsable.id, codigo: responsable.codigo ?? null,
+        nombres: responsable.nombres, apellidos: responsable.apellidos,
         parentesco: responsable.parentesco,
       } : String(responsable)),
   }
@@ -140,7 +141,7 @@ router.get('/:id', async (req, res) => {
     return res.status(400).json({ mensaje: 'Identificador inválido' })
   }
   const paciente = await Paciente.findById(req.params.id).populate('responsables',
-    'nombres apellidos parentesco')
+    'codigo nombres apellidos parentesco')
   if (!paciente) return res.status(404).json({ mensaje: 'Paciente no encontrado' })
   res.json({ paciente: respuesta(paciente) })
 })

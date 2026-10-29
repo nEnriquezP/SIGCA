@@ -4,6 +4,7 @@ import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Paciente from '../models/Paciente.js'
 import Responsable from '../models/Responsable.js'
 import { fotoPrivadaValida } from '../services/imagenes.js'
+import { siguienteCodigoResponsable } from '../services/codigosResponsable.js'
 
 const router = Router()
 const campos = ['fotografia', 'nombres', 'apellidos', 'parentesco', 'telefono', 'correo', 'direccion']
@@ -35,7 +36,8 @@ function validar(datos) {
 }
 
 function respuesta(responsable) {
-  return { id: responsable.id, fotografia: responsable.fotografia, nombres: responsable.nombres,
+  return { id: responsable.id, codigo: responsable.codigo ?? null,
+    fotografia: responsable.fotografia, nombres: responsable.nombres,
     apellidos: responsable.apellidos, parentesco: responsable.parentesco,
     telefono: responsable.telefono, correo: responsable.correo, direccion: responsable.direccion }
 }
@@ -47,7 +49,7 @@ function limpiar(datos) {
 
 function filtroBusqueda(texto) {
   const patron = texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const condiciones = ['nombres', 'apellidos', 'correo', 'telefono'].map((campo) =>
+  const condiciones = ['codigo', 'nombres', 'apellidos', 'correo', 'telefono'].map((campo) =>
     ({ [campo]: { $regex: patron, $options: 'i' } }))
   if (mongoose.isValidObjectId(texto)) condiciones.push({ _id: texto })
   return { $or: condiciones }
@@ -84,7 +86,11 @@ router.post('/', async (req, res) => {
   if (!await fotoPrivadaValida(req.body.fotografia.trim(), 'responsable')) {
     return res.status(400).json({ mensaje: 'Carga una fotografía privada para el responsable' })
   }
-  const responsable = await Responsable.create(limpiar(req.body))
+  if (await Responsable.exists({ codigo: null })) {
+    return res.status(503).json({ mensaje: 'Primero asigna códigos a los responsables existentes' })
+  }
+  const codigo = await siguienteCodigoResponsable()
+  const responsable = await Responsable.create({ ...limpiar(req.body), codigo })
   res.status(201).json({ responsable: respuesta(responsable) })
 })
 

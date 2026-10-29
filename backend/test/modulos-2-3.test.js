@@ -15,7 +15,7 @@ const { default: app } = await import('../src/app.js')
 const usuarios = new Map()
 const pacientes = new Map()
 const responsables = new Map()
-let secuenciaPacientes = 0
+const secuencias = new Map()
 let servidor
 let base
 
@@ -63,6 +63,7 @@ before(async () => {
   }
 
   Responsable.countDocuments = async ({ _id }) => _id.$in.filter((id) => responsables.has(id)).length
+  Responsable.exists = async () => null
   Responsable.create = async (datos) => {
     const responsable = { ...datos, id: idResponsable }
     responsables.set(idResponsable, responsable)
@@ -70,7 +71,11 @@ before(async () => {
   }
   Responsable.findById = (id) => consulta(responsables.get(String(id)) ?? null)
   ImagenCargada.exists = async () => ({ _id: 'imagen-de-prueba' })
-  Contador.findOneAndUpdate = async () => ({ secuencia: ++secuenciaPacientes })
+  Contador.findOneAndUpdate = async ({ _id }) => {
+    const secuencia = (secuencias.get(_id) ?? 0) + 1
+    secuencias.set(_id, secuencia)
+    return { secuencia }
+  }
   Paciente.exists = async () => null
   Paciente.findById = (id) => consulta(pacientes.get(String(id)) ?? null)
   Paciente.create = async (datos) => {
@@ -184,6 +189,12 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
   }
   const creado = await pedir('/api/responsables', { metodo: 'POST', token, datos: responsable })
   assert.equal(creado.status, 201)
+  assert.equal(creado.body.responsable.codigo, 'RESPO-000001')
+  assert.equal(responsables.get(idResponsable).codigo, 'RESPO-000001')
+  assert.equal((await pedir('/api/responsables', { metodo: 'POST', token,
+    datos: { ...responsable, codigo: 'RESPO-999999' } })).status, 400)
+  assert.equal((await pedir(`/api/responsables/${idResponsable}`, { metodo: 'PUT', token,
+    datos: { ...responsable, codigo: 'RESPO-999999' } })).status, 400)
   assert.equal((await pedir(`/api/responsables/${idResponsable}`, { metodo: 'PUT', token,
     datos: { ...responsable, telefono: '01234567' } })).status, 400)
   assert.equal((await pedir(`/api/responsables/${idResponsable}`, { metodo: 'PUT', token,
