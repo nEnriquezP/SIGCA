@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
@@ -14,6 +14,9 @@ const guardando = ref(false)
 const nuevo = ref({ nombre: '', correo: '', rol: 'RECEPCIONISTA', password: '' })
 const edicion = ref(null)
 const restablecimiento = ref(null)
+const verPasswordInicial = ref(false)
+const verPasswordNueva = ref(false)
+const verPasswordAdministrador = ref(false)
 const roles = ref([])
 const catalogoPermisos = ref([])
 const configuracionRoles = ref(false)
@@ -27,6 +30,20 @@ const dependenciasPermisos = {
 }
 const patronCorreo = '[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\\.)+[A-Za-z]{2,63}'
 const patronPassword = '(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[@#$_])[A-Za-z0-9@#$_]{8,30}'
+
+function requisitosPassword(password) {
+  return [
+    { texto: 'Entre 8 y 30 caracteres', cumplido: password.length >= 8 && password.length <= 30 },
+    { texto: 'Al menos una letra mayúscula', cumplido: /[A-Z]/.test(password) },
+    { texto: 'Al menos una letra minúscula', cumplido: /[a-z]/.test(password) },
+    { texto: 'Al menos un número', cumplido: /\d/.test(password) },
+    { texto: 'Al menos un símbolo: @ # $ _', cumplido: /[@#$_]/.test(password) },
+    { texto: 'Sin espacios ni otros símbolos', cumplido: password.length > 0 && /^[A-Za-z0-9@#$_]+$/.test(password) },
+  ]
+}
+
+const requisitosIniciales = computed(() => requisitosPassword(nuevo.value.password))
+const requisitosNuevos = computed(() => requisitosPassword(restablecimiento.value?.passwordNueva ?? ''))
 
 function limpiarNombre(evento) {
   const limpio = evento.target.value.replace(/[^\p{L} ]/gu, '')
@@ -118,6 +135,7 @@ async function crear() {
   try {
     await solicitarApi('/api/usuarios', { method: 'POST', token: sesion.token, body: nuevo.value })
     nuevo.value = { nombre: '', correo: '', rol: 'RECEPCIONISTA', password: '' }
+    verPasswordInicial.value = false
     aviso.value = 'Usuario creado'
     await cargar()
   } catch (fallo) {
@@ -171,6 +189,8 @@ async function cambiarEstado(usuario) {
 function prepararRestablecimiento(usuario) {
   restablecimiento.value = { id: usuario.id, nombre: usuario.nombre,
     passwordNueva: '', passwordAdministrador: '' }
+  verPasswordNueva.value = false
+  verPasswordAdministrador.value = false
   edicion.value = null
   error.value = ''
   aviso.value = ''
@@ -257,10 +277,29 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
             <option v-for="rol in roles" :key="rol.codigo" :value="rol.codigo">{{ rol.nombre }}</option>
           </select>
         </label>
-        <label>Contraseña inicial
-          <input v-model="nuevo.password" type="password" required minlength="8" maxlength="30" :pattern="patronPassword" autocomplete="new-password" />
-          <small>De 8 a 30 caracteres. Incluye mayúscula, minúscula, número y uno de estos símbolos: @ # $ _.</small>
-        </label>
+        <div class="campo-password">
+          <label for="password-inicial">Contraseña inicial</label>
+          <div class="password-control">
+            <input id="password-inicial" v-model="nuevo.password" :type="verPasswordInicial ? 'text' : 'password'"
+              required minlength="8" maxlength="30" :pattern="patronPassword" autocomplete="new-password"
+              aria-describedby="requisitos-password-inicial" />
+            <button type="button" class="password-visibilidad" :aria-label="verPasswordInicial ? 'Ocultar contraseña inicial' : 'Ver contraseña inicial'"
+              :aria-pressed="verPasswordInicial" @click="verPasswordInicial = !verPasswordInicial">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="3" />
+                <path v-if="verPasswordInicial" d="M3 3l18 18" />
+              </svg>
+              {{ verPasswordInicial ? 'Ocultar' : 'Ver' }}
+            </button>
+          </div>
+          <ul id="requisitos-password-inicial" class="lista-requisitos-password" aria-label="Requisitos de la contraseña inicial" aria-live="polite">
+            <li v-for="requisito in requisitosIniciales" :key="requisito.texto" :class="{ cumplido: requisito.cumplido }">
+              <span aria-hidden="true">{{ requisito.cumplido ? '✓' : '○' }}</span>
+              {{ requisito.texto }} <span class="solo-lectores">{{ requisito.cumplido ? 'cumplido' : 'pendiente' }}</span>
+            </li>
+          </ul>
+        </div>
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Crear usuario' }}</button>
       </form>
     </section>
@@ -313,13 +352,45 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
       <h2>Restablecer contraseña de {{ restablecimiento.nombre }}</h2>
       <p>Confirma la operación con tu contraseña de administrador. La cuenta deberá iniciar sesión de nuevo.</p>
       <form class="formulario-grid" @submit.prevent="restablecerPassword">
-        <label>Nueva contraseña
-          <input v-model="restablecimiento.passwordNueva" type="password" required minlength="8" maxlength="30" :pattern="patronPassword" autocomplete="new-password" />
-          <small>De 8 a 30 caracteres. Incluye mayúscula, minúscula, número y uno de estos símbolos: @ # $ _.</small>
-        </label>
-        <label>Tu contraseña actual
-          <input v-model="restablecimiento.passwordAdministrador" type="password" required autocomplete="current-password" />
-        </label>
+        <div class="campo-password">
+          <label for="password-nueva-usuario">Nueva contraseña</label>
+          <div class="password-control">
+            <input id="password-nueva-usuario" v-model="restablecimiento.passwordNueva"
+              :type="verPasswordNueva ? 'text' : 'password'" required minlength="8" maxlength="30"
+              :pattern="patronPassword" autocomplete="new-password" aria-describedby="requisitos-password-nueva" />
+            <button type="button" class="password-visibilidad" :aria-label="verPasswordNueva ? 'Ocultar nueva contraseña' : 'Ver nueva contraseña'"
+              :aria-pressed="verPasswordNueva" @click="verPasswordNueva = !verPasswordNueva">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="3" />
+                <path v-if="verPasswordNueva" d="M3 3l18 18" />
+              </svg>
+              {{ verPasswordNueva ? 'Ocultar' : 'Ver' }}
+            </button>
+          </div>
+          <ul id="requisitos-password-nueva" class="lista-requisitos-password" aria-label="Requisitos de la nueva contraseña" aria-live="polite">
+            <li v-for="requisito in requisitosNuevos" :key="requisito.texto" :class="{ cumplido: requisito.cumplido }">
+              <span aria-hidden="true">{{ requisito.cumplido ? '✓' : '○' }}</span>
+              {{ requisito.texto }} <span class="solo-lectores">{{ requisito.cumplido ? 'cumplido' : 'pendiente' }}</span>
+            </li>
+          </ul>
+        </div>
+        <div class="campo-password">
+          <label for="password-admin-actual">Tu contraseña actual</label>
+          <div class="password-control">
+            <input id="password-admin-actual" v-model="restablecimiento.passwordAdministrador"
+              :type="verPasswordAdministrador ? 'text' : 'password'" required autocomplete="current-password" />
+            <button type="button" class="password-visibilidad" :aria-label="verPasswordAdministrador ? 'Ocultar contraseña actual' : 'Ver contraseña actual'"
+              :aria-pressed="verPasswordAdministrador" @click="verPasswordAdministrador = !verPasswordAdministrador">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="3" />
+                <path v-if="verPasswordAdministrador" d="M3 3l18 18" />
+              </svg>
+              {{ verPasswordAdministrador ? 'Ocultar' : 'Ver' }}
+            </button>
+          </div>
+        </div>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Restablecer</button>
           <button type="button" class="secundario" @click="restablecimiento = null">Cancelar</button>
