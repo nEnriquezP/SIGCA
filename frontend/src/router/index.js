@@ -6,6 +6,7 @@ import UsuariosView from '../views/UsuariosView.vue'
 import PacientesView from '../views/PacientesView.vue'
 import ResponsablesView from '../views/ResponsablesView.vue'
 import CambiarPasswordView from '../views/CambiarPasswordView.vue'
+import MiCuentaView from '../views/MiCuentaView.vue'
 import ServiciosView from '../views/ServiciosView.vue'
 import HorariosView from '../views/HorariosView.vue'
 import ContenidoPublicoView from '../views/ContenidoPublicoView.vue'
@@ -46,6 +47,8 @@ const router = createRouter({
       props: { administracion: true },
       meta: { requiereSesion: true, permiso: 'HORARIOS_VER' } },
     { path: '/mi-password', name: 'mi-password', component: CambiarPasswordView,
+      meta: { requiereSesion: true } },
+    { path: '/mi-cuenta', name: 'mi-cuenta', component: MiCuentaView,
       meta: { requiereSesion: true } },
     { path: '/usuarios', name: 'usuarios', component: UsuariosView,
       meta: { requiereSesion: true, permiso: 'USUARIOS_GESTIONAR' } },

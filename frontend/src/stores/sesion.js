@@ -20,6 +20,10 @@ export const useSesionStore = defineStore('sesion', () => {
     sessionStorage.removeItem(CLAVE_SESION)
   }
 
+  function actualizarUsuario(datos) {
+    usuario.value = datos
+  }
+
   async function iniciar(correo, password) {
     const datos = await solicitarApi('/api/auth/login', {
       method: 'POST',
@@ -48,5 +52,5 @@ export const useSesionStore = defineStore('sesion', () => {
     }
   }
 
-  return { token, usuario, autenticado, tienePermiso, iniciar, restaurar, cerrar }
+  return { token, usuario, autenticado, tienePermiso, iniciar, restaurar, actualizarUsuario, cerrar }
 })

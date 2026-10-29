@@ -3,6 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
+import AvatarUsuario from '../components/AvatarUsuario.vue'
+import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
+import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
@@ -13,6 +16,7 @@ const cargando = ref(false)
 const guardando = ref(false)
 const nuevo = ref({ nombre: '', correo: '', rol: 'RECEPCIONISTA', password: '' })
 const edicion = ref(null)
+const edicionOriginal = ref(null)
 const restablecimiento = ref(null)
 const verPasswordInicial = ref(false)
 const verPasswordNueva = ref(false)
@@ -21,6 +25,7 @@ const roles = ref([])
 const catalogoPermisos = ref([])
 const configuracionRoles = ref(false)
 const formularioRol = ref({ codigo: '', nombre: '', permisos: [] })
+const formularioRolOriginal = ref(JSON.stringify(formularioRol.value))
 const dependenciasPermisos = {
   SOLICITUDES_GESTIONAR: ['SOLICITUDES_VER', 'PACIENTES_VER'],
   PACIENTES_GESTIONAR: ['PACIENTES_VER', 'RESPONSABLES_VER'],
@@ -44,6 +49,12 @@ function requisitosPassword(password) {
 
 const requisitosIniciales = computed(() => requisitosPassword(nuevo.value.password))
 const requisitosNuevos = computed(() => requisitosPassword(restablecimiento.value?.passwordNueva ?? ''))
+const hayCambios = computed(() =>
+  JSON.stringify(nuevo.value) !== JSON.stringify({ nombre: '', correo: '', rol: 'RECEPCIONISTA', password: '' }) ||
+  (edicion.value !== null && JSON.stringify(edicion.value) !== edicionOriginal.value) ||
+  Boolean(restablecimiento.value?.passwordNueva || restablecimiento.value?.passwordAdministrador) ||
+  JSON.stringify(formularioRol.value) !== formularioRolOriginal.value)
+const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } = useCambiosSinGuardar(hayCambios)
 
 function limpiarNombre(evento) {
   const limpio = evento.target.value.replace(/[^\p{L} ]/gu, '')
@@ -79,11 +90,21 @@ function nombreRol(codigo) {
 
 function nuevoRol() {
   formularioRol.value = { codigo: '', nombre: '', permisos: [] }
+  formularioRolOriginal.value = JSON.stringify(formularioRol.value)
 }
 
-function editarRol(rol) {
+async function descartarEdicionRol() {
+  if (JSON.stringify(formularioRol.value) !== formularioRolOriginal.value &&
+      !await confirmarSalida()) return
+  nuevoRol()
+}
+
+async function editarRol(rol) {
   if (rol.predefinido) return
+  if (JSON.stringify(formularioRol.value) !== formularioRolOriginal.value &&
+      !await confirmarSalida()) return
   formularioRol.value = { codigo: rol.codigo, nombre: rol.nombre, permisos: [...rol.permisos] }
+  formularioRolOriginal.value = JSON.stringify(formularioRol.value)
   configuracionRoles.value = true
 }
 
@@ -145,8 +166,13 @@ async function crear() {
   }
 }
 
-function editar(usuario) {
+async function editar(usuario) {
+  if ((edicion.value !== null && JSON.stringify(edicion.value) !== edicionOriginal.value) ||
+      restablecimiento.value?.passwordNueva || restablecimiento.value?.passwordAdministrador) {
+    if (!await confirmarSalida()) return
+  }
   edicion.value = { ...usuario }
+  edicionOriginal.value = JSON.stringify(edicion.value)
   restablecimiento.value = null
   error.value = ''
   aviso.value = ''
@@ -162,6 +188,7 @@ async function guardar() {
   try {
     await solicitarApi(`/api/usuarios/${id}`, { method: 'PUT', token: sesion.token, body })
     edicion.value = null
+    edicionOriginal.value = null
     aviso.value = 'Usuario actualizado'
     await cargar()
   } catch (fallo) {
@@ -186,14 +213,32 @@ async function cambiarEstado(usuario) {
   }
 }
 
-function prepararRestablecimiento(usuario) {
+async function cancelarEdicion() {
+  if (edicion.value !== null && JSON.stringify(edicion.value) !== edicionOriginal.value &&
+      !await confirmarSalida()) return
+  edicion.value = null
+  edicionOriginal.value = null
+}
+
+async function prepararRestablecimiento(usuario) {
+  if ((edicion.value !== null && JSON.stringify(edicion.value) !== edicionOriginal.value) ||
+      restablecimiento.value?.passwordNueva || restablecimiento.value?.passwordAdministrador) {
+    if (!await confirmarSalida()) return
+  }
   restablecimiento.value = { id: usuario.id, nombre: usuario.nombre,
     passwordNueva: '', passwordAdministrador: '' }
   verPasswordNueva.value = false
   verPasswordAdministrador.value = false
   edicion.value = null
+  edicionOriginal.value = null
   error.value = ''
   aviso.value = ''
+}
+
+async function cancelarRestablecimiento() {
+  if ((restablecimiento.value?.passwordNueva || restablecimiento.value?.passwordAdministrador) &&
+      !await confirmarSalida()) return
+  restablecimiento.value = null
 }
 
 async function restablecerPassword() {
@@ -262,18 +307,18 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
         <p>Para gestionar un módulo también se necesita permiso de consulta; se agrega automáticamente. Administrar usuarios y roles queda reservado al Administrador.</p>
         <div class="acciones">
           <button type="submit" :disabled="guardando">{{ formularioRol.codigo ? 'Guardar rol' : 'Crear rol' }}</button>
-          <button v-if="formularioRol.codigo" type="button" class="secundario" @click="nuevoRol">Cancelar edición</button>
+          <button v-if="formularioRol.codigo" type="button" class="secundario" @click="descartarEdicionRol">Cancelar edición</button>
         </div>
       </form>
     </section>
 
     <section class="tarjeta">
       <h2>Crear usuario</h2>
-      <form class="formulario-grid" @submit.prevent="crear">
+      <form class="formulario-grid formulario-usuarios" @submit.prevent="crear">
         <label>Nombre<input v-model.trim="nuevo.nombre" @input="nuevo.nombre = limpiarNombre($event)" required maxlength="120" placeholder="Solo letras y espacios" /></label>
         <label>Correo electrónico<input v-model.trim="nuevo.correo" type="email" :pattern="patronCorreo" title="Escribe un correo válido, por ejemplo usuario@dominio.com" required autocomplete="off" /></label>
         <label>Rol
-          <select v-model="nuevo.rol">
+          <select v-model="nuevo.rol" class="selector-rol">
             <option v-for="rol in roles" :key="rol.codigo" :value="rol.codigo">{{ rol.nombre }}</option>
           </select>
         </label>
@@ -312,7 +357,8 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
           <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             <tr v-for="usuario in usuarios" :key="usuario.id">
-              <td>{{ usuario.nombre }}</td>
+              <td><div class="usuario-identidad"><AvatarUsuario :usuario="usuario" tamano="pequeno" />
+                <span>{{ usuario.nombre }}</span></div></td>
               <td>{{ usuario.correo }}</td>
               <td>{{ nombreRol(usuario.rol) }}</td>
               <td>{{ usuario.activo ? 'Activo' : 'Inactivo' }}</td>
@@ -333,17 +379,17 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
 
     <section v-if="edicion" class="tarjeta">
       <h2>Editar usuario</h2>
-      <form class="formulario-grid" @submit.prevent="guardar">
+      <form class="formulario-grid formulario-usuarios" @submit.prevent="guardar">
         <label>Nombre<input v-model.trim="edicion.nombre" @input="edicion.nombre = limpiarNombre($event)" required maxlength="120" placeholder="Solo letras y espacios" /></label>
         <label>Correo electrónico<input v-model.trim="edicion.correo" type="email" :pattern="patronCorreo" title="Escribe un correo válido, por ejemplo usuario@dominio.com" required /></label>
         <label>Rol
-          <select v-model="edicion.rol" :disabled="edicion.id === sesion.usuario?.id">
+          <select v-model="edicion.rol" class="selector-rol" :disabled="edicion.id === sesion.usuario?.id">
             <option v-for="rol in roles" :key="rol.codigo" :value="rol.codigo">{{ rol.nombre }}</option>
           </select>
         </label>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Guardar cambios</button>
-          <button type="button" class="secundario" @click="edicion = null">Cancelar</button>
+          <button type="button" class="secundario" @click="cancelarEdicion">Cancelar</button>
         </div>
       </form>
     </section>
@@ -393,9 +439,10 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
         </div>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Restablecer</button>
-          <button type="button" class="secundario" @click="restablecimiento = null">Cancelar</button>
+          <button type="button" class="secundario" @click="cancelarRestablecimiento">Cancelar</button>
         </div>
       </form>
     </section>
+    <AdvertenciaCambios :abierto="advertenciaVisible" @seguir="seguirEditando" @salir="salirSinGuardar" />
   </main>
 </template>

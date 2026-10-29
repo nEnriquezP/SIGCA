@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSesionStore } from './stores/sesion.js'
 import { solicitarApi } from './services/api.js'
+import AvatarUsuario from './components/AvatarUsuario.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -59,7 +60,7 @@ const opcionActual = computed(() => grupos
   .find((opcion) => opcion.ruta === route.path))
 const ubicacion = computed(() => opcionActual.value
   ? [opcionActual.value.grupo, opcionActual.value.texto]
-  : ['Cuenta', 'Mi contraseña'])
+  : ['Cuenta', route.path === '/mi-cuenta' ? 'Mi cuenta' : 'Mi contraseña'])
 const nombreCentro = computed(() => identidad.value?.nombreCentro || 'Centro Médico Jalapa')
 const nombreCuenta = computed(() => {
   const usuario = sesion.usuario
@@ -154,11 +155,12 @@ async function salir() {
         <RouterLink class="enlace-portal" to="/" @click="cerrarMenus">Ver portal público</RouterLink>
         <details ref="cuentaMenu" class="menu-desplegable menu-cuenta">
           <summary aria-label="Menú de cuenta">
-            <span class="avatar-cuenta" aria-hidden="true">{{ nombreCuenta.charAt(0).toUpperCase() }}</span>
+            <AvatarUsuario :usuario="sesion.usuario" tamano="pequeno" />
             <span class="nombre-cuenta">{{ nombreCuenta }}</span>
             <span class="flecha-menu" aria-hidden="true">⌄</span>
           </summary>
           <div class="contenido-menu">
+            <RouterLink to="/mi-cuenta" @click="cerrarMenus">Mi cuenta</RouterLink>
             <RouterLink to="/mi-password" @click="cerrarMenus">Mi contraseña</RouterLink>
             <button type="button" @click="salir">Salir</button>
           </div>

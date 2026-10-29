@@ -17,6 +17,9 @@ const sesion = useSesionStore()
 const archivoInput = ref(null)
 const camaraInput = ref(null)
 const dialogo = ref(null)
+const dialogoCamara = ref(null)
+const videoCamara = ref(null)
+let camaraStream = null
 const lienzo = ref(null)
 const imagen = ref(null)
 const fuenteTemporal = ref('')
@@ -41,9 +44,57 @@ watch(() => props.modelValue, (valor) => {
 })
 watch([zoom, horizontal, vertical], dibujar)
 onUnmounted(() => {
+  cerrarCamara()
   if (fuenteTemporal.value) URL.revokeObjectURL(fuenteTemporal.value)
   if (vistaLocal.value) URL.revokeObjectURL(vistaLocal.value)
 })
+
+function cerrarCamara() {
+  camaraStream?.getTracks().forEach((pista) => pista.stop())
+  camaraStream = null
+  if (videoCamara.value) videoCamara.value.srcObject = null
+  if (dialogoCamara.value?.open) dialogoCamara.value.close()
+}
+
+async function usarCamara() {
+  error.value = ''
+  if (!navigator.mediaDevices?.getUserMedia) {
+    camaraInput.value?.click()
+    return
+  }
+  try {
+    camaraStream = await navigator.mediaDevices.getUserMedia({
+      audio: false, video: { facingMode: 'user' },
+    })
+    await nextTick()
+    videoCamara.value.srcObject = camaraStream
+    dialogoCamara.value.showModal()
+    await videoCamara.value.play()
+  } catch {
+    cerrarCamara()
+    error.value = 'No se pudo abrir la cámara. Revisa sus permisos o usa Elegir imagen.'
+  }
+}
+
+async function tomarFoto() {
+  const video = videoCamara.value
+  if (!video?.videoWidth || !video.videoHeight) {
+    error.value = 'Espera a que la cámara muestre una imagen.'
+    return
+  }
+  try {
+    const captura = document.createElement('canvas')
+    captura.width = video.videoWidth
+    captura.height = video.videoHeight
+    captura.getContext('2d').drawImage(video, 0, 0)
+    const blob = await new Promise((resolver) => captura.toBlob(resolver, 'image/jpeg', 0.9))
+    if (!blob) throw new Error('No se pudo tomar la fotografía')
+    cerrarCamara()
+    await abrirConBlob(blob)
+  } catch {
+    error.value = 'No se pudo procesar la foto. Inténtalo de nuevo.'
+  }
+}
 
 function dibujar() {
   const canvas = lienzo.value
@@ -182,12 +233,21 @@ function quitar() {
     <div class="acciones">
       <button v-if="tieneValor" type="button" class="secundario" @click="recortarActual">Recortar</button>
       <button type="button" class="secundario" @click="archivoInput.click()">{{ tieneValor ? 'Reemplazar' : 'Elegir imagen' }}</button>
-      <button type="button" class="secundario" @click="camaraInput.click()">Usar cámara</button>
+      <button type="button" class="secundario" @click="usarCamara">Usar cámara</button>
       <button v-if="tieneValor" type="button" class="secundario" @click="quitar">Quitar</button>
     </div>
     <input ref="archivoInput" class="entrada-archivo-oculta" type="file" tabindex="-1" accept="image/jpeg,image/png,image/webp" :aria-label="`Elegir ${etiqueta}`" @change="seleccionar" />
-    <input ref="camaraInput" class="entrada-archivo-oculta" type="file" tabindex="-1" accept="image/jpeg,image/png,image/webp" capture="environment" :aria-label="`Fotografiar ${etiqueta}`" @change="seleccionar" />
+    <input ref="camaraInput" class="entrada-archivo-oculta" type="file" tabindex="-1" accept="image/jpeg,image/png,image/webp" capture="user" :aria-label="`Fotografiar ${etiqueta}`" @change="seleccionar" />
     <p v-if="error && !imagen" class="mensaje-error" role="alert">{{ error }}</p>
+    <dialog ref="dialogoCamara" class="dialogo-recorte dialogo-camara" :aria-label="`Tomar ${etiqueta}`"
+      @cancel.prevent="cerrarCamara">
+      <h3>Tomar {{ etiqueta }}</h3>
+      <video ref="videoCamara" autoplay playsinline muted aria-label="Vista previa de la cámara"></video>
+      <div class="acciones">
+        <button type="button" @click="tomarFoto">Tomar foto</button>
+        <button type="button" class="secundario" @click="cerrarCamara">Cancelar</button>
+      </div>
+    </dialog>
     <dialog ref="dialogo" class="dialogo-recorte" :aria-label="`Recortar ${etiqueta}`" @cancel.prevent="cancelar">
       <h3>Recortar {{ etiqueta }}</h3>
       <p class="ayuda-recorte">Arrastra la imagen para acomodarla. Si no se mueve en una dirección, aumenta primero la ampliación.</p>
