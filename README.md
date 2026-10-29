@@ -125,11 +125,13 @@ La versión anterior de pacientes y responsables se publicó en ambos servicios.
 
 ## Servicios y horarios — fase 4
 
-Los servicios se guardan con identificador, nombre, descripción, duración en minutos, `precioCentavos`, imagen como URL HTTP(S) o ruta, y estado `ACTIVO` o `INACTIVO`. El formulario muestra el precio en quetzales con dos decimales y separadores de miles; la API recibe centavos enteros. Acepta duraciones enteras de 1 a 1440 minutos y precios de Q1.00 a Q30,000,000.00. El nombre admite letras, números, espacios, guion y guion bajo. Desactivar un servicio conserva su documento.
+Los servicios se guardan con código visible `SERV-INT-0001`, `SERV-INT-0002`, etc., nombre, descripción, duración en minutos, `precioCentavos`, imagen como URL HTTP(S) o ruta, y estado `ACTIVO` o `INACTIVO`. El código lo asigna un contador atómico, es único e inmutable. El ObjectId se conserva para relaciones internas, pero no se muestra en el detalle administrativo. El formulario muestra el precio en quetzales con dos decimales y separadores de miles; la API recibe centavos enteros. Acepta duraciones enteras de 1 a 1440 minutos y precios de Q1.00 a Q30,000,000.00. El nombre admite letras, números, espacios, guion y guion bajo. Desactivar un servicio conserva su documento.
+
+Para los servicios anteriores, `npm run codigos:servicios -- --db=sigca_dev` o `--db=sigca_test` desde `backend/` asigna códigos por `createdAt` y `_id`, conserva los ya asignados y se puede repetir. Comprueba que la conexión apunta a la base indicada y haz un respaldo antes de ejecutarlo. Mientras queden servicios sin código, el registro nuevo responde 503 para mantener el orden histórico. En producción el comando requiere `--db=sigca_prod --confirmar-produccion`; la URI privada se proporciona fuera del historial de comandos. La asignación no cambia las citas ni las solicitudes existentes.
 
 | Ruta | Acceso | Uso |
 | --- | --- | --- |
-| `GET /api/servicios` y `GET /api/servicios/:id` | Público | Solo servicios activos; `buscar` filtra por nombre, descripción o identificador. Un inactivo no aparece ni en el detalle. |
+| `GET /api/servicios` y `GET /api/servicios/:id` | Público | Solo servicios activos; `buscar` filtra por código, nombre o descripción. Un inactivo no aparece ni en el detalle. |
 | `GET /api/servicios/administracion` y `GET /api/servicios/administracion/:id` | Administrador y recepcionista | Consulta interna de activos e inactivos; admite `buscar` y `estado` en el listado. |
 | `POST /api/servicios`, `PUT /api/servicios/:id`, `PATCH /api/servicios/:id/estado` | Administrador | Registro, modificación y cambio de estado. |
 

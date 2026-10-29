@@ -15,6 +15,7 @@ export function imagenValida(valor) {
 }
 
 const servicioSchema = new mongoose.Schema({
+  codigo: { type: String, required: true, immutable: true, match: /^SERV-INT-\d{4,}$/ },
   nombre: { type: String, required: true, trim: true, maxlength: 120 },
   descripcion: { type: String, required: true, trim: true, maxlength: 2000 },
   duracionMinutos: { type: Number, required: true, min: 1, max: 1440,
@@ -24,5 +25,8 @@ const servicioSchema = new mongoose.Schema({
   imagen: { type: String, required: true, trim: true, validate: imagenValida },
   estado: { type: String, enum: ['ACTIVO', 'INACTIVO'], default: 'ACTIVO' },
 }, { timestamps: true })
+
+servicioSchema.index({ codigo: 1 }, { unique: true,
+  partialFilterExpression: { codigo: { $type: 'string' } } })
 
 export default mongoose.model('Servicio', servicioSchema)

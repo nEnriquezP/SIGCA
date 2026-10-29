@@ -2,6 +2,7 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Servicio, { imagenValida } from '../models/Servicio.js'
+import { siguienteCodigoServicio } from '../services/codigosServicio.js'
 
 const router = Router()
 const campos = ['nombre', 'descripcion', 'duracionMinutos', 'precioCentavos', 'imagen']
@@ -36,7 +37,8 @@ function limpiar(datos) {
 
 function respuesta(servicio) {
   return {
-    id: servicio.id, nombre: servicio.nombre, descripcion: servicio.descripcion,
+    id: servicio.id, codigo: servicio.codigo ?? null,
+    nombre: servicio.nombre, descripcion: servicio.descripcion,
     duracionMinutos: servicio.duracionMinutos, precioCentavos: servicio.precioCentavos,
     imagen: servicio.imagen, estado: servicio.estado,
   }
@@ -60,7 +62,7 @@ function filtros(req, { privado = false } = {}) {
   }
   if (buscar) {
     const patron = buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const condiciones = ['nombre', 'descripcion'].map((campo) =>
+    const condiciones = ['codigo', 'nombre', 'descripcion'].map((campo) =>
       ({ [campo]: { $regex: patron, $options: 'i' } }))
     if (mongoose.isValidObjectId(buscar)) condiciones.push({ _id: buscar })
     filtro.$or = condiciones
@@ -105,7 +107,11 @@ router.get('/:id', async (req, res) => {
 router.post('/', autenticar, permitirRoles('ADMINISTRADOR'), async (req, res) => {
   const error = validar(req.body)
   if (error) return res.status(400).json({ mensaje: error })
-  const servicio = await Servicio.create(limpiar(req.body))
+  if (await Servicio.exists({ codigo: null })) {
+    return res.status(503).json({ mensaje: 'Primero asigna códigos a los servicios existentes' })
+  }
+  const codigo = await siguienteCodigoServicio()
+  const servicio = await Servicio.create({ ...limpiar(req.body), codigo })
   res.status(201).json({ servicio: respuesta(servicio) })
 })
 

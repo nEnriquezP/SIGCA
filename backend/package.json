@@ -13,6 +13,7 @@
     "test:atlas:modulo4": "node scripts/probarModulo4.js",
     "codigos:pacientes": "node scripts/asignarCodigosPacientes.js",
     "codigos:responsables": "node scripts/asignarCodigosResponsables.js",
+    "codigos:servicios": "node scripts/asignarCodigosServicios.js",
     "crear-admin": "node scripts/crearAdministrador.js"
   },
   "engines": {
