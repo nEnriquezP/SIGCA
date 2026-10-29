@@ -6,7 +6,7 @@ import sharp from 'sharp'
 import ImagenCargada from '../models/ImagenCargada.js'
 
 const prefijos = { sigca_dev: 'sigca/dev', sigca_test: 'sigca/test', sigca_prod: 'sigca/prod' }
-const privadas = new Set(['paciente', 'responsable'])
+const privadas = new Set(['paciente', 'responsable', 'usuario'])
 
 export async function fotoPrivadaValida(valor, categoria, anterior = null) {
   if (anterior && valor === anterior) return true

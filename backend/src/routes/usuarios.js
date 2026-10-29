@@ -18,6 +18,8 @@ function respuestaUsuario(usuario) {
     nombre: usuario.nombre,
     correo: usuario.correo,
     rol: usuario.rol,
+    avatar: usuario.avatar || '',
+    fotografia: usuario.fotografia || '',
     activo: usuario.activo,
   }
 }
@@ -59,7 +61,7 @@ function errorDeDuplicado(error, res) {
 
 router.get('/', async (req, res) => {
   const usuarios = await Usuario.find()
-    .select('nombre correo rol activo')
+    .select('nombre correo rol activo avatar fotografia')
     .sort({ nombre: 1 })
   res.json({ usuarios: usuarios.map(respuestaUsuario) })
 })

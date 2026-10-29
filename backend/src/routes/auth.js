@@ -2,6 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { rateLimit } from 'express-rate-limit'
 import Usuario from '../models/Usuario.js'
+import ImagenCargada from '../models/ImagenCargada.js'
 import { autenticar, crearToken } from '../middleware/autenticacion.js'
 import { passwordNuevaValida, REGLA_PASSWORD } from '../services/validacionCuenta.js'
 import { permisosDeUsuario } from '../services/permisos.js'
@@ -21,6 +22,8 @@ function datosPublicos(usuario, permisos) {
     nombre: usuario.nombre,
     correo: usuario.correo,
     rol: usuario.rol,
+    avatar: usuario.avatar || '',
+    fotografia: usuario.fotografia || '',
     permisos,
   }
 }
@@ -44,6 +47,30 @@ router.post('/login', limitarIntentos, async (req, res) => {
 })
 
 router.get('/me', autenticar, (req, res) => {
+  res.json({ usuario: datosPublicos(req.usuario, [...req.permisos]) })
+})
+
+const avatares = new Set(['', 'medica', 'medico', 'enfermera', 'enfermero',
+  'recepcionista-mujer', 'recepcionista-hombre'])
+
+router.put('/perfil', autenticar, async (req, res) => {
+  const datos = req.body
+  if (!datos || typeof datos !== 'object' || Array.isArray(datos) ||
+      Object.keys(datos).length !== 2 || !('avatar' in datos) || !('fotografia' in datos) ||
+      typeof datos.avatar !== 'string' || !avatares.has(datos.avatar) ||
+      typeof datos.fotografia !== 'string' || (datos.avatar && datos.fotografia)) {
+    return res.status(400).json({ mensaje: 'Elige una fotografía o un avatar válido' })
+  }
+  const fotografia = datos.fotografia
+  if (fotografia && fotografia !== req.usuario.fotografia &&
+      (!/^\/api\/imagenes\/privadas\/[0-9a-f-]{36}$/.test(fotografia) ||
+        !await ImagenCargada.exists({ valor: fotografia, categoria: 'usuario', privada: true,
+          propietario: req.usuario._id }))) {
+    return res.status(400).json({ mensaje: 'La fotografía no pertenece a tu cuenta' })
+  }
+  req.usuario.avatar = datos.avatar
+  req.usuario.fotografia = fotografia
+  await req.usuario.save()
   res.json({ usuario: datosPublicos(req.usuario, [...req.permisos]) })
 })
 
