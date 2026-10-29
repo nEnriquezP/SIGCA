@@ -1,9 +1,11 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
 import ImagenCampo from '../components/ImagenCampo.vue'
+import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
+import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
 
 const props = defineProps({ administracion: { type: Boolean, default: false } })
 const router = useRouter()
@@ -18,6 +20,20 @@ const cargando = ref(false)
 const guardando = ref(false)
 const error = ref('')
 const aviso = ref('')
+const consultando = ref(false)
+const navegacionActivos = ref([])
+const formularioOriginal = ref(JSON.stringify(vacio()))
+const hayCambios = computed(() => props.administracion &&
+  JSON.stringify(formulario.value) !== formularioOriginal.value)
+const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
+  useCambiosSinGuardar(hayCambios)
+const indiceDetalle = computed(() => navegacionActivos.value.findIndex(
+  (servicio) => servicio.id === detalle.value?.id))
+const formularioSeccion = ref(null)
+const listadoSeccion = ref(null)
+const detalleSeccion = ref(null)
+const dialogoResultado = ref(null)
+const resultadoGuardado = ref('')
 
 function vacio() {
   return { nombre: '', descripcion: '', duracionMinutos: '', precioQuetzales: '', imagen: '' }
@@ -103,6 +119,8 @@ async function cargar() {
 }
 
 async function consultar(servicio) {
+  if (consultando.value) return
+  consultando.value = true
   error.value = ''
   const ruta = props.administracion ?
     `/api/servicios/administracion/${servicio.id}` : `/api/servicios/${servicio.id}`
@@ -110,25 +128,72 @@ async function consultar(servicio) {
     const datos = await solicitarApi(ruta,
       { token: props.administracion ? sesion.token : undefined })
     detalle.value = datos.servicio
+    navegacionActivos.value = []
+    await nextTick()
+    detalleSeccion.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (props.administracion && datos.servicio.estado === 'ACTIVO') {
+      const navegacion = await solicitarApi('/api/servicios/administracion/navegacion',
+        { token: sesion.token })
+      navegacionActivos.value = navegacion.servicios
+    }
   } catch (fallo) {
     manejarError(fallo)
+  } finally {
+    consultando.value = false
   }
 }
 
-function editar(servicio) {
+async function editar(servicio) {
+  if (hayCambios.value && !await confirmarSalida()) return
   editandoId.value = servicio.id
   formulario.value = {
     nombre: servicio.nombre, descripcion: servicio.descripcion,
     duracionMinutos: String(servicio.duracionMinutos),
     precioQuetzales: formatoPrecio(servicio.precioCentavos), imagen: servicio.imagen,
   }
+  formularioOriginal.value = JSON.stringify(formulario.value)
   error.value = ''
   aviso.value = ''
+  await nextTick()
+  formularioSeccion.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function cancelarEdicion() {
+function limpiarFormulario() {
   editandoId.value = null
   formulario.value = vacio()
+  formularioOriginal.value = JSON.stringify(formulario.value)
+}
+
+async function cancelarEdicion() {
+  if (hayCambios.value && !await confirmarSalida()) return
+  limpiarFormulario()
+}
+
+function cerrarResultado() {
+  dialogoResultado.value?.close()
+}
+
+async function elegirNuevoServicio() {
+  cerrarResultado()
+  await nextTick()
+  formularioSeccion.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  formularioSeccion.value?.querySelector('input')?.focus({ preventScroll: true })
+}
+
+async function irAListado() {
+  cerrarResultado()
+  await nextTick()
+  listadoSeccion.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function cerrarDetalle() {
+  detalle.value = null
+  navegacionActivos.value = []
+}
+
+async function navegarDetalle(indice) {
+  const servicio = navegacionActivos.value[indice]
+  if (servicio) await consultar(servicio)
 }
 
 async function guardar() {
@@ -137,12 +202,16 @@ async function guardar() {
   aviso.value = ''
   try {
     const datos = datosFormulario()
-    await solicitarApi(editandoId.value ? `/api/servicios/${editandoId.value}` : '/api/servicios', {
-      method: editandoId.value ? 'PUT' : 'POST', token: sesion.token, body: datos,
+    const eraEdicion = Boolean(editandoId.value)
+    await solicitarApi(eraEdicion ? `/api/servicios/${editandoId.value}` : '/api/servicios', {
+      method: eraEdicion ? 'PUT' : 'POST', token: sesion.token, body: datos,
     })
-    aviso.value = editandoId.value ? 'Servicio actualizado' : 'Servicio registrado'
-    cancelarEdicion()
+    resultadoGuardado.value = eraEdicion ? 'Servicio interno actualizado con éxito' :
+      'Servicio interno creado con éxito'
+    limpiarFormulario()
     await cargar()
+    await nextTick()
+    dialogoResultado.value?.showModal()
   } catch (fallo) {
     manejarError(fallo)
   } finally {
@@ -160,7 +229,14 @@ async function cambiarEstado(servicio) {
       method: 'PATCH', token: sesion.token, body: { estado: proximo },
     })
     aviso.value = `Servicio ${proximo.toLowerCase()}`
-    if (detalle.value?.id === servicio.id) detalle.value.estado = proximo
+    if (detalle.value?.id === servicio.id) {
+      detalle.value.estado = proximo
+      if (proximo === 'ACTIVO') {
+        const navegacion = await solicitarApi('/api/servicios/administracion/navegacion',
+          { token: sesion.token })
+        navegacionActivos.value = navegacion.servicios
+      } else navegacionActivos.value = []
+    }
     await cargar()
   } catch (fallo) {
     manejarError(fallo)
@@ -168,9 +244,10 @@ async function cambiarEstado(servicio) {
 }
 
 onMounted(cargar)
+onBeforeRouteUpdate(() => confirmarSalida())
 watch(() => props.administracion, () => {
-  detalle.value = null
-  cancelarEdicion()
+  cerrarDetalle()
+  limpiarFormulario()
   cargar()
 })
 </script>
@@ -183,7 +260,7 @@ watch(() => props.administracion, () => {
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
-    <section v-if="administracion && sesion.tienePermiso('SERVICIOS_GESTIONAR')" class="tarjeta">
+    <section v-if="administracion && sesion.tienePermiso('SERVICIOS_GESTIONAR')" ref="formularioSeccion" class="tarjeta">
       <h2>{{ editandoId ? 'Actualizar servicio' : 'Registrar servicio' }}</h2>
       <form class="formulario-servicio" @submit.prevent="guardar">
         <div class="servicio-form-layout">
@@ -219,7 +296,7 @@ watch(() => props.administracion, () => {
       </form>
     </section>
 
-    <section class="tarjeta">
+    <section ref="listadoSeccion" class="tarjeta">
       <h2>Consultar y buscar</h2>
       <form class="formulario-grid" @submit.prevent="cargar">
         <label>Código, nombre o descripción<input v-model="buscar" maxlength="80" placeholder="Ej. SERV-INT-0001" /></label>
@@ -263,7 +340,7 @@ watch(() => props.administracion, () => {
                 <span><small>Precio</small><strong>{{ mostrarPrecio(servicio.precioCentavos) }}</strong></span>
               </div>
               <div class="acciones servicio-resumen-acciones">
-                <button type="button" @click="consultar(servicio)">Ver detalle</button>
+                <button type="button" :disabled="consultando" @click="consultar(servicio)">Ver detalle</button>
                 <button v-if="sesion.tienePermiso('SERVICIOS_GESTIONAR')" type="button" class="secundario" @click="editar(servicio)">Modificar</button>
                 <button v-if="sesion.tienePermiso('SERVICIOS_GESTIONAR')" type="button" class="secundario" @click="cambiarEstado(servicio)">
                   {{ servicio.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
@@ -275,7 +352,8 @@ watch(() => props.administracion, () => {
       </div>
     </section>
 
-    <section v-if="detalle && administracion" class="tarjeta servicio-detalle">
+    <section v-if="detalle && administracion" ref="detalleSeccion" class="tarjeta servicio-detalle">
+      <button type="button" class="servicio-detalle-cerrar" aria-label="Cerrar detalle del servicio" title="Cerrar detalle" @click="cerrarDetalle">×</button>
       <div class="servicio-detalle-imagen"><img :src="detalle.imagen" :alt="`Imagen de ${detalle.nombre}`" /></div>
       <div class="servicio-detalle-contenido">
         <span class="servicio-codigo">{{ detalle.codigo || 'Código pendiente' }}</span>
@@ -287,7 +365,25 @@ watch(() => props.administracion, () => {
         </div>
         <h3>Descripción</h3>
         <p class="texto-preservado">{{ detalle.descripcion }}</p>
+        <div v-if="detalle.estado === 'ACTIVO' && indiceDetalle >= 0" class="servicio-detalle-navegacion" aria-label="Navegar entre servicios activos">
+          <p>Servicio activo {{ indiceDetalle + 1 }} de {{ navegacionActivos.length }}</p>
+          <div class="acciones">
+            <button type="button" class="secundario" :disabled="consultando || indiceDetalle <= 0" @click="navegarDetalle(0)">Primero</button>
+            <button type="button" class="secundario" :disabled="consultando || indiceDetalle <= 0" @click="navegarDetalle(indiceDetalle - 1)">Anterior</button>
+            <button type="button" class="secundario" :disabled="consultando || indiceDetalle < 0 || indiceDetalle >= navegacionActivos.length - 1" @click="navegarDetalle(indiceDetalle + 1)">Siguiente</button>
+            <button type="button" class="secundario" :disabled="consultando || indiceDetalle < 0 || indiceDetalle >= navegacionActivos.length - 1" @click="navegarDetalle(navegacionActivos.length - 1)">Último</button>
+          </div>
+        </div>
       </div>
     </section>
+    <dialog ref="dialogoResultado" class="dialogo-cambios" aria-labelledby="titulo-servicio-guardado" @cancel.prevent="irAListado">
+      <h2 id="titulo-servicio-guardado">{{ resultadoGuardado }}</h2>
+      <p>¿Qué deseas hacer ahora?</p>
+      <div class="acciones">
+        <button type="button" @click="elegirNuevoServicio">Agregar un nuevo servicio interno</button>
+        <button type="button" class="secundario" @click="irAListado">Ir a Servicios Internos</button>
+      </div>
+    </dialog>
+    <AdvertenciaCambios :abierto="advertenciaVisible" @seguir="seguirEditando" @salir="salirSinGuardar" />
   </main>
 </template>
