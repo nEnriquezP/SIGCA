@@ -21,6 +21,8 @@ const grupos = [
     titulo: 'Atención',
     opciones: [
       { texto: 'Solicitudes', ruta: '/gestion-solicitudes', permiso: 'SOLICITUDES_VER', icono: 'M4 5h16v14H4z M4 9h16 M8 13h8 M8 16h5' },
+      { texto: 'Citas', ruta: '/citas', permiso: 'CITAS_VER', icono: 'M4 5h16v16H4z M8 3v4 M16 3v4 M4 10h16 M8 14h4 M8 18h7' },
+      { texto: 'Calendario', ruta: '/calendario', permiso: 'CITAS_VER', icono: 'M3 5h18v16H3z M7 3v4 M17 3v4 M3 10h18 M8 14h3 M14 14h3 M8 18h3' },
       { texto: 'Pacientes', ruta: '/pacientes', permiso: 'PACIENTES_VER', icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 7h5 M19.5 4.5v5' },
       { texto: 'Responsables', ruta: '/responsables', permiso: 'RESPONSABLES_VER', icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 20v-2a4 4 0 0 0-3-3.87 M16 2.13a4 4 0 0 1 0 7.75' },
     ],

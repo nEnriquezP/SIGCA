@@ -125,7 +125,7 @@ async function convertir() {
     })
     detalle.value = (await solicitarApi(`/api/solicitudes-cita/${datos.solicitud.id}`,
       { token: sesion.token })).solicitud
-    aviso.value = `${datos.mensaje} Identificador de la cita: ${datos.solicitud.cita}`
+    aviso.value = datos.mensaje
     await cargar()
   } catch (f) {
     fallo(f)
@@ -172,7 +172,10 @@ onMounted(cargar)
       <p>Servicio: {{ nombreServicio(detalle.servicio) }}</p>
       <p>Fecha preferida: {{ detalle.fechaPreferida }}. Esta fecha no es una cita confirmada.</p>
       <p class="texto-preservado">Mensaje: {{ detalle.mensajeAdicional || 'Sin mensaje adicional' }}</p>
-      <p v-if="detalle.cita"><strong>Cita relacionada:</strong> {{ detalle.cita }}</p>
+      <p v-if="detalle.cita"><strong>Cita relacionada:</strong>
+        <RouterLink v-if="sesion.tienePermiso('CITAS_VER')"
+          :to="{ name: 'citas', query: { id: detalle.cita } }">Ver detalle de la cita</RouterLink>
+        <span v-else> Registrada</span></p>
       <template v-if="detalle.estado === 'PENDIENTE' && sesion.tienePermiso('SOLICITUDES_GESTIONAR')">
         <button type="button" class="secundario" :disabled="operando" @click="rechazar">Rechazar solicitud</button>
         <h3>Convertir en cita</h3>

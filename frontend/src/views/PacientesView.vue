@@ -7,6 +7,7 @@ import ImagenCampo from '../components/ImagenCampo.vue'
 import ImagenVista from '../components/ImagenVista.vue'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
 import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
+import { fechaCorta, etiquetaEstado } from '../utils/formatoCita.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
@@ -23,6 +24,8 @@ const guardando = ref(false)
 const edicion = ref(null)
 const edicionOriginal = ref(null)
 const detalle = ref(null)
+const historialCitas = ref([])
+const totalCitas = ref(0)
 const nuevo = ref(vacio())
 const hoy = hoyEnGuatemala()
 const fechaMinimaNacimiento = restarAnios(hoy, 120)
@@ -130,8 +133,15 @@ async function consultar(paciente) {
   if (edicionConCambios.value && !await confirmarSalida()) return
   error.value = ''
   try {
-    const datos = await solicitarApi(`/api/pacientes/${paciente.id}`, { token: sesion.token })
+    const [datos, historial] = await Promise.all([
+      solicitarApi(`/api/pacientes/${paciente.id}`, { token: sesion.token }),
+      sesion.tienePermiso('CITAS_VER') ?
+        solicitarApi(`/api/citas?paciente=${paciente.id}`, { token: sesion.token }) :
+        Promise.resolve({ citas: [], total: 0 }),
+    ])
     detalle.value = datos.paciente
+    historialCitas.value = historial.citas
+    totalCitas.value = historial.total
     edicion.value = null
     edicionOriginal.value = null
     buscarResponsableEdicion.value = ''
@@ -317,8 +327,21 @@ onMounted(async () => {
         </li>
       </ul>
       <p v-else>No tiene responsables asociados.</p>
-      <h3>Citas y pagos</h3>
-      <p>La consulta de citas y pagos estará disponible al implementar esos módulos.</p>
+      <h3>Historial de citas</h3>
+      <p v-if="!sesion.tienePermiso('CITAS_VER')">No tienes permiso para consultar citas.</p>
+      <ul v-else-if="historialCitas.length">
+        <li v-for="cita in historialCitas" :key="cita.id">
+          {{ fechaCorta(cita.fecha) }} · {{ cita.horaInicio }}–{{ cita.horaFin }} (Guatemala) ·
+          {{ cita.servicio.nombre }} · {{ cita.profesional.nombre }} · {{ etiquetaEstado(cita.estado) }}
+          <RouterLink :to="{ name: 'citas', query: { id: cita.id, paciente: detalle.id } }">Ver cita</RouterLink>
+        </li>
+      </ul>
+      <p v-else>No hay citas registradas para este paciente.</p>
+      <RouterLink v-if="sesion.tienePermiso('CITAS_VER') && totalCitas > 100" :to="{ name: 'citas', query: { paciente: detalle.id } }">
+        Ver las {{ totalCitas }} citas y más páginas
+      </RouterLink>
+      <h3>Pagos</h3>
+      <p>La consulta de pagos se incorporará en su fase correspondiente.</p>
     </section>
 
     <section v-if="edicion && sesion.tienePermiso('PACIENTES_GESTIONAR')" class="tarjeta">

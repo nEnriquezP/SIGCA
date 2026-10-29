@@ -199,4 +199,24 @@ La conversión usa una transacción de MongoDB y un índice único en `Cita.soli
 
 **Verificación local:** `npm test` en `backend/` usa modelos simulados y prueba permisos, validación, rechazo, conversión, duplicados, reglas de agenda y reversión ante un fallo simulado. `npm run build` en `frontend/` compila la interfaz. Se ejecutó además una integración HTTP en una instancia temporal de MongoDB 8 local con réplica de un nodo: se crearon allí administrador, profesional, paciente, servicio, horario, solicitudes y citas ficticias; se verificaron envío sin reserva, cita real persistida, valores históricos, rechazo de conversión duplicada, reversión de una conversión fallida e índice único de traslape. Al terminar se eliminó esa base temporal, se detuvo la instancia y se borró su carpeta. Ninguna de estas pruebas escribió en Atlas. No se ejecutó una integración con `sigca_test` ni se publicaron cambios en producción; queda pendiente la revisión del flujo en el entorno de despliegue autorizado.
 
+## Gestión de citas y calendario — fase 7
+
+Las rutas protegidas `/citas` y `/calendario` permiten programar directamente, consultar, confirmar, reprogramar, cancelar y completar citas, además de verlas por mes y día. La pantalla del paciente consulta su historial real. Las citas nacidas de solicitudes convertidas aparecen en estas consultas sin cambiar sus referencias. `fecha`, `horaInicio` y `horaFin` se guardan como cadenas de fecha y hora de Guatemala; la interfaz muestra `DD/MM/AAAA`, horario de `America/Guatemala` y quetzales con dos decimales.
+
+| API | Uso |
+| --- | --- |
+| `GET /api/citas?paciente=&profesional=&fecha=&estado=&pagina=` | Lista filtrable de 100 por página. El profesional ve solo sus citas. |
+| `GET /api/citas/calendario?mes=AAAA-MM&profesional=` | Cuenta las citas por día y estado en un único mes. El profesional ve solo las propias. |
+| `GET /api/citas/opciones?buscarPaciente=` | Pacientes, servicios y profesionales activos para administrador y recepcionista. |
+| `GET /api/citas/:id` | Detalle. Al profesional solo se le entrega nombre y código del paciente y no se le envían observaciones administrativas. |
+| `POST /api/citas` | Programación directa; no requiere solicitud. |
+| `PUT /api/citas/:id` | Reprograma fecha, hora y profesional; conserva paciente, servicio, duración y precio históricos. |
+| `PATCH /api/citas/:id/estado` | Cambia estado según rol y transición permitida. |
+
+Administrador y recepcionista pueden programar, consultar, confirmar, reprogramar y cancelar. El profesional solo consulta las citas asignadas y marca como completada una cita propia confirmada. Los nuevos permisos `CITAS_VER` y `CITAS_GESTIONAR` pertenecen únicamente a esos roles predefinidos; no se conceden a roles personalizados. Las transiciones son `PENDIENTE → CONFIRMADA` o `CANCELADA`, y `CONFIRMADA → COMPLETADA` o `CANCELADA`. Una cita completada o cancelada es final y deja libre su horario para otra cita; ningún registro se elimina físicamente.
+
+La programación y reprogramación reutilizan las comprobaciones de paciente, servicio y profesional activos, responsable para menores, horario de atención, fecha y hora futuras, finalización el mismo día y ausencia de traslapes. El índice único de minutos ocupados protege frente a solicitudes simultáneas; si se produce un conflicto, la API responde 409. Al crear se copian duración y precio del servicio, y al reprogramar se conservan los valores de la cita aunque el servicio haya cambiado.
+
+**Pendiente de la fase de pagos:** antes de permitir `CANCELADA`, se deberá consultar si la cita tiene pagos válidos y rechazar la cancelación cuando existan. El punto de integración está identificado junto al cambio de estado; esta fase no implementa ni verifica pagos o caja. No ejecutar pruebas con datos reales de Atlas. `npm test` en `backend/` incluye una instancia temporal local de MongoDB para la fase 7; `npm run build` en `frontend/` comprueba la compilación. Esta versión permanece en commits locales hasta que se autorice su publicación.
+
 Referencias: [build y monorepos en Vercel](https://vercel.com/docs/builds/configure-a-build), [rewrites de Vercel](https://vercel.com/docs/project-configuration/vercel-json), [variables de Vite](https://vite.dev/guide/env-and-mode), [monorepos de Render](https://render.com/docs/monorepo-support), [versión de Node en Render](https://render.com/docs/node-version), [puerto de servicios web](https://render.com/docs/web-services) y [health checks de Render](https://render.com/docs/health-checks).
