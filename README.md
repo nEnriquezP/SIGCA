@@ -133,9 +133,10 @@ Para los servicios anteriores, `npm run codigos:servicios -- --db=sigca_dev` o `
 | --- | --- | --- |
 | `GET /api/servicios` y `GET /api/servicios/:id` | Público | Solo servicios activos; `buscar` filtra por código, nombre o descripción. Un inactivo no aparece ni en el detalle. |
 | `GET /api/servicios/administracion` y `GET /api/servicios/administracion/:id` | Administrador y recepcionista | Consulta interna de activos e inactivos; admite `buscar` y `estado` en el listado. |
+| `GET /api/servicios/administracion/navegacion` | Administrador y recepcionista | Devuelve los identificadores internos y códigos de todos los servicios activos, ordenados numéricamente por código, para los controles del detalle. |
 | `POST /api/servicios`, `PUT /api/servicios/:id`, `PATCH /api/servicios/:id/estado` | Administrador | Registro, modificación y cambio de estado. |
 
-La pantalla pública es `/servicios`; `/gestion-servicios` permite modificar a quienes tengan el permiso correspondiente y consultar a quienes tengan permiso de lectura. El profesional puede consultar los servicios activos públicos. El formulario admite cargar y recortar una imagen mediante Cloudinary o conservar una URL o ruta anterior.
+La pantalla pública es `/servicios`; `/gestion-servicios` permite modificar a quienes tengan el permiso correspondiente y consultar a quienes tengan permiso de lectura. Ambos listados se ordenan por código correlativo. El detalle interno permite navegar por todos los servicios activos, en ese mismo orden. Después de crear o actualizar, se ofrece agregar otro servicio o volver al listado. Si se abandona un formulario modificado, aparece una advertencia por cambios sin guardar. El profesional puede consultar los servicios activos públicos. El formulario admite cargar y recortar una imagen mediante Cloudinary o conservar una URL o ruta anterior.
 
 Los horarios se guardan en MongoDB por día de la semana, con estado abierto o cerrado e intervalos `horaInicio`–`horaFin` en **America/Guatemala**. Un día abierto necesita al menos un intervalo. Los intervalos deben usar `HH:mm`, terminar después de comenzar y no traslaparse; se admiten hasta ocho por día. No se publican horarios inventados cuando aún no están configurados.
 

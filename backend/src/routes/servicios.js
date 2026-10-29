@@ -73,7 +73,8 @@ function filtros(req, { privado = false } = {}) {
 router.get('/', async (req, res) => {
   const { filtro, error } = filtros(req)
   if (error) return res.status(400).json({ mensaje: error })
-  const servicios = await Servicio.find(filtro).sort({ nombre: 1 }).limit(100)
+  const servicios = await Servicio.find(filtro).sort({ codigo: 1, _id: 1 })
+    .collation({ locale: 'en', numericOrdering: true }).limit(100)
   res.json({ servicios: servicios.map(respuesta) })
 })
 
@@ -81,8 +82,18 @@ router.get('/administracion', autenticar,
   permitirRoles('ADMINISTRADOR', 'RECEPCIONISTA'), async (req, res) => {
     const { filtro, error } = filtros(req, { privado: true })
     if (error) return res.status(400).json({ mensaje: error })
-    const servicios = await Servicio.find(filtro).sort({ nombre: 1 }).limit(100)
+    const servicios = await Servicio.find(filtro).sort({ codigo: 1, _id: 1 })
+      .collation({ locale: 'en', numericOrdering: true }).limit(100)
     res.json({ servicios: servicios.map(respuesta) })
+  })
+
+router.get('/administracion/navegacion', autenticar,
+  permitirRoles('ADMINISTRADOR', 'RECEPCIONISTA'), async (_req, res) => {
+    const servicios = await Servicio.find({ estado: 'ACTIVO' }).select('_id codigo')
+      .sort({ codigo: 1, _id: 1 }).collation({ locale: 'en', numericOrdering: true })
+    res.json({ servicios: servicios.map((servicio) => ({
+      id: servicio.id, codigo: servicio.codigo ?? null,
+    })) })
   })
 
 router.get('/administracion/:id', autenticar,
