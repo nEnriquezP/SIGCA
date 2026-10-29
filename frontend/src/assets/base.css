@@ -186,6 +186,7 @@ form { display: grid; gap: 12px; }
 .paciente-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
 .paciente-campos label { min-width: 0; align-content: start; }
 .paciente-campos small { color: #5c6d7e; font-size: .8rem; font-weight: 400; }
+.requisito-campo { display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 999px; background: #e8f0f7; color: #34516e; font-size: .72rem; font-weight: 650; vertical-align: middle; white-space: nowrap; }
 .paciente-campo-ancho { grid-column: 1 / -1; }
 .formulario-paciente > label { min-width: 0; }
 .formulario-paciente > label textarea { min-height: 100px; }
@@ -203,6 +204,11 @@ form { display: grid; gap: 12px; }
 .paciente-responsables legend { font-weight: 650; }
 .paciente-responsables > label:first-of-type { display: grid; align-items: initial; max-width: 440px; font-weight: 600; }
 label { display: grid; gap: 6px; font-weight: 600; }
+label:has(> .requisito-campo) { display: block; }
+label:has(> .requisito-campo) > input,
+label:has(> .requisito-campo) > select,
+label:has(> .requisito-campo) > textarea { display: block; margin-top: 6px; }
+.paciente-responsables > label:first-of-type:has(> .requisito-campo) { display: block; }
 input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #aab9c9; border-radius: 6px; font: inherit; }
 textarea { min-height: 90px; resize: vertical; }
 fieldset { min-width: 0; border: 1px solid #d9e2ed; border-radius: 6px; }

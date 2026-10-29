@@ -9,6 +9,7 @@ const props = defineProps({
   categoria: { type: String, required: true },
   etiqueta: { type: String, required: true },
   obligatoria: { type: Boolean, default: false },
+  mostrarRequisito: { type: Boolean, default: false },
   proporcion: { type: String, default: '4:3' },
 })
 const emit = defineEmits(['update:modelValue'])
@@ -174,7 +175,7 @@ function quitar() {
 
 <template>
   <fieldset class="campo-imagen">
-    <legend>{{ etiqueta }}{{ obligatoria ? ' (obligatoria)' : ' (opcional)' }}</legend>
+    <legend>{{ etiqueta }}<span v-if="mostrarRequisito" class="requisito-campo">{{ obligatoria ? 'Obligatorio' : 'Opcional' }}</span><template v-else>{{ obligatoria ? ' (obligatoria)' : ' (opcional)' }}</template></legend>
     <img v-if="vistaLocal" class="vista-previa-imagen" :src="vistaLocal" :alt="`Vista previa de ${etiqueta}`" />
     <ImagenVista v-else-if="tieneValor" :valor="modelValue" :alt="etiqueta" />
     <p v-else>No hay imagen seleccionada.</p>

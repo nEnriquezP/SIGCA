@@ -20,7 +20,7 @@ const edicion = ref(null)
 const edicionOriginal = ref(null)
 const detalle = ref(null)
 const nuevo = ref(vacio())
-const parentescosComunes = ['Madre', 'Padre', 'Abuelo/a', 'Tío/a', 'Tutor/a legal']
+const parentescosComunes = ['Madre', 'Padre', 'Hermano/a', 'Abuelo/a', 'Tío/a', 'Tutor/a legal']
 const edicionConCambios = computed(() => edicion.value !== null &&
   JSON.stringify(edicion.value) !== edicionOriginal.value)
 const hayCambios = computed(() => JSON.stringify(nuevo.value) !== JSON.stringify(vacio()) ||
@@ -92,7 +92,7 @@ async function guardar() {
   error.value = ''
   aviso.value = ''
   try {
-    const { id, ...datos } = edicion.value
+    const { id, codigo, ...datos } = edicion.value
     await solicitarApi(`/api/responsables/${id}`, { method: 'PUT', token: sesion.token, body: datos })
     edicion.value = null
     edicionOriginal.value = null
@@ -141,27 +141,27 @@ onMounted(cargar)
           <div class="paciente-form-datos">
             <h3>Datos del responsable</h3>
             <div class="paciente-campos">
-              <label>Nombres<input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
-              <label>Apellidos<input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
-              <label>Parentesco
+              <label>Nombres <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
+              <label>Apellidos <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
+              <label>Parentesco <span class="requisito-campo">Obligatorio</span>
                 <input v-model.trim="nuevo.parentesco" list="parentescos-comunes" required maxlength="80" />
                 <small>Elige una sugerencia o escribe otro parentesco.</small>
               </label>
-              <label>Teléfono
+              <label>Teléfono <span class="requisito-campo">Obligatorio</span>
                 <input :value="nuevo.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
                   required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
                   title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, nuevo)" />
                 <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
               </label>
-              <label class="paciente-campo-ancho">Correo electrónico
+              <label class="paciente-campo-ancho">Correo electrónico <span class="requisito-campo">Obligatorio</span>
                 <input v-model.trim="nuevo.correo" type="email" required maxlength="254"
                   pattern="[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,63}" placeholder="usuario@dominio.com"
                   title="Escribe un correo con el formato usuario@dominio.com" />
               </label>
-              <label class="paciente-campo-ancho">Dirección<input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
+              <label class="paciente-campo-ancho">Dirección <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
             </div>
           </div>
-          <ImagenCampo v-model="nuevo.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria proporcion="1:1" />
+          <ImagenCampo v-model="nuevo.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria mostrar-requisito proporcion="1:1" />
         </div>
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Registrar' }}</button>
       </form>
@@ -170,16 +170,16 @@ onMounted(cargar)
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
       <form @submit.prevent="cargar">
-        <label>Identificador, nombre, apellido, correo o teléfono<input v-model="buscar" maxlength="80" /></label>
+        <label>Código, identificador, nombre, apellido, correo o teléfono <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" /></label>
         <button type="submit">Buscar</button>
       </form>
       <p v-if="cargando">Cargando responsables…</p>
       <div v-else class="tabla-contenedor">
         <table>
-          <thead><tr><th>Identificador</th><th>Nombre</th><th>Parentesco</th><th>Teléfono</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Código</th><th>Nombre</th><th>Parentesco</th><th>Teléfono</th><th>Acciones</th></tr></thead>
           <tbody>
             <tr v-for="responsable in responsables" :key="responsable.id">
-              <td>{{ responsable.id }}</td>
+              <td>{{ responsable.codigo || 'Pendiente de asignación' }}</td>
               <td>{{ responsable.nombres }} {{ responsable.apellidos }}</td>
               <td>{{ responsable.parentesco }}</td>
               <td>{{ responsable.telefono }}</td>
@@ -196,6 +196,7 @@ onMounted(cargar)
 
     <section v-if="detalle" class="tarjeta">
       <h2>Detalle del responsable</h2>
+      <p>Código: <strong>{{ detalle.codigo || 'Pendiente de asignación' }}</strong></p>
       <p><strong>{{ detalle.nombres }} {{ detalle.apellidos }}</strong> · {{ detalle.parentesco }}</p>
       <p>Correo: {{ detalle.correo }} · Teléfono: {{ detalle.telefono }}</p>
       <p>Dirección: {{ detalle.direccion }}</p>
@@ -216,27 +217,27 @@ onMounted(cargar)
           <div class="paciente-form-datos">
             <h3>Datos del responsable</h3>
             <div class="paciente-campos">
-              <label>Nombres<input v-model.trim="edicion.nombres" required maxlength="120" /></label>
-              <label>Apellidos<input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
-              <label>Parentesco
+              <label>Nombres <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.nombres" required maxlength="120" /></label>
+              <label>Apellidos <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
+              <label>Parentesco <span class="requisito-campo">Obligatorio</span>
                 <input v-model.trim="edicion.parentesco" list="parentescos-comunes" required maxlength="80" />
                 <small>Elige una sugerencia o escribe otro parentesco.</small>
               </label>
-              <label>Teléfono
+              <label>Teléfono <span class="requisito-campo">Obligatorio</span>
                 <input :value="edicion.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
                   required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
                   title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, edicion)" />
                 <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
               </label>
-              <label class="paciente-campo-ancho">Correo electrónico
+              <label class="paciente-campo-ancho">Correo electrónico <span class="requisito-campo">Obligatorio</span>
                 <input v-model.trim="edicion.correo" type="email" required maxlength="254"
                   pattern="[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,63}" placeholder="usuario@dominio.com"
                   title="Escribe un correo con el formato usuario@dominio.com" />
               </label>
-              <label class="paciente-campo-ancho">Dirección<input v-model.trim="edicion.direccion" required maxlength="300" /></label>
+              <label class="paciente-campo-ancho">Dirección <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.direccion" required maxlength="300" /></label>
             </div>
           </div>
-          <ImagenCampo v-model="edicion.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria proporcion="1:1" />
+          <ImagenCampo v-model="edicion.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria mostrar-requisito proporcion="1:1" />
         </div>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Guardar cambios</button>

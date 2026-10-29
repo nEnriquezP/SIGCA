@@ -221,43 +221,43 @@ onMounted(async () => {
           <div class="paciente-form-datos">
             <h3>Datos del paciente</h3>
             <div class="paciente-campos">
-              <label>Nombres<input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
-              <label>Apellidos<input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
-              <label>Fecha de nacimiento
+              <label>Nombres <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
+              <label>Apellidos <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
+              <label>Fecha de nacimiento <span class="requisito-campo">Obligatorio</span>
                 <input v-model="nuevo.fechaNacimiento" type="date" required :min="fechaMinimaNacimiento" :max="hoy" />
                 <small>Entre {{ formatearFecha(fechaMinimaNacimiento) }} y hoy.</small>
               </label>
-              <label>Sexo
+              <label>Sexo <span class="requisito-campo">Obligatorio</span>
                 <select v-model="nuevo.sexo" required>
                   <option disabled value="">Selecciona una opción</option>
                   <option v-for="[valor, texto] in sexos" :key="valor" :value="valor">{{ texto }}</option>
                 </select>
               </label>
-              <label>Teléfono
+              <label>Teléfono <span class="requisito-campo">Obligatorio</span>
                 <input :value="nuevo.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
                   required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
                   title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, nuevo)" />
                 <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
               </label>
-              <label>Inicio del proceso
+              <label>Inicio del proceso <span class="requisito-campo">Obligatorio</span>
                 <input v-model="nuevo.fechaInicioProceso" type="date" required :min="nuevo.fechaNacimiento || undefined" :max="hoy" />
                 <small>Desde el nacimiento del paciente hasta hoy.</small>
               </label>
-              <label class="paciente-campo-ancho">Dirección<input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
+              <label class="paciente-campo-ancho">Dirección <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
             </div>
           </div>
-          <ImagenCampo v-model="nuevo.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria proporcion="1:1" />
+          <ImagenCampo v-model="nuevo.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria mostrar-requisito proporcion="1:1" />
         </div>
-        <label>Observaciones administrativas<textarea v-model.trim="nuevo.observacionesAdministrativas" maxlength="2000" /></label>
+        <label>Observaciones administrativas <span class="requisito-campo">Opcional</span><textarea v-model.trim="nuevo.observacionesAdministrativas" maxlength="2000" /></label>
         <fieldset class="paciente-responsables">
-          <legend>Responsables asociados</legend>
-          <label>Buscar responsable por nombre, correo o identificador
+          <legend>Responsables asociados <span class="requisito-campo">Opcional</span></legend>
+          <label>Buscar responsable por código, nombre, correo o identificador <span class="requisito-campo">Opcional</span>
             <input v-model="buscarResponsableNuevo" maxlength="80" />
           </label>
           <button type="button" class="secundario" @click="cargarResponsables('nuevo')">Buscar responsables</button>
           <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
             <input v-model="nuevo.responsables" type="checkbox" :value="responsable.id" />
-            {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
+            {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
           </label>
           <p v-if="!responsablesDisponibles.length">Todavía no hay responsables registrados.</p>
         </fieldset>
@@ -268,8 +268,8 @@ onMounted(async () => {
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
       <form class="formulario-grid" @submit.prevent="cargar">
-        <label>Código, identificador, nombre, apellido o teléfono<input v-model="buscar" maxlength="80" /></label>
-        <label>Estado
+        <label>Código, identificador, nombre, apellido o teléfono <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" /></label>
+        <label>Estado <span class="requisito-campo">Opcional</span>
           <select v-model="estadoFiltro">
             <option value="">Todos</option><option value="ACTIVO">Activo</option>
             <option value="INACTIVO">Inactivo</option>
@@ -313,7 +313,7 @@ onMounted(async () => {
       <h3>Responsables</h3>
       <ul v-if="detalle.responsables.length">
         <li v-for="responsable in detalle.responsables" :key="responsable.id">
-          {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
+          {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
         </li>
       </ul>
       <p v-else>No tiene responsables asociados.</p>
@@ -328,42 +328,42 @@ onMounted(async () => {
           <div class="paciente-form-datos">
             <h3>Datos del paciente</h3>
             <div class="paciente-campos">
-              <label>Nombres<input v-model.trim="edicion.nombres" required maxlength="120" /></label>
-              <label>Apellidos<input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
-              <label>Fecha de nacimiento
+              <label>Nombres <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.nombres" required maxlength="120" /></label>
+              <label>Apellidos <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
+              <label>Fecha de nacimiento <span class="requisito-campo">Obligatorio</span>
                 <input v-model="edicion.fechaNacimiento" type="date" required :min="fechaMinimaNacimiento" :max="hoy" />
                 <small>Entre {{ formatearFecha(fechaMinimaNacimiento) }} y hoy.</small>
               </label>
-              <label>Sexo
+              <label>Sexo <span class="requisito-campo">Obligatorio</span>
                 <select v-model="edicion.sexo" required>
                   <option v-for="[valor, texto] in sexos" :key="valor" :value="valor">{{ texto }}</option>
                 </select>
               </label>
-              <label>Teléfono
+              <label>Teléfono <span class="requisito-campo">Obligatorio</span>
                 <input :value="edicion.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
                   required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
                   title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, edicion)" />
                 <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
               </label>
-              <label>Inicio del proceso
+              <label>Inicio del proceso <span class="requisito-campo">Obligatorio</span>
                 <input v-model="edicion.fechaInicioProceso" type="date" required :min="edicion.fechaNacimiento || undefined" :max="hoy" />
                 <small>Desde el nacimiento del paciente hasta hoy.</small>
               </label>
-              <label class="paciente-campo-ancho">Dirección<input v-model.trim="edicion.direccion" required maxlength="300" /></label>
+              <label class="paciente-campo-ancho">Dirección <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.direccion" required maxlength="300" /></label>
             </div>
           </div>
-          <ImagenCampo v-model="edicion.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria proporcion="1:1" />
+          <ImagenCampo v-model="edicion.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria mostrar-requisito proporcion="1:1" />
         </div>
-        <label>Observaciones administrativas<textarea v-model.trim="edicion.observacionesAdministrativas" maxlength="2000" /></label>
+        <label>Observaciones administrativas <span class="requisito-campo">Opcional</span><textarea v-model.trim="edicion.observacionesAdministrativas" maxlength="2000" /></label>
         <fieldset class="paciente-responsables">
-          <legend>Responsables asociados</legend>
-          <label>Buscar responsable por nombre, correo o identificador
+          <legend>Responsables asociados <span class="requisito-campo">Opcional</span></legend>
+          <label>Buscar responsable por código, nombre, correo o identificador <span class="requisito-campo">Opcional</span>
             <input v-model="buscarResponsableEdicion" maxlength="80" />
           </label>
           <button type="button" class="secundario" @click="cargarResponsables('edicion')">Buscar responsables</button>
           <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
             <input v-model="edicion.responsables" type="checkbox" :value="responsable.id" />
-            {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
+            {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
           </label>
         </fieldset>
         <div class="acciones">
