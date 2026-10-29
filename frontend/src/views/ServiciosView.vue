@@ -222,7 +222,7 @@ watch(() => props.administracion, () => {
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
       <form class="formulario-grid" @submit.prevent="cargar">
-        <label>Nombre, descripción o identificador<input v-model="buscar" maxlength="80" /></label>
+        <label>Código, nombre o descripción<input v-model="buscar" maxlength="80" placeholder="Ej. SERV-INT-0001" /></label>
         <label v-if="administracion">Estado
           <select v-model="estadoFiltro">
             <option value="">Todos</option><option value="ACTIVO">Activo</option>
@@ -244,36 +244,50 @@ watch(() => props.administracion, () => {
         </article>
         <p v-if="!servicios.length">No hay servicios activos en esta búsqueda.</p>
       </div>
-      <div v-else class="tabla-contenedor">
-        <table>
-          <thead><tr><th>Servicio</th><th>Duración</th><th>Precio</th><th v-if="administracion">Estado</th><th>Acciones</th></tr></thead>
-          <tbody>
-            <tr v-for="servicio in servicios" :key="servicio.id">
-              <td>{{ servicio.nombre }}</td>
-              <td>{{ servicio.duracionMinutos }} min</td>
-              <td>{{ mostrarPrecio(servicio.precioCentavos) }}</td>
-              <td v-if="administracion">{{ servicio.estado }}</td>
-              <td class="acciones">
-                <button type="button" class="secundario" @click="consultar(servicio)">Consultar</button>
-                <button v-if="administracion && sesion.tienePermiso('SERVICIOS_GESTIONAR')" type="button" class="secundario" @click="editar(servicio)">Modificar</button>
-                <button v-if="administracion && sesion.tienePermiso('SERVICIOS_GESTIONAR')" type="button" class="secundario" @click="cambiarEstado(servicio)">
+      <div v-else class="servicios-lista">
+        <p v-if="!servicios.length">No hay servicios en esta búsqueda.</p>
+        <article v-for="servicio in servicios" :key="servicio.id" class="servicio-resumen">
+          <img class="servicio-resumen-imagen" :src="servicio.imagen" :alt="`Imagen de ${servicio.nombre}`" />
+          <div class="servicio-resumen-cuerpo">
+            <div class="servicio-resumen-encabezado">
+              <div>
+                <span class="servicio-codigo">{{ servicio.codigo || 'Código pendiente' }}</span>
+                <h3>{{ servicio.nombre }}</h3>
+              </div>
+              <span class="servicio-estado" :class="servicio.estado === 'ACTIVO' ? 'activo' : 'inactivo'">{{ servicio.estado === 'ACTIVO' ? 'Activo' : 'Inactivo' }}</span>
+            </div>
+            <p class="servicio-resumen-descripcion">{{ servicio.descripcion }}</p>
+            <div class="servicio-resumen-pie">
+              <div class="servicio-datos-clave">
+                <span><small>Duración</small><strong>{{ servicio.duracionMinutos }} min</strong></span>
+                <span><small>Precio</small><strong>{{ mostrarPrecio(servicio.precioCentavos) }}</strong></span>
+              </div>
+              <div class="acciones servicio-resumen-acciones">
+                <button type="button" @click="consultar(servicio)">Ver detalle</button>
+                <button v-if="sesion.tienePermiso('SERVICIOS_GESTIONAR')" type="button" class="secundario" @click="editar(servicio)">Modificar</button>
+                <button v-if="sesion.tienePermiso('SERVICIOS_GESTIONAR')" type="button" class="secundario" @click="cambiarEstado(servicio)">
                   {{ servicio.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
                 </button>
-              </td>
-            </tr>
-            <tr v-if="!servicios.length"><td :colspan="administracion ? 5 : 4">No hay servicios en esta búsqueda.</td></tr>
-          </tbody>
-        </table>
+              </div>
+            </div>
+          </div>
+        </article>
       </div>
     </section>
 
-    <section v-if="detalle" class="tarjeta">
-      <h2>Detalle del servicio</h2>
-      <p><strong>{{ detalle.nombre }}</strong> · {{ detalle.duracionMinutos }} minutos · {{ mostrarPrecio(detalle.precioCentavos) }}</p>
-      <p v-if="administracion">Estado: {{ detalle.estado }}</p>
-      <p>{{ detalle.descripcion }}</p>
-      <p>Identificador: {{ detalle.id }}</p>
-      <img :src="detalle.imagen" :alt="`Imagen de ${detalle.nombre}`" width="240" style="max-width: 100%; height: auto" />
+    <section v-if="detalle && administracion" class="tarjeta servicio-detalle">
+      <div class="servicio-detalle-imagen"><img :src="detalle.imagen" :alt="`Imagen de ${detalle.nombre}`" /></div>
+      <div class="servicio-detalle-contenido">
+        <span class="servicio-codigo">{{ detalle.codigo || 'Código pendiente' }}</span>
+        <h2>{{ detalle.nombre }}</h2>
+        <span class="servicio-estado" :class="detalle.estado === 'ACTIVO' ? 'activo' : 'inactivo'">{{ detalle.estado === 'ACTIVO' ? 'Activo' : 'Inactivo' }}</span>
+        <div class="servicio-detalle-metricas">
+          <div><small>Duración estimada</small><strong>{{ detalle.duracionMinutos }} minutos</strong></div>
+          <div><small>Precio del servicio</small><strong>{{ mostrarPrecio(detalle.precioCentavos) }}</strong></div>
+        </div>
+        <h3>Descripción</h3>
+        <p class="texto-preservado">{{ detalle.descripcion }}</p>
+      </div>
     </section>
   </main>
 </template>
