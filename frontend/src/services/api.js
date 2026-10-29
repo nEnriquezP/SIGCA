@@ -41,9 +41,10 @@ export async function obtenerEstadoApi() {
 
 export async function subirArchivoImagen(categoria, archivo, token) {
   const cuerpo = new FormData()
-  cuerpo.append('categoria', categoria)
+  if (categoria !== 'usuario') cuerpo.append('categoria', categoria)
   cuerpo.append('archivo', archivo, 'recorte.jpg')
-  const respuesta = await fetch(`${obtenerUrlBase()}/api/imagenes`, {
+  const ruta = categoria === 'usuario' ? '/api/imagenes/usuario' : '/api/imagenes'
+  const respuesta = await fetch(`${obtenerUrlBase()}${ruta}`, {
     method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: cuerpo,
   })
   const datos = await respuesta.json().catch(() => null)

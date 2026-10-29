@@ -28,14 +28,14 @@ function accesoImagen(req, categoria, lectura = false) {
   return categoria === 'usuario' || Boolean(permiso && req.permisos?.has(permiso))
 }
 
-router.post('/', (req, res, next) => {
+router.post(['/', '/usuario'], (req, res, next) => {
   carga(req, res, (error) => {
     if (!error) return next()
     return res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400)
       .json({ mensaje: 'Archivo inválido o demasiado grande (máximo 5 MB)' })
   })
 }, async (req, res) => {
-  const categoria = req.body?.categoria
+  const categoria = req.path === '/usuario' ? 'usuario' : req.body?.categoria
   if (!categorias.has(categoria)) return res.status(400).json({ mensaje: 'Categoría de imagen inválida' })
   if (!accesoImagen(req, categoria)) {
     return res.status(403).json({ mensaje: 'Acceso no permitido' })
