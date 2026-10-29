@@ -110,7 +110,7 @@ test('códigos de pacientes con MongoDB local, migración y relaciones',
     const token = crearToken(admin)
     const responsable = await Responsable.create({ fotografia: '/imagenes/existente.png',
       nombres: 'Responsable', apellidos: 'Ficticio', parentesco: 'Madre',
-      telefono: '5555 5555', correo: 'responsable@example.test',
+      telefono: '55551234', correo: 'responsable@example.test',
       direccion: 'Dirección de prueba' })
     const primeroId = new mongoose.Types.ObjectId()
     const segundoId = new mongoose.Types.ObjectId()

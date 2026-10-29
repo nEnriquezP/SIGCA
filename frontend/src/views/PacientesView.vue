@@ -1,16 +1,19 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
 import ImagenCampo from '../components/ImagenCampo.vue'
 import ImagenVista from '../components/ImagenVista.vue'
+import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
+import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
 const pacientes = ref([])
 const responsablesDisponibles = ref([])
-const buscarResponsable = ref('')
+const buscarResponsableNuevo = ref('')
+const buscarResponsableEdicion = ref('')
 const buscar = ref('')
 const estadoFiltro = ref('')
 const error = ref('')
@@ -18,6 +21,7 @@ const aviso = ref('')
 const cargando = ref(false)
 const guardando = ref(false)
 const edicion = ref(null)
+const edicionOriginal = ref(null)
 const detalle = ref(null)
 const nuevo = ref(vacio())
 const hoy = hoyEnGuatemala()
@@ -26,6 +30,12 @@ const sexos = [
   ['FEMENINO', 'Femenino'], ['MASCULINO', 'Masculino'], ['OTRO', 'Otro'],
   ['PREFIERE_NO_DECIR', 'Prefiere no decir'],
 ]
+const edicionConCambios = computed(() => edicion.value !== null &&
+  (JSON.stringify(edicion.value) !== edicionOriginal.value || Boolean(buscarResponsableEdicion.value)))
+const hayCambios = computed(() => JSON.stringify(nuevo.value) !== JSON.stringify(vacio()) ||
+  Boolean(buscarResponsableNuevo.value) || edicionConCambios.value)
+const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
+  useCambiosSinGuardar(hayCambios)
 
 function vacio() {
   return { fotografia: '', nombres: '', apellidos: '', fechaNacimiento: '', sexo: '',
@@ -82,10 +92,10 @@ async function cargar() {
   }
 }
 
-async function cargarResponsables() {
+async function cargarResponsables(tipo = 'nuevo') {
   try {
-    const query = buscarResponsable.value.trim() ?
-      `?buscar=${encodeURIComponent(buscarResponsable.value.trim())}` : ''
+    const texto = tipo === 'edicion' ? buscarResponsableEdicion.value : buscarResponsableNuevo.value
+    const query = texto.trim() ? `?buscar=${encodeURIComponent(texto.trim())}` : ''
     const datos = await solicitarApi(`/api/responsables${query}`, { token: sesion.token })
     const seleccionados = new Set([
       ...nuevo.value.responsables, ...(edicion.value?.responsables ?? []),
@@ -106,6 +116,7 @@ async function crear() {
   try {
     await solicitarApi('/api/pacientes', { method: 'POST', token: sesion.token, body: nuevo.value })
     nuevo.value = vacio()
+    buscarResponsableNuevo.value = ''
     aviso.value = 'Paciente registrado'
     await cargar()
   } catch (errorApi) {
@@ -116,22 +127,28 @@ async function crear() {
 }
 
 async function consultar(paciente) {
+  if (edicionConCambios.value && !await confirmarSalida()) return
   error.value = ''
   try {
     const datos = await solicitarApi(`/api/pacientes/${paciente.id}`, { token: sesion.token })
     detalle.value = datos.paciente
     edicion.value = null
+    edicionOriginal.value = null
+    buscarResponsableEdicion.value = ''
   } catch (errorApi) {
     fallo(errorApi)
   }
 }
 
 async function editar(paciente) {
+  if (edicionConCambios.value && !await confirmarSalida()) return
   error.value = ''
   try {
     const datos = await solicitarApi(`/api/pacientes/${paciente.id}`, { token: sesion.token })
     edicion.value = { ...datos.paciente,
       responsables: datos.paciente.responsables.map((responsable) => responsable.id) }
+    edicionOriginal.value = JSON.stringify(edicion.value)
+    buscarResponsableEdicion.value = ''
     responsablesDisponibles.value = [...new Map([
       ...responsablesDisponibles.value, ...datos.paciente.responsables,
     ].map((item) => [item.id, item])).values()]
@@ -150,6 +167,8 @@ async function guardar() {
     const { id, codigo, edad, estado, ...datos } = edicion.value
     await solicitarApi(`/api/pacientes/${id}`, { method: 'PUT', token: sesion.token, body: datos })
     edicion.value = null
+    edicionOriginal.value = null
+    buscarResponsableEdicion.value = ''
     aviso.value = 'Paciente actualizado'
     await cargar()
   } catch (errorApi) {
@@ -157,6 +176,13 @@ async function guardar() {
   } finally {
     guardando.value = false
   }
+}
+
+async function cancelarEdicion() {
+  if (edicionConCambios.value && !await confirmarSalida()) return
+  edicion.value = null
+  edicionOriginal.value = null
+  buscarResponsableEdicion.value = ''
 }
 
 async function cambiarEstado(paciente) {
@@ -226,9 +252,9 @@ onMounted(async () => {
         <fieldset class="paciente-responsables">
           <legend>Responsables asociados</legend>
           <label>Buscar responsable por nombre, correo o identificador
-            <input v-model="buscarResponsable" maxlength="80" />
+            <input v-model="buscarResponsableNuevo" maxlength="80" />
           </label>
-          <button type="button" class="secundario" @click="cargarResponsables">Buscar responsables</button>
+          <button type="button" class="secundario" @click="cargarResponsables('nuevo')">Buscar responsables</button>
           <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
             <input v-model="nuevo.responsables" type="checkbox" :value="responsable.id" />
             {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
@@ -332,9 +358,9 @@ onMounted(async () => {
         <fieldset class="paciente-responsables">
           <legend>Responsables asociados</legend>
           <label>Buscar responsable por nombre, correo o identificador
-            <input v-model="buscarResponsable" maxlength="80" />
+            <input v-model="buscarResponsableEdicion" maxlength="80" />
           </label>
-          <button type="button" class="secundario" @click="cargarResponsables">Buscar responsables</button>
+          <button type="button" class="secundario" @click="cargarResponsables('edicion')">Buscar responsables</button>
           <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
             <input v-model="edicion.responsables" type="checkbox" :value="responsable.id" />
             {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
@@ -342,9 +368,10 @@ onMounted(async () => {
         </fieldset>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Guardar cambios</button>
-          <button type="button" class="secundario" @click="edicion = null">Cancelar</button>
+          <button type="button" class="secundario" @click="cancelarEdicion">Cancelar</button>
         </div>
       </form>
     </section>
+    <AdvertenciaCambios :abierto="advertenciaVisible" @seguir="seguirEditando" @salir="salirSinGuardar" />
   </main>
 </template>

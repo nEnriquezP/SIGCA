@@ -171,11 +171,23 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
   assert.equal((await pedir('/api/pacientes?estado=DESCONOCIDO', { token })).status, 400)
   assert.equal((await pedir('/api/responsables?buscar=a&buscar=b', { token })).status, 400)
   const responsable = { fotografia: '/api/imagenes/privadas/11111111-1111-4111-8111-111111111111', nombres: 'Ana', apellidos: 'Prueba',
-    parentesco: 'Madre', telefono: '5555 5555', correo: 'ana@example.test', direccion: 'Prueba' }
+    parentesco: 'Madre', telefono: '55551234', correo: 'ana@example.test', direccion: 'Prueba' }
   assert.equal((await pedir('/api/responsables', { metodo: 'POST', token,
     datos: { ...responsable, fotografia: 'https://example.test/publica.jpg' } })).status, 400)
+  for (const telefono of ['05551234', '5555123', '555512345', '5555 1234', '5555ABCD']) {
+    assert.equal((await pedir('/api/responsables', { metodo: 'POST', token,
+      datos: { ...responsable, telefono } })).status, 400)
+  }
+  for (const correo of ['ana@dominio', 'ana@.com', 'ana dominio@example.com', 'ana@example.c']) {
+    assert.equal((await pedir('/api/responsables', { metodo: 'POST', token,
+      datos: { ...responsable, correo } })).status, 400)
+  }
   const creado = await pedir('/api/responsables', { metodo: 'POST', token, datos: responsable })
   assert.equal(creado.status, 201)
+  assert.equal((await pedir(`/api/responsables/${idResponsable}`, { metodo: 'PUT', token,
+    datos: { ...responsable, telefono: '01234567' } })).status, 400)
+  assert.equal((await pedir(`/api/responsables/${idResponsable}`, { metodo: 'PUT', token,
+    datos: { ...responsable, correo: 'ana@dominio' } })).status, 400)
   const paciente = { fotografia: '/api/imagenes/privadas/22222222-2222-4222-8222-222222222222', nombres: 'Luis', apellidos: 'Prueba',
     fechaNacimiento: '2015-05-10', sexo: 'MASCULINO', telefono: '55551234',
     direccion: 'Prueba', fechaInicioProceso: '2026-10-20',

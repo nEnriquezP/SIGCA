@@ -193,6 +193,12 @@ form { display: grid; gap: 12px; }
 .formulario-paciente .vista-previa-imagen, .formulario-paciente .imagen-vista img { max-height: 190px; margin-inline: auto; }
 .formulario-paciente .campo-imagen .acciones { justify-content: center; }
 .formulario-paciente .campo-imagen .acciones button { padding: 8px 10px; font-size: .875rem; }
+.formulario-responsable { gap: 22px; }
+.formulario-responsable .paciente-form-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); }
+.formulario-responsable .campo-imagen { margin: 0; }
+.formulario-responsable .vista-previa-imagen, .formulario-responsable .imagen-vista img { max-height: 190px; margin-inline: auto; }
+.formulario-responsable .campo-imagen .acciones { justify-content: center; }
+.formulario-responsable .campo-imagen .acciones button { padding: 8px 10px; font-size: .875rem; }
 .paciente-responsables { padding: 14px 18px; }
 .paciente-responsables legend { font-weight: 650; }
 .paciente-responsables > label:first-of-type { display: grid; align-items: initial; max-width: 440px; font-weight: 600; }
@@ -236,6 +242,10 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .dialogo-recorte canvas:active { cursor: grabbing; }
 .dialogo-recorte label { display: grid; gap: 5px; margin: 10px 0; }
 .dialogo-recorte input[type="range"] { width: 100%; }
+.dialogo-cambios { width: min(92vw, 440px); border: 0; border-radius: 12px; padding: 24px; box-shadow: 0 14px 44px #102e5040; }
+.dialogo-cambios::backdrop { background: #102e50b8; }
+.dialogo-cambios h2 { margin: 0 0 10px; color: #133a5f; }
+.dialogo-cambios p { margin: 0 0 22px; }
 .texto-preservado { white-space: pre-wrap; }
 
 @media (max-width: 1000px) {
@@ -295,6 +305,7 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
   }
   .contenido-panel { padding: 24px 20px 46px; }
   .paciente-form-layout { grid-template-columns: 1fr; }
+  .formulario-responsable .paciente-form-layout { grid-template-columns: 1fr; }
   .paciente-form-layout .campo-imagen { max-width: 420px; }
 }
 

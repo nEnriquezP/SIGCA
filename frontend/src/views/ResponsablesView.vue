@@ -1,10 +1,12 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
 import ImagenCampo from '../components/ImagenCampo.vue'
 import ImagenVista from '../components/ImagenVista.vue'
+import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
+import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
@@ -15,11 +17,25 @@ const aviso = ref('')
 const cargando = ref(false)
 const guardando = ref(false)
 const edicion = ref(null)
+const edicionOriginal = ref(null)
 const detalle = ref(null)
 const nuevo = ref(vacio())
+const parentescosComunes = ['Madre', 'Padre', 'Abuelo/a', 'Tío/a', 'Tutor/a legal']
+const edicionConCambios = computed(() => edicion.value !== null &&
+  JSON.stringify(edicion.value) !== edicionOriginal.value)
+const hayCambios = computed(() => JSON.stringify(nuevo.value) !== JSON.stringify(vacio()) ||
+  edicionConCambios.value)
+const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
+  useCambiosSinGuardar(hayCambios)
 
 function vacio() {
   return { fotografia: '', nombres: '', apellidos: '', parentesco: '', telefono: '', correo: '', direccion: '' }
+}
+
+function capturarTelefono(evento, datos) {
+  const telefono = evento.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 8)
+  evento.target.value = telefono
+  datos.telefono = telefono
 }
 
 function fallo(errorApi) {
@@ -61,8 +77,10 @@ async function crear() {
   }
 }
 
-function editar(responsable) {
+async function editar(responsable) {
+  if (edicionConCambios.value && !await confirmarSalida()) return
   edicion.value = { ...responsable }
+  edicionOriginal.value = JSON.stringify(edicion.value)
   detalle.value = null
   error.value = ''
   aviso.value = ''
@@ -77,6 +95,7 @@ async function guardar() {
     const { id, ...datos } = edicion.value
     await solicitarApi(`/api/responsables/${id}`, { method: 'PUT', token: sesion.token, body: datos })
     edicion.value = null
+    edicionOriginal.value = null
     aviso.value = 'Responsable actualizado'
     await cargar()
   } catch (errorApi) {
@@ -87,14 +106,22 @@ async function guardar() {
 }
 
 async function consultar(responsable) {
+  if (edicionConCambios.value && !await confirmarSalida()) return
   error.value = ''
   try {
     const datos = await solicitarApi(`/api/responsables/${responsable.id}`, { token: sesion.token })
     detalle.value = datos.responsable
     edicion.value = null
+    edicionOriginal.value = null
   } catch (errorApi) {
     fallo(errorApi)
   }
+}
+
+async function cancelarEdicion() {
+  if (edicionConCambios.value && !await confirmarSalida()) return
+  edicion.value = null
+  edicionOriginal.value = null
 }
 
 onMounted(cargar)
@@ -109,14 +136,33 @@ onMounted(cargar)
 
     <section class="tarjeta">
       <h2>Registrar responsable</h2>
-      <form class="formulario-grid" @submit.prevent="crear">
-        <ImagenCampo v-model="nuevo.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria proporcion="1:1" />
-        <label>Nombres<input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
-        <label>Apellidos<input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
-        <label>Parentesco<input v-model.trim="nuevo.parentesco" required maxlength="80" /></label>
-        <label>Teléfono<input v-model.trim="nuevo.telefono" type="tel" required maxlength="30" /></label>
-        <label>Correo electrónico<input v-model.trim="nuevo.correo" type="email" required maxlength="254" /></label>
-        <label>Dirección<input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
+      <form class="formulario-responsable" @submit.prevent="crear">
+        <div class="paciente-form-layout">
+          <div class="paciente-form-datos">
+            <h3>Datos del responsable</h3>
+            <div class="paciente-campos">
+              <label>Nombres<input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
+              <label>Apellidos<input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
+              <label>Parentesco
+                <input v-model.trim="nuevo.parentesco" list="parentescos-comunes" required maxlength="80" />
+                <small>Elige una sugerencia o escribe otro parentesco.</small>
+              </label>
+              <label>Teléfono
+                <input :value="nuevo.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
+                  required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
+                  title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, nuevo)" />
+                <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
+              </label>
+              <label class="paciente-campo-ancho">Correo electrónico
+                <input v-model.trim="nuevo.correo" type="email" required maxlength="254"
+                  pattern="[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,63}" placeholder="usuario@dominio.com"
+                  title="Escribe un correo con el formato usuario@dominio.com" />
+              </label>
+              <label class="paciente-campo-ancho">Dirección<input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
+            </div>
+          </div>
+          <ImagenCampo v-model="nuevo.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria proporcion="1:1" />
+        </div>
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Registrar' }}</button>
       </form>
     </section>
@@ -165,19 +211,42 @@ onMounted(cargar)
 
     <section v-if="edicion" class="tarjeta">
       <h2>Modificar responsable</h2>
-      <form class="formulario-grid" @submit.prevent="guardar">
-        <ImagenCampo v-model="edicion.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria proporcion="1:1" />
-        <label>Nombres<input v-model.trim="edicion.nombres" required maxlength="120" /></label>
-        <label>Apellidos<input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
-        <label>Parentesco<input v-model.trim="edicion.parentesco" required maxlength="80" /></label>
-        <label>Teléfono<input v-model.trim="edicion.telefono" type="tel" required maxlength="30" /></label>
-        <label>Correo electrónico<input v-model.trim="edicion.correo" type="email" required maxlength="254" /></label>
-        <label>Dirección<input v-model.trim="edicion.direccion" required maxlength="300" /></label>
+      <form class="formulario-responsable" @submit.prevent="guardar">
+        <div class="paciente-form-layout">
+          <div class="paciente-form-datos">
+            <h3>Datos del responsable</h3>
+            <div class="paciente-campos">
+              <label>Nombres<input v-model.trim="edicion.nombres" required maxlength="120" /></label>
+              <label>Apellidos<input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
+              <label>Parentesco
+                <input v-model.trim="edicion.parentesco" list="parentescos-comunes" required maxlength="80" />
+                <small>Elige una sugerencia o escribe otro parentesco.</small>
+              </label>
+              <label>Teléfono
+                <input :value="edicion.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
+                  required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
+                  title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, edicion)" />
+                <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
+              </label>
+              <label class="paciente-campo-ancho">Correo electrónico
+                <input v-model.trim="edicion.correo" type="email" required maxlength="254"
+                  pattern="[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,63}" placeholder="usuario@dominio.com"
+                  title="Escribe un correo con el formato usuario@dominio.com" />
+              </label>
+              <label class="paciente-campo-ancho">Dirección<input v-model.trim="edicion.direccion" required maxlength="300" /></label>
+            </div>
+          </div>
+          <ImagenCampo v-model="edicion.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria proporcion="1:1" />
+        </div>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Guardar cambios</button>
-          <button type="button" class="secundario" @click="edicion = null">Cancelar</button>
+          <button type="button" class="secundario" @click="cancelarEdicion">Cancelar</button>
         </div>
       </form>
     </section>
+    <datalist id="parentescos-comunes">
+      <option v-for="parentesco in parentescosComunes" :key="parentesco" :value="parentesco" />
+    </datalist>
+    <AdvertenciaCambios :abierto="advertenciaVisible" @seguir="seguirEditando" @salir="salirSinGuardar" />
   </main>
 </template>

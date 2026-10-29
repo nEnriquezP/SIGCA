@@ -25,7 +25,12 @@ function validar(datos) {
   if (!/^(https?:\/\/[^\s]+|\/(?!\/)[^\s]*)$/i.test(datos.fotografia.trim())) {
     return 'La fotografía debe ser una URL o una ruta que inicie con /'
   }
-  if (!/^\S+@\S+\.\S+$/.test(datos.correo.trim())) return 'Correo inválido'
+  if (!/^[1-9][0-9]{7}$/.test(datos.telefono)) {
+    return 'El teléfono debe tener 8 dígitos y no comenzar con 0'
+  }
+  if (!/^[^\s@]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,63}$/.test(datos.correo.trim())) {
+    return 'El correo debe tener el formato usuario@dominio.com'
+  }
   return null
 }
 

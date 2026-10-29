@@ -122,10 +122,11 @@ onUnmounted(() => {
   document.removeEventListener('keydown', cerrarConEscape)
 })
 
-function salir() {
+async function salir() {
+  const cancelada = await router.push({ name: 'inicio' })
+  if (cancelada) return
   cerrarMenus()
   sesion.cerrar()
-  router.push({ name: 'inicio' })
 }
 </script>
 
