@@ -303,6 +303,16 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .dialogo-cambios::backdrop { background: #102e50b8; }
 .dialogo-cambios h2 { margin: 0 0 10px; color: #133a5f; }
 .dialogo-cambios p { margin: 0 0 22px; }
+.dialogo-resultado-servicio { width: min(92vw, 500px); }
+.dialogo-resultado-servicio .acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dialogo-resultado-servicio .acciones button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; width: 100%; padding: 11px 8px; font-size: .875rem; white-space: nowrap; }
+.dialogo-resultado-servicio .acciones svg { width: 18px; height: 18px; flex: none; }
+@media (max-width: 420px) {
+  .dialogo-resultado-servicio { width: min(96vw, 500px); padding: 18px; }
+  .dialogo-resultado-servicio .acciones { gap: 6px; }
+  .dialogo-resultado-servicio .acciones button { gap: 4px; padding: 10px 5px; font-size: .78rem; }
+  .dialogo-resultado-servicio .acciones svg { width: 16px; height: 16px; }
+}
 .texto-preservado { white-space: pre-wrap; }
 .servicios-lista { display: grid; gap: 16px; margin-top: 22px; }
 .servicio-resumen { display: grid; grid-template-columns: 190px minmax(0, 1fr); overflow: hidden; border: 1px solid #d9e2ed; border-radius: 12px; background: #fff; box-shadow: 0 5px 18px #1938560d; }

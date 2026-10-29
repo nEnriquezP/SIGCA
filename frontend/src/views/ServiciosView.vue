@@ -378,12 +378,18 @@ watch(() => props.administracion, () => {
         </div>
       </div>
     </section>
-    <dialog ref="dialogoResultado" class="dialogo-cambios" aria-labelledby="titulo-servicio-guardado" @cancel.prevent="irAListado">
+    <dialog ref="dialogoResultado" class="dialogo-cambios dialogo-resultado-servicio" aria-labelledby="titulo-servicio-guardado" @cancel.prevent="irAListado">
       <h2 id="titulo-servicio-guardado">{{ resultadoGuardado }}</h2>
       <p>¿Qué deseas hacer ahora?</p>
       <div class="acciones">
-        <button type="button" @click="elegirNuevoServicio">Agregar un nuevo servicio interno</button>
-        <button type="button" class="secundario" @click="irAListado">Ir a Servicios Internos</button>
+        <button type="button" @click="elegirNuevoServicio">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          <span>Nuevo servicio</span>
+        </button>
+        <button type="button" class="secundario" @click="irAListado">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+          <span>Ver servicios</span>
+        </button>
       </div>
     </dialog>
     <AdvertenciaCambios :abierto="advertenciaVisible" @seguir="seguirEditando" @salir="salirSinGuardar" />
