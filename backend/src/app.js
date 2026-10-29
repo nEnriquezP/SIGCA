@@ -15,6 +15,7 @@ import rutasActividades from './routes/actividades.js'
 import rutasMensajesContacto from './routes/mensajesContacto.js'
 import rutasSolicitudesCita from './routes/solicitudesCita.js'
 import rutasImagenes from './routes/imagenes.js'
+import rutasCitas from './routes/citas.js'
 import rutasRoles from './routes/roles.js'
 
 const app = express()
@@ -49,6 +50,7 @@ app.use('/api/publicaciones', rutasPublicaciones)
 app.use('/api/actividades', rutasActividades)
 app.use('/api/mensajes-contacto', rutasMensajesContacto)
 app.use('/api/solicitudes-cita', rutasSolicitudesCita)
+app.use('/api/citas', rutasCitas)
 app.use('/api/imagenes', rutasImagenes)
 
 app.use(rutaNoEncontrada)

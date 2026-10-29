@@ -21,6 +21,8 @@ const schema = new mongoose.Schema({
 }, { timestamps: true })
 
 schema.index({ profesional: 1, fecha: 1, horaInicio: 1, horaFin: 1 })
+schema.index({ paciente: 1, fecha: -1, horaInicio: -1 })
+schema.index({ fecha: 1, horaInicio: 1 })
 schema.index({ solicitudCita: 1 }, { unique: true, sparse: true })
 schema.index({ profesional: 1, fecha: 1, minutosOcupados: 1 }, {
   unique: true,

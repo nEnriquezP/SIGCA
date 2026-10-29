@@ -45,9 +45,8 @@ function esMenor(fechaNacimiento, fechaCita) {
   return edad < 18
 }
 
-// Esta función se reutilizará al incorporar la programación general de citas en la fase 7.
 export async function prepararCita({ pacienteId, servicioId, profesionalId, fecha,
-  horaInicio, session, ahora = new Date() }) {
+  horaInicio, session, ahora = new Date(), citaExistente = null }) {
   if (!fechaValida(fecha) || typeof horaInicio !== 'string' ||
       !formatoHora.test(horaInicio)) {
     throw errorCita(400, 'Fecha u hora de inicio inválida')
@@ -66,9 +65,10 @@ export async function prepararCita({ pacienteId, servicioId, profesionalId, fech
   if (!servicio) throw errorCita(409, 'El servicio ya no está activo')
   if (!profesional) throw errorCita(409, 'El profesional no existe o está inactivo')
 
-  const duracionMinutos = servicio.duracionMinutos
+  const duracionMinutos = citaExistente?.duracionMinutos ?? servicio.duracionMinutos
+  const precioCentavos = citaExistente?.precioCentavos ?? servicio.precioCentavos
   if (!Number.isInteger(duracionMinutos) || duracionMinutos < 1 || duracionMinutos > 1440 ||
-      !Number.isSafeInteger(servicio.precioCentavos) || servicio.precioCentavos < 1) {
+      !Number.isSafeInteger(precioCentavos) || precioCentavos < 1) {
     throw errorCita(409, 'El servicio tiene duración o precio inválido')
   }
   const finEnMinutos = minutos(horaInicio) + duracionMinutos
@@ -93,6 +93,7 @@ export async function prepararCita({ pacienteId, servicioId, profesionalId, fech
   }
 
   const traslape = await Cita.findOne({
+    ...(citaExistente ? { _id: { $ne: citaExistente._id } } : {}),
     profesional: profesionalId, fecha,
     estado: { $nin: ['CANCELADA', 'COMPLETADA'] },
     horaInicio: { $lt: horaFin }, horaFin: { $gt: horaInicio },
@@ -101,6 +102,6 @@ export async function prepararCita({ pacienteId, servicioId, profesionalId, fech
 
   return { paciente: pacienteId, servicio: servicioId, profesional: profesionalId,
     fecha, horaInicio, horaFin, minutosOcupados, duracionMinutos,
-    precioCentavos: servicio.precioCentavos, estado: 'PENDIENTE',
+    precioCentavos, estado: 'PENDIENTE',
     observacionesAdministrativas: '' }
 }

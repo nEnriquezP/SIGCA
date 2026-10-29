@@ -3,6 +3,8 @@ import Rol from '../models/Rol.js'
 export const CATALOGO_PERMISOS = [
   { codigo: 'SOLICITUDES_VER', nombre: 'Consultar solicitudes' },
   { codigo: 'SOLICITUDES_GESTIONAR', nombre: 'Rechazar y convertir solicitudes' },
+  { codigo: 'CITAS_VER', nombre: 'Consultar citas y calendario', asignable: false },
+  { codigo: 'CITAS_GESTIONAR', nombre: 'Programar y modificar citas', asignable: false },
   { codigo: 'PACIENTES_VER', nombre: 'Consultar pacientes y sus fotografías' },
   { codigo: 'PACIENTES_GESTIONAR', nombre: 'Registrar y modificar pacientes' },
   { codigo: 'RESPONSABLES_VER', nombre: 'Consultar responsables y sus fotografías' },
@@ -29,8 +31,8 @@ export const PERMISOS_PREDEFINIDOS = {
   ADMINISTRADOR: CATALOGO_PERMISOS.map((permiso) => permiso.codigo),
   RECEPCIONISTA: ['SOLICITUDES_VER', 'SOLICITUDES_GESTIONAR', 'PACIENTES_VER',
     'PACIENTES_GESTIONAR', 'RESPONSABLES_VER', 'RESPONSABLES_GESTIONAR',
-    'SERVICIOS_VER', 'HORARIOS_VER'],
-  PROFESIONAL: [],
+    'SERVICIOS_VER', 'HORARIOS_VER', 'CITAS_VER', 'CITAS_GESTIONAR'],
+  PROFESIONAL: ['CITAS_VER'],
 }
 
 export function permisosValidos(permisos) {
@@ -58,6 +60,7 @@ export function permisoParaRuta(req) {
   if (ruta === '/api/pacientes') return lectura ? 'PACIENTES_VER' : 'PACIENTES_GESTIONAR'
   if (ruta === '/api/responsables') return lectura ? 'RESPONSABLES_VER' : 'RESPONSABLES_GESTIONAR'
   if (ruta === '/api/solicitudes-cita') return lectura ? 'SOLICITUDES_VER' : 'SOLICITUDES_GESTIONAR'
+  if (ruta === '/api/citas') return lectura ? 'CITAS_VER' : 'CITAS_GESTIONAR'
   if (ruta === '/api/servicios') return lectura ? 'SERVICIOS_VER' : 'SERVICIOS_GESTIONAR'
   if (ruta === '/api/horarios') return lectura ? 'HORARIOS_VER' : 'HORARIOS_GESTIONAR'
   if (['/api/contenido', '/api/publicaciones', '/api/actividades',

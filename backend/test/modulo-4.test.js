@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto'
 import Usuario from '../src/models/Usuario.js'
 import Servicio from '../src/models/Servicio.js'
 import Horario from '../src/models/Horario.js'
+import Contador from '../src/models/Contador.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 const { default: app } = await import('../src/app.js')
@@ -12,6 +13,7 @@ const { crearToken } = await import('../src/middleware/autenticacion.js')
 const cuentas = new Map()
 const servicios = new Map()
 const horarios = new Map()
+let secuenciaServicios = 0
 const ids = {
   admin: 'aaaaaaaaaaaaaaaaaaaaaaaa', recepcion: 'bbbbbbbbbbbbbbbbbbbbbbbb',
   profesional: 'cccccccccccccccccccccccc', servicio: 'dddddddddddddddddddddddd',
@@ -35,8 +37,10 @@ function coincide(item, filtro) {
 
 before(async () => {
   Usuario.findById = (id) => ({ select: async () => cuentas.get(String(id)) ?? null })
-  Servicio.find = (filtro) => ({ sort: () => ({ limit: async () =>
-    [...servicios.values()].filter((item) => coincide(item, filtro)) }) })
+  Servicio.find = (filtro) => ({ sort: () => ({ collation: () => ({ limit: async () =>
+    [...servicios.values()].filter((item) => coincide(item, filtro)) }) }) })
+  Servicio.exists = async () => false
+  Contador.findOneAndUpdate = async () => ({ secuencia: ++secuenciaServicios })
   Servicio.findOne = async (filtro) => [...servicios.values()].find((item) =>
     item.id === String(filtro._id) && item.estado === filtro.estado) ?? null
   Servicio.findById = async (id) => servicios.get(String(id)) ?? null
