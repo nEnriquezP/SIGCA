@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
@@ -18,6 +18,9 @@ const nuevo = ref({ nombre: '', correo: '', rol: 'RECEPCIONISTA', password: '' }
 const edicion = ref(null)
 const edicionOriginal = ref(null)
 const restablecimiento = ref(null)
+const accionesAbiertas = ref(null)
+const usuarioEnDetalle = ref(null)
+const dialogoUsuario = ref(null)
 const verPasswordInicial = ref(false)
 const verPasswordNueva = ref(false)
 const verPasswordAdministrador = ref(false)
@@ -86,6 +89,17 @@ function nombrePermiso(codigo) {
 
 function nombreRol(codigo) {
   return roles.value.find((rol) => rol.codigo === codigo)?.nombre || codigo
+}
+
+function alternarAcciones(id) {
+  accionesAbiertas.value = accionesAbiertas.value === id ? null : id
+}
+
+async function verUsuario(usuario) {
+  accionesAbiertas.value = null
+  usuarioEnDetalle.value = usuario
+  await nextTick()
+  dialogoUsuario.value?.showModal()
 }
 
 function nuevoRol() {
@@ -362,13 +376,34 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
               <td>{{ usuario.correo }}</td>
               <td>{{ nombreRol(usuario.rol) }}</td>
               <td>{{ usuario.activo ? 'Activo' : 'Inactivo' }}</td>
-              <td class="acciones">
-                <button type="button" class="secundario" @click="editar(usuario)">Editar</button>
-                <button type="button" class="secundario" @click="prepararRestablecimiento(usuario)">Restablecer contraseña</button>
-                <button type="button" class="secundario" :disabled="usuario.id === sesion.usuario?.id"
-                  @click="cambiarEstado(usuario)">
-                  {{ usuario.activo ? 'Desactivar' : 'Activar' }}
-                </button>
+              <td>
+                <div class="usuario-menu-acciones" @keydown.esc="accionesAbiertas = null">
+                  <button type="button" class="secundario usuario-boton-acciones"
+                    :aria-expanded="accionesAbiertas === usuario.id" :aria-controls="`acciones-usuario-${usuario.id}`"
+                    @click="alternarAcciones(usuario.id)">
+                    Acciones
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                  </button>
+                  <div v-show="accionesAbiertas === usuario.id" :id="`acciones-usuario-${usuario.id}`" class="usuario-lista-acciones">
+                    <button type="button" @click="verUsuario(usuario)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+                      Ver
+                    </button>
+                    <button type="button" @click="accionesAbiertas = null; editar(usuario)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 16 12-12 4 4-12 12-5 1 1-5Z" /><path d="m14 6 4 4" /></svg>
+                      Editar
+                    </button>
+                    <button type="button" @click="accionesAbiertas = null; prepararRestablecimiento(usuario)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11V7a4 4 0 0 1 8 0v4" /><rect x="3" y="11" width="12" height="10" rx="2" /><path d="M18 9a5 5 0 0 1 2 8M20 9V5m0 4h-4" /></svg>
+                      Restablecer contraseña
+                    </button>
+                    <button type="button" :disabled="usuario.id === sesion.usuario?.id"
+                      @click="accionesAbiertas = null; cambiarEstado(usuario)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path v-if="usuario.activo" d="m5.5 5.5 13 13" /><path v-else d="m8 12 3 3 5-6" /></svg>
+                      {{ usuario.activo ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  </div>
+                </div>
               </td>
             </tr>
             <tr v-if="!usuarios.length"><td colspan="5">Todavía no hay usuarios registrados.</td></tr>
@@ -376,6 +411,24 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
         </table>
       </div>
     </section>
+
+    <dialog ref="dialogoUsuario" class="dialogo-cambios dialogo-detalle-usuario" aria-labelledby="titulo-detalle-usuario">
+      <div v-if="usuarioEnDetalle">
+        <div class="detalle-usuario-encabezado">
+          <h2 id="titulo-detalle-usuario">Detalle del usuario</h2>
+          <button type="button" class="secundario" aria-label="Cerrar detalle del usuario" @click="dialogoUsuario?.close()">×</button>
+        </div>
+        <div class="detalle-usuario-identidad">
+          <AvatarUsuario :usuario="usuarioEnDetalle" tamano="mediano" />
+          <strong>{{ usuarioEnDetalle.nombre }}</strong>
+        </div>
+        <dl>
+          <div><dt>Correo electrónico</dt><dd>{{ usuarioEnDetalle.correo }}</dd></div>
+          <div><dt>Rol</dt><dd>{{ nombreRol(usuarioEnDetalle.rol) }}</dd></div>
+          <div><dt>Estado</dt><dd>{{ usuarioEnDetalle.activo ? 'Activo' : 'Inactivo' }}</dd></div>
+        </dl>
+      </div>
+    </dialog>
 
     <section v-if="edicion" class="tarjeta">
       <h2>Editar usuario</h2>

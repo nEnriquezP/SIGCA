@@ -203,6 +203,24 @@ form { display: grid; gap: 12px; }
 .formulario-usuarios { align-items: start; }
 .formulario-usuarios .selector-rol { max-width: 300px; min-height: 43px; }
 .usuario-identidad { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.usuario-menu-acciones { min-width: 192px; }
+.usuario-boton-acciones { display: inline-flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 130px; }
+.usuario-boton-acciones svg { width: 16px; height: 16px; transition: transform .2s; }
+.usuario-boton-acciones[aria-expanded="true"] svg { transform: rotate(180deg); }
+.usuario-lista-acciones { display: grid; gap: 3px; width: max-content; min-width: 215px; max-width: min(260px, 70vw); margin-top: 8px; padding: 5px; border: 1px solid #d9e2ed; border-radius: 9px; background: #fff; box-shadow: 0 8px 20px #19385614; }
+.usuario-lista-acciones button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 10px; background: transparent; color: #203047; text-align: left; font-size: .85rem; }
+.usuario-lista-acciones button:hover:not(:disabled), .usuario-lista-acciones button:focus-visible { background: #e8f3fb; }
+.usuario-lista-acciones button:disabled { opacity: .55; }
+.usuario-lista-acciones svg { flex: none; width: 18px; height: 18px; }
+.dialogo-detalle-usuario { width: min(92vw, 460px); }
+.detalle-usuario-encabezado { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.detalle-usuario-encabezado h2 { margin: 0; }
+.detalle-usuario-encabezado button { padding: 2px 9px; font-size: 1.5rem; line-height: 1; }
+.detalle-usuario-identidad { display: flex; align-items: center; gap: 15px; margin: 18px 0; }
+.detalle-usuario-identidad strong { overflow-wrap: anywhere; }
+.dialogo-detalle-usuario dl { display: grid; gap: 13px; margin: 0; }
+.dialogo-detalle-usuario dt { color: #5c6d7e; font-size: .82rem; }
+.dialogo-detalle-usuario dd { margin: 3px 0 0; overflow-wrap: anywhere; }
 .avatar-usuario { display: inline-flex; flex: none; overflow: hidden; border-radius: 50%; width: 48px; height: 48px; background: #dce2e8; }
 .avatar-usuario-pequeno { width: 36px; height: 36px; }
 .avatar-usuario-mediano { width: 72px; height: 72px; }
