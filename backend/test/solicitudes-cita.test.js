@@ -9,6 +9,7 @@ import Servicio from '../src/models/Servicio.js'
 import Horario from '../src/models/Horario.js'
 import SolicitudCita from '../src/models/SolicitudCita.js'
 import Cita from '../src/models/Cita.js'
+import { ahoraGuatemala, fechaMaximaGuatemala } from '../src/services/prepararCita.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 const { default: app } = await import('../src/app.js')
@@ -29,6 +30,11 @@ let fallarCreacion = false
 let contador = 0
 let servidor
 let base
+const fechaFutura = (() => {
+  const fecha = new Date(`${ahoraGuatemala().fecha}T12:00:00Z`)
+  fecha.setUTCDate(fecha.getUTCDate() + 30)
+  return fecha.toISOString().slice(0, 10)
+})()
 
 function token(id, rol) {
   const usuario = { id, rol, activo: true, tokenVersion: 0, nombre: rol }
@@ -40,7 +46,7 @@ function nuevaSolicitud() {
   const id = (100 + ++contador).toString(16).padStart(24, '0')
   const item = { id, _id: id, nombreSolicitante: 'Persona ficticia',
     correo: 'persona@example.test', telefono: '+502 1234 5678', servicio: ids.servicio,
-    fechaPreferida: '2099-12-01', mensajeAdicional: '', estado: 'PENDIENTE',
+    fechaPreferida: fechaFutura, mensajeAdicional: '', estado: 'PENDIENTE',
     cita: null, createdAt: new Date() }
   solicitudes.set(id, item)
   return item
@@ -61,11 +67,12 @@ before(async () => {
     const usuario = cuentas.get(String(filtro._id))
     return usuario?.activo && usuario.rol === filtro.rol ? usuario : null
   }
-  Usuario.find = () => ({ select: () => ({ sort: () => ({ limit: async () =>
-    [...cuentas.values()].filter((u) => u.rol === 'PROFESIONAL' && u.activo) }) }) })
+  Usuario.find = () => ({ select: () => ({ sort: async () =>
+    [...cuentas.values()].filter((u) => u.rol === 'PROFESIONAL' && u.activo) }) })
   Paciente.findOne = async (filtro) => paciente.id === String(filtro._id) &&
     paciente.estado === filtro.estado ? paciente : null
-  Paciente.find = () => ({ sort: () => ({ limit: async () => [paciente] }) })
+  Paciente.find = () => ({ sort: () => ({ skip: () => ({ limit: async () => [paciente] }) }) })
+  Paciente.countDocuments = async () => 1
   Servicio.findOne = async (filtro) => servicio.id === String(filtro._id) &&
     servicio.estado === filtro.estado ? servicio : null
   Horario.findOne = async () => horarioActivo ? { intervalos: [
@@ -138,9 +145,9 @@ async function pedir(ruta, { metodo = 'GET', token: credencial, datos } = {}) {
 
 const envio = { nombreSolicitante: 'Persona ficticia', correo: 'persona@example.test',
   telefono: '+502 1234 5678', servicio: ids.servicio,
-  fechaPreferida: '2099-12-01', mensajeAdicional: '' }
+  fechaPreferida: fechaFutura, mensajeAdicional: '' }
 const conversion = { paciente: ids.paciente, profesional: ids.profesional,
-  fecha: '2099-12-01', horaInicio: '10:00' }
+  fecha: fechaFutura, horaInicio: '10:00' }
 
 test('solicitud pública valida servicio y contacto sin crear ni reservar cita', async () => {
   token(ids.profesional, 'PROFESIONAL')
@@ -148,6 +155,10 @@ test('solicitud pública valida servicio y contacto sin crear ni reservar cita',
     datos: { ...envio, correo: 'invalido' } })).status, 400)
   assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST',
     datos: { ...envio, fechaPreferida: '2020-01-01' } })).status, 400)
+  const dia366 = new Date(`${fechaMaximaGuatemala()}T12:00:00Z`)
+  dia366.setUTCDate(dia366.getUTCDate() + 1)
+  assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST',
+    datos: { ...envio, fechaPreferida: dia366.toISOString().slice(0, 10) } })).status, 400)
   servicio.estado = 'INACTIVO'
   assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST', datos: envio })).status, 409)
   servicio.estado = 'ACTIVO'
@@ -220,6 +231,7 @@ test('reglas de conversión y reversión ante fallo conservan pendiente sin cita
     assert.equal(solicitudes.get(item.id).cita, null)
   }
   await invalida({ fecha: '2020-01-01' })
+  await invalida({ fecha: '3010-01-01' })
   await invalida({ horaInicio: '12:30' })
   paciente.estado = 'INACTIVO'; await invalida({ horaInicio: '14:00' }); paciente.estado = 'ACTIVO'
   servicio.estado = 'INACTIVO'; await invalida({ horaInicio: '14:00' }); servicio.estado = 'ACTIVO'

@@ -45,10 +45,11 @@ function respuesta(servicio) {
 }
 
 function filtros(req, { privado = false } = {}) {
-  const permitidos = privado ? ['buscar', 'estado'] : ['buscar']
+  const permitidos = privado ? ['buscar', 'estado', 'pagina'] : ['buscar', 'pagina']
   if (Object.keys(req.query).some((campo) => !permitidos.includes(campo)) ||
       (req.query.buscar !== undefined && typeof req.query.buscar !== 'string') ||
-      (req.query.estado !== undefined && typeof req.query.estado !== 'string')) {
+      (req.query.estado !== undefined && typeof req.query.estado !== 'string') ||
+      (req.query.pagina !== undefined && !/^(0|[1-9]\d{0,4})$/.test(req.query.pagina))) {
     return { error: 'Filtros inválidos' }
   }
   const buscar = (req.query.buscar ?? '').trim()
@@ -73,18 +74,26 @@ function filtros(req, { privado = false } = {}) {
 router.get('/', async (req, res) => {
   const { filtro, error } = filtros(req)
   if (error) return res.status(400).json({ mensaje: error })
-  const servicios = await Servicio.find(filtro).sort({ codigo: 1, _id: 1 })
-    .collation({ locale: 'en', numericOrdering: true }).limit(100)
-  res.json({ servicios: servicios.map(respuesta) })
+  const pagina = Number(req.query.pagina ?? 0)
+  let consulta = Servicio.find(filtro).sort({ codigo: 1, _id: 1 })
+    .collation({ locale: 'en', numericOrdering: true })
+  if (pagina) consulta = consulta.skip(pagina * 100)
+  const servicios = await consulta.limit(101)
+  res.json({ servicios: servicios.slice(0, 100).map(respuesta),
+    hayMas: servicios.length > 100, pagina })
 })
 
 router.get('/administracion', autenticar,
   permitirRoles('ADMINISTRADOR', 'RECEPCIONISTA'), async (req, res) => {
     const { filtro, error } = filtros(req, { privado: true })
     if (error) return res.status(400).json({ mensaje: error })
-    const servicios = await Servicio.find(filtro).sort({ codigo: 1, _id: 1 })
-      .collation({ locale: 'en', numericOrdering: true }).limit(100)
-    res.json({ servicios: servicios.map(respuesta) })
+    const pagina = Number(req.query.pagina ?? 0)
+    let consulta = Servicio.find(filtro).sort({ codigo: 1, _id: 1 })
+      .collation({ locale: 'en', numericOrdering: true })
+    if (pagina) consulta = consulta.skip(pagina * 100)
+    const servicios = await consulta.limit(101)
+    res.json({ servicios: servicios.slice(0, 100).map(respuesta),
+      hayMas: servicios.length > 100, pagina })
   })
 
 router.get('/administracion/navegacion', autenticar,
@@ -94,6 +103,18 @@ router.get('/administracion/navegacion', autenticar,
     res.json({ servicios: servicios.map((servicio) => ({
       id: servicio.id, codigo: servicio.codigo ?? null,
     })) })
+  })
+
+router.get('/opciones', async (_req, res) => {
+  const servicios = await Servicio.find({ estado: 'ACTIVO' }).select('nombre')
+    .sort({ nombre: 1, _id: 1 })
+  res.json({ servicios: servicios.map((servicio) => ({ id: servicio.id, nombre: servicio.nombre })) })
+})
+
+router.get('/administracion/opciones', autenticar,
+  permitirRoles('ADMINISTRADOR', 'RECEPCIONISTA'), async (_req, res) => {
+    const servicios = await Servicio.find({}).select('nombre').sort({ nombre: 1, _id: 1 })
+    res.json({ servicios: servicios.map((servicio) => ({ id: servicio.id, nombre: servicio.nombre })) })
   })
 
 router.get('/administracion/:id', autenticar,

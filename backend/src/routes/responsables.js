@@ -21,7 +21,11 @@ function validar(datos) {
   }
   for (const campo of campos) {
     if (typeof datos[campo] !== 'string' || !datos[campo].trim() ||
-        datos[campo].trim().length > longitudes[campo]) return `${campo} inválido`
+        datos[campo].trim().length > longitudes[campo]) return `Revisa ${{
+          fotografia: 'la fotografía', nombres: 'los nombres', apellidos: 'los apellidos',
+          parentesco: 'el parentesco', telefono: 'el teléfono', correo: 'el correo electrónico',
+          direccion: 'la dirección',
+        }[campo]}`
   }
   if (!/^(https?:\/\/[^\s]+|\/(?!\/)[^\s]*)$/i.test(datos.fotografia.trim())) {
     return 'La fotografía debe ser una URL o una ruta que inicie con /'
@@ -56,14 +60,19 @@ function filtroBusqueda(texto) {
 }
 
 router.get('/', async (req, res) => {
-  if (req.query.buscar !== undefined && typeof req.query.buscar !== 'string') {
+  if ((req.query.buscar !== undefined && typeof req.query.buscar !== 'string') ||
+      (req.query.pagina !== undefined && !/^(0|[1-9]\d{0,4})$/.test(req.query.pagina))) {
     return res.status(400).json({ mensaje: 'Búsqueda inválida' })
   }
   const buscar = typeof req.query.buscar === 'string' ? req.query.buscar.trim() : ''
   if (buscar.length > 80) return res.status(400).json({ mensaje: 'Búsqueda demasiado larga' })
-  const responsables = await Responsable.find(buscar ? filtroBusqueda(buscar) : {})
-    .sort({ apellidos: 1, nombres: 1 }).limit(100)
-  res.json({ responsables: responsables.map(respuesta) })
+  const pagina = Number(req.query.pagina ?? 0)
+  let consulta = Responsable.find(buscar ? filtroBusqueda(buscar) : {})
+    .sort({ apellidos: 1, nombres: 1, _id: 1 })
+  if (pagina) consulta = consulta.skip(pagina * 100)
+  const responsables = await consulta.limit(101)
+  res.json({ responsables: responsables.slice(0, 100).map(respuesta),
+    hayMas: responsables.length > 100, pagina })
 })
 
 router.get('/:id', async (req, res) => {

@@ -7,7 +7,7 @@ import Paciente from '../models/Paciente.js'
 import Servicio from '../models/Servicio.js'
 import SolicitudCita from '../models/SolicitudCita.js'
 import Usuario from '../models/Usuario.js'
-import { ahoraGuatemala, errorCita, fechaValida, prepararCita } from '../services/prepararCita.js'
+import { ahoraGuatemala, errorCita, fechaMaximaGuatemala, fechaValida, prepararCita } from '../services/prepararCita.js'
 
 const router = Router()
 const limitarEnvios = rateLimit({
@@ -30,9 +30,10 @@ function validarSolicitud(datos) {
       !correoValido.test(datos.correo.trim()) || !texto(datos.telefono, 30) ||
       !telefonoValido.test(datos.telefono.trim()) ||
       !mongoose.isValidObjectId(datos.servicio) || !fechaValida(datos.fechaPreferida) ||
-      datos.fechaPreferida < ahoraGuatemala().fecha ||
+      (datos.fechaPreferida < ahoraGuatemala().fecha ||
+        datos.fechaPreferida > fechaMaximaGuatemala()) ||
       typeof datos.mensajeAdicional !== 'string' || datos.mensajeAdicional.trim().length > 2000) {
-    return 'Solicitud inválida: revisa contacto, servicio y fecha preferida futura'
+    return 'Revisa el contacto, el servicio y la fecha preferida: debe estar entre hoy y los próximos 365 días de Guatemala'
   }
   return null
 }
@@ -63,9 +64,10 @@ router.post('/', limitarEnvios, async (req, res) => {
 router.use(autenticar, permitirRoles('ADMINISTRADOR', 'RECEPCIONISTA'))
 
 router.get('/', async (req, res) => {
-  if (Object.keys(req.query).some((campo) => !['estado', 'buscar'].includes(campo)) ||
+  if (Object.keys(req.query).some((campo) => !['estado', 'buscar', 'pagina'].includes(campo)) ||
       (req.query.estado !== undefined && !['PENDIENTE', 'ATENDIDA', 'RECHAZADA'].includes(req.query.estado)) ||
-      (req.query.buscar !== undefined && typeof req.query.buscar !== 'string')) {
+      (req.query.buscar !== undefined && typeof req.query.buscar !== 'string') ||
+      (req.query.pagina !== undefined && !/^(0|[1-9]\d{0,4})$/.test(req.query.pagina))) {
     return res.status(400).json({ mensaje: 'Filtros inválidos' })
   }
   const buscar = (req.query.buscar ?? '').trim()
@@ -78,17 +80,27 @@ router.get('/', async (req, res) => {
       ({ [campo]: { $regex: patron, $options: 'i' } }))
     if (mongoose.isValidObjectId(buscar)) filtro.$or.push({ _id: buscar })
   }
-  const solicitudes = await SolicitudCita.find(filtro).sort({ createdAt: -1 }).limit(100)
-  res.json({ solicitudes: solicitudes.map(detalle) })
+  const pagina = Number(req.query.pagina ?? 0)
+  let consulta = SolicitudCita.find(filtro).sort({ createdAt: -1, _id: -1 })
+  if (pagina) consulta = consulta.skip(pagina * 100)
+  const solicitudes = await consulta.limit(101)
+  res.json({ solicitudes: solicitudes.slice(0, 100).map(detalle),
+    hayMas: solicitudes.length > 100, pagina })
 })
 
 router.get('/opciones', async (req, res) => {
-  if (Object.keys(req.query).some((campo) => campo !== 'buscarPaciente') ||
-      (req.query.buscarPaciente !== undefined && typeof req.query.buscarPaciente !== 'string')) {
+  if (Object.keys(req.query).some((campo) => !['buscarPaciente', 'paginaPacientes',
+    'pacienteSeleccionado', 'soloPacientes'].includes(campo)) ||
+      (req.query.buscarPaciente !== undefined && typeof req.query.buscarPaciente !== 'string') ||
+      (req.query.paginaPacientes !== undefined &&
+        (typeof req.query.paginaPacientes !== 'string' || !/^(0|[1-9]\d{0,4})$/.test(req.query.paginaPacientes))) ||
+      (req.query.pacienteSeleccionado !== undefined && !mongoose.isValidObjectId(req.query.pacienteSeleccionado)) ||
+      (req.query.soloPacientes !== undefined && req.query.soloPacientes !== '1')) {
     return res.status(400).json({ mensaje: 'Filtros inválidos' })
   }
   const buscar = (req.query.buscarPaciente ?? '').trim()
   if (buscar.length > 80) return res.status(400).json({ mensaje: 'Búsqueda demasiado larga' })
+  const pagina = Number(req.query.paginaPacientes ?? 0)
   const filtro = { estado: 'ACTIVO' }
   if (buscar) {
     const patron = buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -96,14 +108,21 @@ router.get('/opciones', async (req, res) => {
       ({ [campo]: { $regex: patron, $options: 'i' } }))
     if (mongoose.isValidObjectId(buscar)) filtro.$or.push({ _id: buscar })
   }
-  const [pacientes, profesionales] = await Promise.all([
-    Paciente.find(filtro).sort({ apellidos: 1, nombres: 1 }).limit(100),
-    Usuario.find({ rol: 'PROFESIONAL', activo: true }).select('nombre rol activo')
-      .sort({ nombre: 1 }).limit(100),
+  const [pacientes, pacientesTotal, seleccionado] = await Promise.all([
+    Paciente.find(filtro).sort({ apellidos: 1, nombres: 1, _id: 1 })
+      .skip(pagina * 10).limit(10),
+    Paciente.countDocuments(filtro),
+    req.query.pacienteSeleccionado ? Paciente.findOne({ _id: req.query.pacienteSeleccionado,
+      estado: 'ACTIVO' }) : null,
   ])
-  res.json({ pacientes: pacientes.map((p) => ({ id: p.id, codigo: p.codigo ?? null,
-    nombre: `${p.nombres} ${p.apellidos}` })),
-  profesionales: profesionales.map((p) => ({ id: p.id, nombre: p.nombre })) })
+  const resultado = { pacientes: pacientes.map((p) => ({ id: p.id, codigo: p.codigo ?? null,
+    nombre: `${p.nombres} ${p.apellidos}` })), pacientesTotal, paginaPacientes: pagina,
+  pacienteSeleccionado: seleccionado ? { id: seleccionado.id,
+    codigo: seleccionado.codigo ?? null, nombre: `${seleccionado.nombres} ${seleccionado.apellidos}` } : null }
+  if (req.query.soloPacientes === '1') return res.json(resultado)
+  const profesionales = await Usuario.find({ rol: 'PROFESIONAL', activo: true })
+    .select('nombre rol activo').sort({ nombre: 1, _id: 1 })
+  res.json({ ...resultado, profesionales: profesionales.map((p) => ({ id: p.id, nombre: p.nombre })) })
 })
 
 router.get('/:id', async (req, res) => {

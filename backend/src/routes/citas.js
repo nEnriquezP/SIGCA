@@ -2,9 +2,11 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import { autenticar } from '../middleware/autenticacion.js'
 import Cita from '../models/Cita.js'
+import ImagenCargada from '../models/ImagenCargada.js'
 import Paciente from '../models/Paciente.js'
 import Servicio from '../models/Servicio.js'
 import Usuario from '../models/Usuario.js'
+import { descargarImagenPrivada } from '../services/imagenes.js'
 import { errorCita, fechaValida, prepararCita } from '../services/prepararCita.js'
 
 const router = Router()
@@ -28,15 +30,25 @@ function idValido(valor) { return typeof valor === 'string' && mongoose.isValidO
 function nombrePaciente(paciente) {
   return paciente ? `${paciente.nombres} ${paciente.apellidos}`.trim() : 'Paciente no disponible'
 }
-function respuestaCita(cita, profesional = false) {
+function imagenEnCita(valor, citaId, tipo) {
+  if (valor?.startsWith('/api/imagenes/privadas/')) {
+    return `/api/citas/${citaId}/imagenes/${tipo}`
+  }
+  // Las rutas locales antiguas siguen visibles; nunca se entrega un enlace externo directo.
+  return typeof valor === 'string' && /^\/imagenes\//.test(valor) ? valor : null
+}
+function respuestaCita(cita, profesional = false, imagenes = false) {
   return {
     id: cita.id,
     paciente: { id: String(cita.paciente?._id ?? cita.paciente),
-      codigo: cita.paciente?.codigo ?? null, nombre: nombrePaciente(cita.paciente) },
+      codigo: cita.paciente?.codigo ?? null, nombre: nombrePaciente(cita.paciente),
+      ...(imagenes ? { imagen: imagenEnCita(cita.paciente?.fotografia, cita.id, 'paciente') } : {}) },
     servicio: { id: String(cita.servicio?._id ?? cita.servicio),
       nombre: cita.servicio?.nombre ?? 'Servicio no disponible' },
     profesional: { id: String(cita.profesional?._id ?? cita.profesional),
-      nombre: cita.profesional?.nombre ?? 'Profesional no disponible' },
+      nombre: cita.profesional?.nombre ?? 'Profesional no disponible',
+      ...(imagenes ? { avatar: cita.profesional?.avatar || '',
+        imagen: imagenEnCita(cita.profesional?.fotografia, cita.id, 'profesional') } : {}) },
     fecha: cita.fecha, horaInicio: cita.horaInicio, horaFin: cita.horaFin,
     duracionMinutos: cita.duracionMinutos, precioCentavos: cita.precioCentavos,
     estado: cita.estado, creadoEn: cita.createdAt,
@@ -47,8 +59,8 @@ function respuestaCita(cita, profesional = false) {
   }
 }
 function poblar(consulta) {
-  return consulta.populate('paciente', 'codigo nombres apellidos')
-    .populate('servicio', 'nombre').populate('profesional', 'nombre')
+  return consulta.populate('paciente', 'codigo nombres apellidos fotografia')
+    .populate('servicio', 'nombre').populate('profesional', 'nombre avatar fotografia')
 }
 function conflictoDeIndice(error) {
   return error.code === 11000 || error.code === 112 ||
@@ -64,12 +76,18 @@ router.use(autenticar, (req, res, next) => {
 
 router.get('/opciones', async (req, res) => {
   if (!gestor(req)) return res.status(403).json({ mensaje: 'Acceso no permitido' })
-  if (Object.keys(req.query).some((campo) => campo !== 'buscarPaciente') ||
-      (req.query.buscarPaciente !== undefined && typeof req.query.buscarPaciente !== 'string')) {
+  if (Object.keys(req.query).some((campo) => !['buscarPaciente', 'paginaPacientes',
+    'pacienteSeleccionado', 'soloPacientes'].includes(campo)) ||
+      (req.query.buscarPaciente !== undefined && typeof req.query.buscarPaciente !== 'string') ||
+      (req.query.paginaPacientes !== undefined &&
+        (typeof req.query.paginaPacientes !== 'string' || !/^(0|[1-9]\d{0,4})$/.test(req.query.paginaPacientes))) ||
+      (req.query.pacienteSeleccionado !== undefined && !idValido(req.query.pacienteSeleccionado)) ||
+      (req.query.soloPacientes !== undefined && req.query.soloPacientes !== '1')) {
     return res.status(400).json({ mensaje: 'Filtros inválidos' })
   }
   const buscar = (req.query.buscarPaciente ?? '').trim()
   if (buscar.length > 80) return res.status(400).json({ mensaje: 'Búsqueda demasiado larga' })
+  const pagina = Number(req.query.paginaPacientes ?? 0)
   const filtroPaciente = { estado: 'ACTIVO' }
   if (buscar) {
     const patron = buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -77,16 +95,25 @@ router.get('/opciones', async (req, res) => {
       ({ [campo]: { $regex: patron, $options: 'i' } }))
     if (idValido(buscar)) filtroPaciente.$or.push({ _id: buscar })
   }
-  const [pacientes, servicios, profesionales] = await Promise.all([
+  const [pacientes, pacientesTotal, seleccionado] = await Promise.all([
     Paciente.find(filtroPaciente).select('codigo nombres apellidos')
-      .sort({ apellidos: 1, nombres: 1 }).limit(100),
-    Servicio.find({ estado: 'ACTIVO' }).select('nombre codigo duracionMinutos precioCentavos')
-      .sort({ nombre: 1 }).limit(100),
-    Usuario.find({ rol: 'PROFESIONAL', activo: true }).select('nombre')
-      .sort({ nombre: 1 }).limit(100),
+      .sort({ apellidos: 1, nombres: 1, _id: 1 }).skip(pagina * 10).limit(10),
+    Paciente.countDocuments(filtroPaciente),
+    req.query.pacienteSeleccionado ? Paciente.findOne({ _id: req.query.pacienteSeleccionado,
+      estado: 'ACTIVO' }).select('codigo nombres apellidos') : null,
   ])
-  res.json({ pacientes: pacientes.map((p) => ({ id: p.id, codigo: p.codigo ?? null,
-    nombre: nombrePaciente(p) })),
+  const resultado = { pacientes: pacientes.map((p) => ({ id: p.id, codigo: p.codigo ?? null,
+    nombre: nombrePaciente(p) })), pacientesTotal, paginaPacientes: pagina,
+  pacienteSeleccionado: seleccionado ? { id: seleccionado.id,
+    codigo: seleccionado.codigo ?? null, nombre: nombrePaciente(seleccionado) } : null }
+  if (req.query.soloPacientes === '1') return res.json(resultado)
+  const [servicios, profesionales] = await Promise.all([
+    Servicio.find({ estado: 'ACTIVO' }).select('nombre codigo duracionMinutos precioCentavos')
+      .sort({ nombre: 1, _id: 1 }),
+    Usuario.find({ rol: 'PROFESIONAL', activo: true }).select('nombre avatar fotografia')
+      .sort({ nombre: 1, _id: 1 }),
+  ])
+  res.json({ ...resultado,
   servicios: servicios.map((s) => ({ id: s.id, codigo: s.codigo ?? null,
     nombre: s.nombre, duracionMinutos: s.duracionMinutos, precioCentavos: s.precioCentavos })),
   profesionales: profesionales.map((p) => ({ id: p.id, nombre: p.nombre })) })
@@ -150,13 +177,40 @@ router.get('/', async (req, res) => {
   res.json({ citas: citas.map((c) => respuestaCita(c, !gestor(req))), total, pagina })
 })
 
+router.get('/:id/imagenes/:tipo', async (req, res) => {
+  res.set('Cache-Control', 'no-store')
+  if (!idValido(req.params.id) || !['paciente', 'profesional'].includes(req.params.tipo)) {
+    return res.status(404).json({ mensaje: 'Imagen no encontrada' })
+  }
+  const filtro = { _id: req.params.id }
+  if (!gestor(req)) filtro.profesional = req.usuario._id
+  const cita = await Cita.findOne(filtro)
+  if (!cita) return res.status(404).json({ mensaje: 'Imagen no encontrada' })
+  const persona = req.params.tipo === 'paciente' ?
+    await Paciente.findById(cita.paciente).select('fotografia') :
+    await Usuario.findById(cita.profesional).select('fotografia')
+  const ruta = persona?.fotografia
+  const idImagen = /^\/api\/imagenes\/privadas\/([0-9a-f-]{36})$/.exec(ruta || '')?.[1]
+  if (!idImagen) return res.status(404).json({ mensaje: 'Imagen no encontrada' })
+  const imagen = await ImagenCargada.findById(idImagen)
+  const categoria = req.params.tipo === 'paciente' ? 'paciente' : 'usuario'
+  if (!imagen?.privada || imagen.categoria !== categoria || imagen.valor !== ruta ||
+      (categoria === 'usuario' && String(imagen.propietario) !== String(cita.profesional))) {
+    return res.status(404).json({ mensaje: 'Imagen no encontrada' })
+  }
+  const buffer = await descargarImagenPrivada(imagen)
+  res.set('Content-Type', 'image/jpeg')
+  res.set('X-Content-Type-Options', 'nosniff')
+  res.send(buffer)
+})
+
 router.get('/:id', async (req, res) => {
   if (!idValido(req.params.id)) return res.status(400).json({ mensaje: 'Identificador inválido' })
   const filtro = { _id: req.params.id }
   if (!gestor(req)) filtro.profesional = req.usuario._id
   const cita = await poblar(Cita.findOne(filtro))
   if (!cita) return res.status(404).json({ mensaje: 'Cita no encontrada' })
-  res.json({ cita: respuestaCita(cita, !gestor(req)) })
+  res.json({ cita: respuestaCita(cita, !gestor(req), true) })
 })
 
 router.post('/', async (req, res) => {
@@ -178,7 +232,7 @@ router.post('/', async (req, res) => {
     const cita = await Cita.create({ ...preparada,
       observacionesAdministrativas: datos.observacionesAdministrativas?.trim() ?? '' })
     const guardada = await poblar(Cita.findById(cita.id))
-    res.status(201).json({ cita: respuestaCita(guardada) })
+    res.status(201).json({ cita: respuestaCita(guardada, false, true) })
   } catch (error) {
     if (conflictoDeIndice(error)) throw errorCita(409, 'Horario ocupado; vuelve a consultar la disponibilidad')
     throw error
@@ -212,7 +266,7 @@ router.put('/:id', async (req, res) => {
       observacionesAdministrativas: datos.observacionesAdministrativas.trim() } },
     { returnDocument: 'after', runValidators: true })
     if (!cita) throw errorCita(409, 'La cita cambió; vuelve a consultarla')
-    res.json({ cita: respuestaCita(await poblar(Cita.findById(cita.id))) })
+    res.json({ cita: respuestaCita(await poblar(Cita.findById(cita.id)), false, true) })
   } catch (error) {
     if (conflictoDeIndice(error)) throw errorCita(409, 'Horario ocupado; vuelve a consultar la disponibilidad')
     throw error
@@ -244,7 +298,7 @@ router.patch('/:id/estado', async (req, res) => {
   const cita = await Cita.findOneAndUpdate({ ...filtro, estado: actual.estado },
     { $set: { estado: destino } }, { returnDocument: 'after', runValidators: true })
   if (!cita) return res.status(409).json({ mensaje: 'La cita cambió; vuelve a consultarla' })
-  res.json({ cita: respuestaCita(await poblar(Cita.findById(cita.id)), profesional) })
+  res.json({ cita: respuestaCita(await poblar(Cita.findById(cita.id)), profesional, true) })
 })
 
 export default router

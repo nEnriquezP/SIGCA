@@ -31,6 +31,13 @@ export function ahoraGuatemala(ahora = new Date()) {
   return { fecha: `${v.year}-${v.month}-${v.day}`, hora: `${v.hour}:${v.minute}` }
 }
 
+export function fechaMaximaGuatemala(ahora = new Date()) {
+  const fecha = ahoraGuatemala(ahora).fecha
+  const limite = new Date(`${fecha}T12:00:00Z`)
+  limite.setUTCDate(limite.getUTCDate() + 365)
+  return limite.toISOString().slice(0, 10)
+}
+
 function minutos(hora) {
   return Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3, 5))
 }
@@ -54,6 +61,9 @@ export async function prepararCita({ pacienteId, servicioId, profesionalId, fech
   const actual = ahoraGuatemala(ahora)
   if (fecha < actual.fecha || (fecha === actual.fecha && horaInicio <= actual.hora)) {
     throw errorCita(400, 'La cita debe comenzar en una fecha y hora futuras de Guatemala')
+  }
+  if (fecha > fechaMaximaGuatemala(ahora)) {
+    throw errorCita(400, 'La fecha debe estar dentro de los próximos 365 días de Guatemala')
   }
 
   const [paciente, servicio, profesional] = await Promise.all([
@@ -82,7 +92,7 @@ export async function prepararCita({ pacienteId, servicioId, profesionalId, fech
   const horario = await Horario.findOne({ dia, activo: true }, null, { session })
   if (!horario || !horario.intervalos.some((intervalo) =>
     intervalo.horaInicio <= horaInicio && horaFin <= intervalo.horaFin)) {
-    throw errorCita(409, 'La cita debe caber completa dentro de un intervalo de atención')
+    throw errorCita(409, 'La cita debe de registrarse dentro del horario laboral establecido')
   }
 
   if (esMenor(paciente.fechaNacimiento, fecha)) {

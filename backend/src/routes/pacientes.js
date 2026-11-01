@@ -51,7 +51,11 @@ function validar(datos) {
   for (const [campo, maximo] of Object.entries(longitudes)) {
     const valor = datos[campo] ?? (campo === 'observacionesAdministrativas' ? '' : null)
     if (typeof valor !== 'string' || (campo !== 'observacionesAdministrativas' && !valor.trim()) ||
-        valor.trim().length > maximo) return `${campo} inválido`
+        valor.trim().length > maximo) return `Revisa ${{
+          fotografia: 'la fotografía', nombres: 'los nombres', apellidos: 'los apellidos',
+          telefono: 'el teléfono', direccion: 'la dirección',
+          observacionesAdministrativas: 'las observaciones administrativas',
+        }[campo]}`
   }
   if (!/^(https?:\/\/[^\s]+|\/(?!\/)[^\s]*)$/i.test(datos.fotografia.trim())) {
     return 'La fotografía debe ser una URL o una ruta que inicie con /'
@@ -68,7 +72,7 @@ function validar(datos) {
       datos.fechaInicioProceso < datos.fechaNacimiento) {
     return 'El inicio del proceso debe estar entre el nacimiento del paciente y hoy'
   }
-  if (!sexos.has(datos.sexo)) return 'Sexo inválido'
+  if (!sexos.has(datos.sexo)) return 'Selecciona un sexo válido'
   if (datos.responsables !== undefined &&
       (!Array.isArray(datos.responsables) || datos.responsables.some((id) =>
         typeof id !== 'string' || !mongoose.isValidObjectId(id)) ||
@@ -120,7 +124,8 @@ function filtroBusqueda(texto) {
 
 router.get('/', async (req, res) => {
   if ((req.query.buscar !== undefined && typeof req.query.buscar !== 'string') ||
-      (req.query.estado !== undefined && typeof req.query.estado !== 'string')) {
+      (req.query.estado !== undefined && typeof req.query.estado !== 'string') ||
+      (req.query.pagina !== undefined && !/^(0|[1-9]\d{0,4})$/.test(req.query.pagina))) {
     return res.status(400).json({ mensaje: 'Filtros inválidos' })
   }
   const buscar = typeof req.query.buscar === 'string' ? req.query.buscar.trim() : ''
@@ -132,8 +137,12 @@ router.get('/', async (req, res) => {
     }
     filtro.estado = req.query.estado
   }
-  const pacientes = await Paciente.find(filtro).sort({ apellidos: 1, nombres: 1 }).limit(100)
-  res.json({ pacientes: pacientes.map(respuesta) })
+  const pagina = Number(req.query.pagina ?? 0)
+  let consulta = Paciente.find(filtro).sort({ apellidos: 1, nombres: 1, _id: 1 })
+  if (pagina) consulta = consulta.skip(pagina * 100)
+  const pacientes = await consulta.limit(101)
+  res.json({ pacientes: pacientes.slice(0, 100).map(respuesta),
+    hayMas: pacientes.length > 100, pagina })
 })
 
 router.get('/:id', async (req, res) => {
