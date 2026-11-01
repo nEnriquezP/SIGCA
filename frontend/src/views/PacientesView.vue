@@ -12,12 +12,18 @@ import { fechaCorta, etiquetaEstado } from '../utils/formatoCita.js'
 import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
 import { errorActual, mostrarError } from '../services/avisos.js'
 import { incorporarResponsable } from '../utils/estadoFormulario.js'
+import { crearCargaListado } from '../utils/cargaListado.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
-const pacientes = ref([])
-const pagina = ref(0)
-const hayMas = ref(false)
+const { pacientes, total, totalPaginas, pagina, cargando, actualizando,
+  cargar: cargarLista, cancelar: cancelarLista } = crearCargaListado(
+  (parametros, signal) => solicitarApi(`/api/pacientes?${parametros}`, {
+    token: sesion.token, signal, silencioso: true,
+  }), (errorApi, cargado) => {
+    if (errorApi.status === 401 || !cargado) fallo(errorApi)
+    else error.value = errorApi.message || 'No se pudo actualizar el listado'
+  })
 const responsablesDisponibles = ref([])
 const listaCompletaResponsables = ref(null)
 const paginaResponsables = ref(0)
@@ -32,9 +38,11 @@ let controladorResponsables
 let secuenciaResponsables = 0
 const buscar = ref('')
 const estadoFiltro = ref('')
+const orden = ref('codigo_asc')
 const error = ref('')
 const aviso = ref('')
-const cargando = ref(false)
+const menuAbierto = ref('')
+const indiceResponsable = ref(0)
 const guardando = ref(false)
 const edicion = ref(null)
 const edicionOriginal = ref(null)
@@ -69,6 +77,7 @@ const responsablesVisibles = computed(() => {
       responsable.telefono, responsable.id].some((valor) =>
       String(valor ?? '').toLocaleLowerCase('es-GT').includes(texto)))
 })
+const responsableActual = computed(() => detalle.value?.responsables?.[indiceResponsable.value] ?? null)
 const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
   useCambiosSinGuardar(hayCambios)
 
@@ -85,6 +94,9 @@ function responsableVacio() {
 
 async function abrirAltaResponsable(destino) {
   if (!sesion.tienePermiso('RESPONSABLES_GESTIONAR') || altaResponsable.value) return
+  if ((destino === 'edicion' ? edicion.value : nuevo.value).responsables.length >= 5) {
+    return fallo(new Error('Un paciente puede tener como máximo cinco responsables'))
+  }
   destinoResponsable.value = destino
   altaResponsable.value = responsableVacio()
   await nextTick()
@@ -106,6 +118,9 @@ function cancelarAltaResponsable() {
 
 async function guardarAltaResponsable() {
   if (!altaResponsable.value || guardandoResponsable.value) return
+  if ((destinoResponsable.value === 'edicion' ? edicion.value : nuevo.value).responsables.length >= 5) {
+    return fallo(new Error('Un paciente puede tener como máximo cinco responsables'))
+  }
   if (!altaResponsable.value.fotografia) return fallo(new Error('Carga una fotografía del responsable'))
   guardandoResponsable.value = true
   try {
@@ -172,28 +187,67 @@ async function buscarListado() {
   await cargar()
 }
 
-async function moverPagina(direccion) {
-  pagina.value = Math.max(0, pagina.value + direccion)
+async function limpiarFiltros() {
+  buscar.value = ''
+  estadoFiltro.value = ''
+  orden.value = 'codigo_asc'
+  pagina.value = 0
   await cargar()
 }
 
-async function cargar() {
-  cargando.value = true
+async function moverPagina(destino) {
+  pagina.value = Math.min(Math.max(0, destino), totalPaginas.value - 1)
+  await cargar()
+}
+
+async function cargar(forzar = false) {
   error.value = ''
-  try {
-    const parametros = new URLSearchParams()
-    if (buscar.value.trim()) parametros.set('buscar', buscar.value.trim())
-    if (estadoFiltro.value) parametros.set('estado', estadoFiltro.value)
-    if (pagina.value) parametros.set('pagina', String(pagina.value))
-    const query = parametros.size ? `?${parametros}` : ''
-    const datos = await solicitarApi(`/api/pacientes${query}`, { token: sesion.token })
-    pacientes.value = datos.pacientes
-    hayMas.value = Boolean(datos.hayMas)
-  } catch (errorApi) {
-    fallo(errorApi)
-  } finally {
-    cargando.value = false
+  const parametros = new URLSearchParams({ orden: orden.value, pagina: String(pagina.value) })
+  if (buscar.value.trim()) parametros.set('buscar', buscar.value.trim())
+  if (estadoFiltro.value) parametros.set('estado', estadoFiltro.value)
+  await cargarLista(parametros, forzar)
+}
+
+function cerrarMenu() { menuAbierto.value = '' }
+
+async function abrirMenu(paciente, evento) {
+  const contenedor = evento.currentTarget.parentElement
+  menuAbierto.value = menuAbierto.value === paciente.id ? '' : paciente.id
+  if (menuAbierto.value) {
+    await nextTick()
+    contenedor.querySelector('.menu-acciones button')?.focus()
   }
+}
+
+function pulsacionGlobal(evento) {
+  if (evento.key !== 'Escape' || !menuAbierto.value) return
+  const boton = document.querySelector('[data-acciones-paciente] [aria-expanded="true"]')
+  cerrarMenu()
+  boton?.focus()
+}
+
+function clicGlobal(evento) {
+  if (!evento.target.closest('[data-acciones-paciente]')) cerrarMenu()
+}
+
+function tecladoMenu(evento) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(evento.key)) return
+  const opciones = [...evento.currentTarget.querySelectorAll('.menu-acciones button')]
+  if (!opciones.length) return
+  evento.preventDefault()
+  const actual = opciones.indexOf(document.activeElement)
+  const indice = evento.key === 'Home' ? 0 : evento.key === 'End' ? opciones.length - 1 :
+    (actual + (evento.key === 'ArrowDown' ? 1 : -1) + opciones.length) % opciones.length
+  opciones[indice].focus()
+}
+
+function salirMenu(evento) {
+  if (!evento.currentTarget.contains(evento.relatedTarget)) cerrarMenu()
+}
+
+function moverResponsable(direccion) {
+  const cantidad = detalle.value?.responsables?.length ?? 0
+  if (cantidad) indiceResponsable.value = (indiceResponsable.value + direccion + cantidad) % cantidad
 }
 
 async function cargarResponsables(tipo = 'nuevo', mas = false) {
@@ -271,6 +325,7 @@ onUnmounted(() => {
 })
 
 async function crear() {
+  if (nuevo.value.responsables.length > 5) return fallo(new Error('Un paciente puede tener como máximo cinco responsables'))
   if (!nuevo.value.fotografia) return fallo(new Error('Carga una fotografía del paciente'))
   guardando.value = true
   error.value = ''
@@ -280,7 +335,7 @@ async function crear() {
     nuevo.value = vacio()
     buscarResponsableNuevo.value = ''
     aviso.value = 'Paciente registrado'
-    await cargar()
+    await cargar(true)
   } catch (errorApi) {
     fallo(errorApi)
   } finally {
@@ -299,6 +354,7 @@ async function consultar(paciente) {
         Promise.resolve({ citas: [], total: 0 }),
     ])
     detalle.value = datos.paciente
+    indiceResponsable.value = 0
     historialCitas.value = historial.citas
     totalCitas.value = historial.total
     edicion.value = null
@@ -330,6 +386,7 @@ async function editar(paciente) {
 }
 
 async function guardar() {
+  if (edicion.value.responsables.length > 5) return fallo(new Error('Un paciente puede tener como máximo cinco responsables'))
   if (!edicion.value.fotografia) return fallo(new Error('Carga una fotografía del paciente'))
   guardando.value = true
   error.value = ''
@@ -342,7 +399,7 @@ async function guardar() {
     buscarResponsableEdicion.value = ''
     cargarResponsables('nuevo')
     aviso.value = 'Paciente actualizado'
-    await cargar()
+    await cargar(true)
   } catch (errorApi) {
     fallo(errorApi)
   } finally {
@@ -369,7 +426,7 @@ async function cambiarEstado(paciente) {
     })
     aviso.value = `Paciente ${proximo.toLowerCase()}`
     if (detalle.value?.id === paciente.id) detalle.value.estado = proximo
-    await cargar()
+    await cargar(true)
   } catch (errorApi) {
     fallo(errorApi)
   }
@@ -380,10 +437,18 @@ useOpcionesVivas(() => {
     cargarResponsables(edicion.value ? 'edicion' : 'nuevo')
   }
 }, ['responsables'])
-useOpcionesVivas(cargar, ['pacientes'])
+useOpcionesVivas(cargar)
 
 onMounted(async () => {
+  document.addEventListener('keydown', pulsacionGlobal)
+  document.addEventListener('pointerdown', clicGlobal)
   await Promise.all([cargar(), sesion.tienePermiso('RESPONSABLES_VER') ? cargarResponsables() : Promise.resolve()])
+})
+
+onUnmounted(() => {
+  cancelarLista()
+  document.removeEventListener('keydown', pulsacionGlobal)
+  document.removeEventListener('pointerdown', clicGlobal)
 })
 </script>
 
@@ -435,10 +500,11 @@ onMounted(async () => {
             <input v-model="buscarResponsableNuevo" maxlength="80"
               @focus="tipoBusquedaResponsables !== 'nuevo' && programarBusquedaResponsables('nuevo')" />
           </label>
-          <small>La búsqueda se actualiza mientras escribes.</small>
+          <small>La búsqueda se actualiza mientras escribes. Máximo cinco responsables.</small>
           <button v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" type="button"
-            class="secundario" @click="abrirAltaResponsable('nuevo')">Agregar responsable</button>
-          <p role="status">Responsables seleccionados: {{ nuevo.responsables.length }}</p>
+            class="secundario" :disabled="nuevo.responsables.length >= 5"
+            @click="abrirAltaResponsable('nuevo')">Agregar responsable</button>
+          <p role="status">Responsables seleccionados: {{ nuevo.responsables.length }} de 5</p>
           <template v-if="tipoBusquedaResponsables === 'nuevo'">
             <p v-if="buscandoResponsables" role="status">Buscando responsables…</p>
             <p v-if="errorBusquedaResponsables" class="mensaje-error" role="alert">{{ errorBusquedaResponsables }}
@@ -446,7 +512,8 @@ onMounted(async () => {
             </p>
             <template v-else>
               <label v-for="responsable in responsablesVisibles" :key="responsable.id">
-                <input v-model="nuevo.responsables" type="checkbox" :value="responsable.id" />
+                <input v-model="nuevo.responsables" type="checkbox" :value="responsable.id"
+                  :disabled="nuevo.responsables.length >= 5 && !nuevo.responsables.includes(responsable.id)" />
                 {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
               </label>
               <p v-if="!buscandoResponsables && !responsablesVisibles.length" role="status">{{ buscarResponsableNuevo.trim() ?
@@ -476,7 +543,7 @@ onMounted(async () => {
 
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
-      <form class="formulario-grid" @submit.prevent="buscarListado">
+      <form class="formulario-grid filtros-pacientes" @submit.prevent="buscarListado">
         <label>Código, identificador, nombre, apellido o teléfono <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" /></label>
         <label>Estado <span class="requisito-campo">Opcional</span>
           <select v-model="estadoFiltro">
@@ -484,10 +551,22 @@ onMounted(async () => {
             <option value="INACTIVO">Inactivo</option>
           </select>
         </label>
+        <label>Orden
+          <select v-model="orden" @change="buscarListado">
+            <option value="codigo_asc">Código ascendente</option>
+            <option value="codigo_desc">Código descendente</option>
+            <option value="alfabetico_asc">Alfabético ascendente</option>
+            <option value="alfabetico_desc">Alfabético descendente</option>
+            <option value="ultimos_10">Últimos 10 registrados</option>
+          </select>
+        </label>
         <button type="submit">Buscar</button>
+        <button type="button" class="secundario" @click="limpiarFiltros">Limpiar filtros</button>
       </form>
-      <p v-if="cargando">Cargando pacientes…</p>
-      <div v-else class="tabla-contenedor">
+      <p v-if="cargando" role="status">Cargando pacientes…</p>
+      <p v-if="actualizando" class="pacientes-actualizando" role="status">Actualizando listado…</p>
+      <p v-if="!cargando" class="pacientes-total" role="status">{{ orden === 'ultimos_10' ? `Mostrando los últimos ${pacientes.length} de ${total} resultados` : `${total} resultados · Página ${pagina + 1} de ${totalPaginas}` }}</p>
+      <div v-if="!cargando" class="tabla-contenedor">
         <table>
           <thead><tr><th>Código</th><th>Nombre</th><th>Edad</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
@@ -496,12 +575,21 @@ onMounted(async () => {
               <td>{{ paciente.nombres }} {{ paciente.apellidos }}</td>
               <td>{{ paciente.edad }}</td>
               <td>{{ paciente.estado }}</td>
-              <td class="acciones">
-                <button type="button" class="secundario" @click="consultar(paciente)">Consultar</button>
-                <button v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')" type="button" class="secundario" @click="editar(paciente)">Actualizar</button>
-                <button v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')" type="button" class="secundario" @click="cambiarEstado(paciente)">
-                  {{ paciente.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
-                </button>
+              <td>
+                <div class="acciones-paciente" data-acciones-paciente
+                  @keydown="tecladoMenu" @focusout="salirMenu">
+                  <button type="button" class="secundario" :aria-expanded="menuAbierto === paciente.id"
+                    aria-haspopup="menu" @click="abrirMenu(paciente, $event)">Acciones</button>
+                  <div v-if="menuAbierto === paciente.id" class="menu-acciones" role="menu">
+                    <button type="button" role="menuitem" @click="cerrarMenu(); consultar(paciente)">Ver</button>
+                    <button v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')" type="button" role="menuitem"
+                      @click="cerrarMenu(); editar(paciente)">Actualizar</button>
+                    <button v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')" type="button" role="menuitem"
+                      @click="cerrarMenu(); cambiarEstado(paciente)">
+                      {{ paciente.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  </div>
+                </div>
               </td>
             </tr>
             <tr v-if="!pacientes.length"><td colspan="5">No hay pacientes en esta búsqueda.</td></tr>
@@ -510,28 +598,68 @@ onMounted(async () => {
       </div>
     </section>
 
-    <nav class="acciones" aria-label="Páginas de resultados">
-      <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(-1)">Anterior</button>
-      <span>Página {{ pagina + 1 }}</span>
-      <button type="button" class="secundario" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente</button>
+    <nav v-if="orden !== 'ultimos_10'" class="acciones paginacion-pacientes" aria-label="Páginas de resultados">
+      <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(0)">Primera</button>
+      <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(pagina - 1)">Anterior</button>
+      <span>Página {{ pagina + 1 }} de {{ totalPaginas }}</span>
+      <button type="button" class="secundario" :disabled="pagina + 1 >= totalPaginas || cargando" @click="moverPagina(pagina + 1)">Siguiente</button>
+      <button type="button" class="secundario" :disabled="pagina + 1 >= totalPaginas || cargando" @click="moverPagina(totalPaginas - 1)">Última</button>
     </nav>
 
-    <section v-if="detalle" class="tarjeta">
-      <h2>Detalle del paciente</h2>
-      <p>Código: <strong>{{ detalle.codigo || 'Pendiente de asignación' }}</strong></p>
-      <p><strong>{{ detalle.nombres }} {{ detalle.apellidos }}</strong> · {{ detalle.edad }} años · {{ detalle.estado }}</p>
-      <p>Fecha de nacimiento: {{ formatearFecha(detalle.fechaNacimiento) }} · Sexo: {{ detalle.sexo }}</p>
-      <p>Teléfono: {{ detalle.telefono }} · Dirección: {{ detalle.direccion }}</p>
-      <p>Inicio del proceso: {{ formatearFecha(detalle.fechaInicioProceso) }}</p>
-      <p>Observaciones administrativas: {{ detalle.observacionesAdministrativas || 'Sin observaciones' }}</p>
-      <ImagenVista :valor="detalle.fotografia" alt="Fotografía del paciente" />
-      <h3>Responsables</h3>
-      <ul v-if="detalle.responsables.length">
-        <li v-for="responsable in detalle.responsables" :key="responsable.id">
-          {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
-        </li>
-      </ul>
-      <p v-else>No tiene responsables asociados.</p>
+    <section v-if="detalle" class="tarjeta detalle-paciente">
+      <header class="detalle-paciente-cabecera">
+        <div>
+          <p class="detalle-paciente-etiqueta">Detalle del paciente</p>
+          <h2>{{ detalle.nombres }} {{ detalle.apellidos }}</h2>
+          <p><strong>{{ detalle.codigo || 'Pendiente de asignación' }}</strong></p>
+        </div>
+        <span class="detalle-paciente-estado" :class="detalle.estado === 'ACTIVO' ? 'estado-activo' : 'estado-inactivo'">{{ detalle.estado }}</span>
+      </header>
+      <div class="detalle-paciente-secciones">
+        <section class="detalle-paciente-bloque">
+          <h3>Información personal</h3>
+          <dl class="detalle-paciente-datos">
+            <div><dt>Edad</dt><dd>{{ detalle.edad }} años</dd></div>
+            <div><dt>Fecha de nacimiento</dt><dd>{{ formatearFecha(detalle.fechaNacimiento) }}</dd></div>
+            <div><dt>Sexo</dt><dd>{{ detalle.sexo }}</dd></div>
+          </dl>
+        </section>
+        <section class="detalle-paciente-bloque">
+          <h3>Contacto y proceso</h3>
+          <dl class="detalle-paciente-datos">
+            <div><dt>Teléfono</dt><dd>{{ detalle.telefono }}</dd></div>
+            <div><dt>Dirección</dt><dd>{{ detalle.direccion }}</dd></div>
+            <div><dt>Inicio del proceso</dt><dd>{{ formatearFecha(detalle.fechaInicioProceso) }}</dd></div>
+          </dl>
+        </section>
+      </div>
+      <section class="detalle-paciente-bloque">
+        <h3>Observaciones administrativas</h3>
+        <p>{{ detalle.observacionesAdministrativas || 'Sin observaciones' }}</p>
+      </section>
+      <div class="detalle-paciente-fotos">
+        <section class="detalle-paciente-foto">
+          <h3>Fotografía del paciente</h3>
+          <ImagenVista :valor="detalle.fotografia" alt="Fotografía del paciente" silueta />
+          <p>{{ detalle.nombres }} {{ detalle.apellidos }}</p>
+        </section>
+        <section class="detalle-paciente-foto">
+          <h3>Responsables asociados</h3>
+          <template v-if="responsableActual">
+            <ImagenVista :key="responsableActual.id" :valor="responsableActual.fotografia || ''"
+              :alt="`Fotografía de ${responsableActual.nombres} ${responsableActual.apellidos}`" silueta />
+            <p><strong>{{ responsableActual.nombres }} {{ responsableActual.apellidos }}</strong></p>
+            <p>{{ responsableActual.codigo || 'Sin código' }} · {{ responsableActual.parentesco }}</p>
+            <div v-if="detalle.responsables.length > 1" class="detalle-paciente-carrusel">
+              <button type="button" class="secundario" @click="moverResponsable(-1)">Anterior</button>
+              <span role="status">{{ indiceResponsable + 1 }} de {{ detalle.responsables.length }}</span>
+              <button type="button" class="secundario" @click="moverResponsable(1)">Siguiente</button>
+            </div>
+          </template>
+          <p v-else>No tiene responsables asociados.</p>
+        </section>
+      </div>
+      <section class="detalle-paciente-bloque">
       <h3>Historial de citas</h3>
       <p v-if="!sesion.tienePermiso('CITAS_VER')">No tienes permiso para consultar citas.</p>
       <ul v-else-if="historialCitas.length">
@@ -545,8 +673,11 @@ onMounted(async () => {
       <RouterLink v-if="sesion.tienePermiso('CITAS_VER') && totalCitas > 100" :to="{ name: 'citas', query: { paciente: detalle.id } }">
         Ver las {{ totalCitas }} citas y más páginas
       </RouterLink>
+      </section>
+      <section class="detalle-paciente-bloque">
       <h3>Pagos</h3>
       <p>La consulta de pagos se incorporará en su fase correspondiente.</p>
+      </section>
     </section>
 
     <section v-if="edicion && sesion.tienePermiso('PACIENTES_GESTIONAR')" class="tarjeta">
@@ -589,10 +720,11 @@ onMounted(async () => {
             <input v-model="buscarResponsableEdicion" maxlength="80"
               @focus="tipoBusquedaResponsables !== 'edicion' && programarBusquedaResponsables('edicion')" />
           </label>
-          <small>La búsqueda se actualiza mientras escribes.</small>
+          <small>La búsqueda se actualiza mientras escribes. Máximo cinco responsables.</small>
           <button v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" type="button"
-            class="secundario" @click="abrirAltaResponsable('edicion')">Agregar responsable</button>
-          <p role="status">Responsables seleccionados: {{ edicion.responsables.length }}</p>
+            class="secundario" :disabled="edicion.responsables.length >= 5"
+            @click="abrirAltaResponsable('edicion')">Agregar responsable</button>
+          <p role="status">Responsables seleccionados: {{ edicion.responsables.length }} de 5</p>
           <template v-if="tipoBusquedaResponsables === 'edicion'">
             <p v-if="buscandoResponsables" role="status">Buscando responsables…</p>
             <p v-if="errorBusquedaResponsables" class="mensaje-error" role="alert">{{ errorBusquedaResponsables }}
@@ -600,7 +732,8 @@ onMounted(async () => {
             </p>
             <template v-else>
               <label v-for="responsable in responsablesVisibles" :key="responsable.id">
-                <input v-model="edicion.responsables" type="checkbox" :value="responsable.id" />
+                <input v-model="edicion.responsables" type="checkbox" :value="responsable.id"
+                  :disabled="edicion.responsables.length >= 5 && !edicion.responsables.includes(responsable.id)" />
                 {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
               </label>
               <p v-if="!buscandoResponsables && !responsablesVisibles.length" role="status">{{ buscarResponsableEdicion.trim() ?

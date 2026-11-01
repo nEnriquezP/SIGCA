@@ -292,6 +292,45 @@ button.secundario { background: #e7edf4; color: #203047; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.filtros-pacientes { align-items: end; }
+.pacientes-actualizando, .pacientes-total { color: #526477; font-size: .9rem; }
+.pacientes-actualizando { margin-bottom: 4px; }
+.acciones-paciente { position: relative; width: max-content; }
+.menu-acciones { position: absolute; z-index: 5; top: calc(100% + 4px); right: 0; min-width: 150px; padding: 5px;
+  border: 1px solid #cbd9e6; border-radius: 8px; background: white; box-shadow: 0 8px 20px #102e5026; }
+.menu-acciones button { display: block; width: 100%; padding: 9px 10px; background: white; color: #173753; text-align: left; }
+.menu-acciones button:hover, .menu-acciones button:focus-visible { background: #e8f3fb; }
+.tabla-contenedor tr:nth-last-child(-n+3) .menu-acciones { top: auto; bottom: calc(100% + 4px); }
+.paginacion-pacientes { align-items: center; margin-bottom: 20px; }
+.detalle-paciente { min-width: 0; }
+.detalle-paciente-cabecera { display: flex; justify-content: space-between; align-items: start; gap: 16px;
+  padding-bottom: 18px; border-bottom: 1px solid #d9e2ed; }
+.detalle-paciente-cabecera h2 { margin: 0 0 5px; overflow-wrap: anywhere; }
+.detalle-paciente-cabecera p { margin: 0; }
+.detalle-paciente-etiqueta { color: #526477; font-size: .88rem; }
+.detalle-paciente-estado { flex: none; padding: 5px 10px; border-radius: 99px; font-size: .8rem; font-weight: 700; }
+.detalle-paciente-estado.estado-activo { background: #d8f5e5; color: #17623d; }
+.detalle-paciente-estado.estado-inactivo { background: #fbe2e2; color: #8b3131; }
+.detalle-paciente-secciones, .detalle-paciente-fotos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.detalle-paciente-bloque, .detalle-paciente-foto { min-width: 0; padding: 18px; margin-top: 18px; border: 1px solid #d9e2ed; border-radius: 10px; background: #f8fbfd; }
+.detalle-paciente-secciones .detalle-paciente-bloque { margin-top: 0; }
+.detalle-paciente-bloque h3, .detalle-paciente-foto h3 { margin: 0 0 14px; color: #133a5f; }
+.detalle-paciente-bloque p { overflow-wrap: anywhere; }
+.detalle-paciente-datos { display: grid; gap: 12px; margin: 0; }
+.detalle-paciente-datos dt { color: #526477; font-size: .86rem; }
+.detalle-paciente-datos dd { margin: 3px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.detalle-paciente-fotos .detalle-paciente-foto { margin-top: 0; }
+.detalle-paciente-foto .imagen-vista { display: grid; place-items: center; min-height: 180px; background: #eaf0f5; border-radius: 8px; }
+.detalle-paciente-foto .imagen-vista img, .detalle-paciente-foto .imagen-vista svg { display: block; width: min(100%, 180px); height: 180px; max-height: none; margin: 0; object-fit: cover; border-radius: 8px; }
+.detalle-paciente-foto .imagen-vista .mensaje-error { margin: 4px 8px; font-size: .8rem; text-align: center; }
+.detalle-paciente-foto p { overflow-wrap: anywhere; }
+.detalle-paciente-carrusel { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.detalle-paciente-carrusel button { white-space: nowrap; }
+@media (max-width: 650px) {
+  .detalle-paciente-secciones, .detalle-paciente-fotos { grid-template-columns: 1fr; }
+  .detalle-paciente-cabecera { flex-wrap: wrap; }
+  .detalle-paciente-carrusel { flex-wrap: wrap; }
+}
 .selector-pacientes { grid-column: 1 / -1; min-width: 0; border: 1px solid #cbd9e6; border-radius: 10px; padding: 15px; }
 .selector-pacientes legend { font-weight: 700; }
 .selector-opciones { display: grid; gap: 5px; max-height: 310px; overflow-y: auto; margin-top: 10px; }

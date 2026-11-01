@@ -9,6 +9,11 @@ const sesion = useSesionStore()
 const fuente = ref('')
 const error = ref('')
 
+function imagenFallida() {
+  fuente.value = ''
+  error.value = 'No se pudo mostrar la fotografía.'
+}
+
 watch(() => props.valor, async (valor, _anterior, alLimpiar) => {
   let activa = true
   let temporal = ''
@@ -36,7 +41,7 @@ watch(() => props.valor, async (valor, _anterior, alLimpiar) => {
 
 <template>
   <div class="imagen-vista">
-    <img v-if="fuente" :src="fuente" :alt="alt" referrerpolicy="no-referrer" />
+    <img v-if="fuente" :src="fuente" :alt="alt" referrerpolicy="no-referrer" @error="imagenFallida" />
     <svg v-else-if="silueta" viewBox="0 0 80 80" role="img" aria-label="Silueta gris sin fotografía">
       <circle cx="40" cy="40" r="40" fill="#dce2e8" />
       <circle cx="40" cy="29" r="15" fill="#8795a3" />
