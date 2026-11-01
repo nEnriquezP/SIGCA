@@ -126,16 +126,16 @@ onMounted(() => {
   document.addEventListener('pointerdown', cerrarAlSalir)
   document.addEventListener('keydown', cerrarConEscape)
   document.addEventListener('invalid', avisarCampoInvalido, true)
-  document.addEventListener('input', limpiarMarcaSiValido, true)
-  document.addEventListener('change', limpiarMarcaSiValido, true)
+  document.addEventListener('input', limpiarMarcaSiValido)
+  document.addEventListener('change', limpiarMarcaSiValido)
 })
 
 onUnmounted(() => {
   document.removeEventListener('pointerdown', cerrarAlSalir)
   document.removeEventListener('keydown', cerrarConEscape)
   document.removeEventListener('invalid', avisarCampoInvalido, true)
-  document.removeEventListener('input', limpiarMarcaSiValido, true)
-  document.removeEventListener('change', limpiarMarcaSiValido, true)
+  document.removeEventListener('input', limpiarMarcaSiValido)
+  document.removeEventListener('change', limpiarMarcaSiValido)
 })
 
 async function salir() {
