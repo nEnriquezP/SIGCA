@@ -134,8 +134,14 @@ test('RF-07 y RF-08 con MongoDB temporal: permisos, agenda, historial y calendar
   assert.equal(ultimaPagina.body.pacientes.length, 5)
   const pacientesPaginaDos = await pedir(base, '/api/pacientes?buscar=Buscable&pagina=1',
     tokens.RECEPCIONISTA)
-  assert.equal(pacientesPaginaDos.body.pacientes.length, 5)
-  assert.equal(pacientesPaginaDos.body.hayMas, false)
+  assert.equal(pacientesPaginaDos.body.pacientes.length, 40)
+  assert.equal(pacientesPaginaDos.body.total, 105)
+  assert.equal(pacientesPaginaDos.body.totalPaginas, 3)
+  assert.equal(pacientesPaginaDos.body.hayMas, true)
+  const pacientesPaginaTres = await pedir(base, '/api/pacientes?buscar=Buscable&pagina=2',
+    tokens.RECEPCIONISTA)
+  assert.equal(pacientesPaginaTres.body.pacientes.length, 25)
+  assert.equal(pacientesPaginaTres.body.hayMas, false)
   await Servicio.insertMany(Array.from({ length: 101 }, (_, indice) => ({
     codigo: `SERV-INT-${String(indice + 2).padStart(4, '0')}`,
     nombre: `Servicio de prueba ${indice + 2}`, descripcion: 'Prueba local',

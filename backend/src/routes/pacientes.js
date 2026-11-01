@@ -74,10 +74,11 @@ function validar(datos) {
   }
   if (!sexos.has(datos.sexo)) return 'Selecciona un sexo válido'
   if (datos.responsables !== undefined &&
-      (!Array.isArray(datos.responsables) || datos.responsables.some((id) =>
+      (!Array.isArray(datos.responsables) || datos.responsables.length > 5 || datos.responsables.some((id) =>
         typeof id !== 'string' || !mongoose.isValidObjectId(id)) ||
        new Set(datos.responsables).size !== datos.responsables.length)) {
-    return 'Lista de responsables inválida'
+    return Array.isArray(datos.responsables) && datos.responsables.length > 5 ?
+      'Un paciente puede tener como máximo cinco responsables' : 'Lista de responsables inválida'
   }
   return null
 }
@@ -109,7 +110,7 @@ function respuesta(paciente) {
       typeof responsable === 'object' && responsable.nombres ? {
         id: responsable.id, codigo: responsable.codigo ?? null,
         nombres: responsable.nombres, apellidos: responsable.apellidos,
-        parentesco: responsable.parentesco,
+        parentesco: responsable.parentesco, fotografia: responsable.fotografia,
       } : String(responsable)),
   }
 }
@@ -123,8 +124,16 @@ function filtroBusqueda(texto) {
 }
 
 router.get('/', async (req, res) => {
+  const ordenes = {
+    codigo_asc: { codigo: 1, _id: 1 },
+    codigo_desc: { codigo: -1, _id: -1 },
+    alfabetico_asc: { apellidos: 1, nombres: 1, _id: 1 },
+    alfabetico_desc: { apellidos: -1, nombres: -1, _id: -1 },
+    ultimos_10: { createdAt: -1, _id: -1 },
+  }
   if ((req.query.buscar !== undefined && typeof req.query.buscar !== 'string') ||
       (req.query.estado !== undefined && typeof req.query.estado !== 'string') ||
+      (req.query.orden !== undefined && !Object.hasOwn(ordenes, req.query.orden)) ||
       (req.query.pagina !== undefined && !/^(0|[1-9]\d{0,4})$/.test(req.query.pagina))) {
     return res.status(400).json({ mensaje: 'Filtros inválidos' })
   }
@@ -137,12 +146,16 @@ router.get('/', async (req, res) => {
     }
     filtro.estado = req.query.estado
   }
-  const pagina = Number(req.query.pagina ?? 0)
-  let consulta = Paciente.find(filtro).sort({ apellidos: 1, nombres: 1, _id: 1 })
-  if (pagina) consulta = consulta.skip(pagina * 100)
-  const pacientes = await consulta.limit(101)
-  res.json({ pacientes: pacientes.slice(0, 100).map(respuesta),
-    hayMas: pacientes.length > 100, pagina })
+  const orden = req.query.orden ?? 'codigo_asc'
+  const total = await Paciente.countDocuments(filtro)
+  const totalPaginas = orden === 'ultimos_10' ? 1 : Math.max(1, Math.ceil(total / 40))
+  const pagina = orden === 'ultimos_10' ? 0 :
+    Math.min(Number(req.query.pagina ?? 0), totalPaginas - 1)
+  const limite = orden === 'ultimos_10' ? 10 : 40
+  const pacientes = await Paciente.find(filtro).sort(ordenes[orden])
+    .skip(pagina * limite).limit(limite)
+  res.json({ pacientes: pacientes.map(respuesta), total, totalPaginas, pagina,
+    hayMas: pagina + 1 < totalPaginas })
 })
 
 router.get('/:id', async (req, res) => {
@@ -150,7 +163,7 @@ router.get('/:id', async (req, res) => {
     return res.status(400).json({ mensaje: 'Identificador inválido' })
   }
   const paciente = await Paciente.findById(req.params.id).populate('responsables',
-    'codigo nombres apellidos parentesco')
+    'codigo nombres apellidos parentesco fotografia')
   if (!paciente) return res.status(404).json({ mensaje: 'Paciente no encontrado' })
   res.json({ paciente: respuesta(paciente) })
 })

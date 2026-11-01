@@ -25,6 +25,8 @@ let base
 function consulta(valor) {
   return {
     select: async () => valor,
+    populate: async () => valor ? { ...valor, responsables: valor.responsables.map((id) =>
+      responsables.get(String(id)) ?? id) } : null,
     then: (resolver, rechazar) => Promise.resolve(valor).then(resolver, rechazar),
   }
 }
@@ -256,11 +258,21 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
     fechaNacimiento: '2015-05-10', sexo: 'MASCULINO', telefono: '55551234',
     direccion: 'Prueba', fechaInicioProceso: '2026-10-20',
     observacionesAdministrativas: '', responsables: [idResponsable] }
+  const seisResponsables = Array.from({ length: 6 }, (_, indice) => String(indice + 1).padStart(24, '0'))
+  const excesoRegistro = await pedir('/api/pacientes', { metodo: 'POST', token,
+    datos: { ...paciente, responsables: seisResponsables } })
+  assert.equal(excesoRegistro.status, 400)
+  assert.match(excesoRegistro.body.mensaje, /máximo cinco responsables/)
   assert.equal((await pedir('/api/pacientes', { metodo: 'POST', token,
     datos: { ...paciente, responsables: ['111111111111111111111111'] } })).status, 400)
   const registro = await pedir('/api/pacientes', { metodo: 'POST', token, datos: paciente })
   assert.equal(registro.status, 201)
   assert.deepEqual(registro.body.paciente.responsables, [idResponsable])
+  assert.equal((await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
+    datos: { ...paciente, responsables: seisResponsables } })).status, 400)
+  const detalle = await pedir(`/api/pacientes/${idPaciente}`, { token })
+  assert.equal(detalle.status, 200)
+  assert.equal(detalle.body.paciente.responsables[0].fotografia, responsable.fotografia)
   const sinAsociacion = await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
     datos: { ...paciente, responsables: [] } })
   assert.equal(sinAsociacion.status, 200)
@@ -304,4 +316,69 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
   assert.equal(baja.status, 200)
   assert.equal(pacientes.get(idPaciente).estado, 'INACTIVO')
   assert.equal(pacientes.size, 1)
+})
+
+test('listado de pacientes ordena y pagina el conjunto filtrado', async () => {
+  const token = crearToken(usuarios.get(idRecepcion))
+  const datos = Array.from({ length: 85 }, (_, indice) => ({
+    ...pacientes.get(idPaciente), id: String(indice + 1).padStart(24, '0'),
+    codigo: `PAC-${String(indice + 2).padStart(6, '0')}`,
+    nombres: indice % 2 ? 'Beatriz' : 'Ana', apellidos: indice % 2 ? 'Zeta' : 'Alfa',
+    estado: indice < 45 ? 'ACTIVO' : 'INACTIVO',
+    createdAt: new Date(2026, 0, indice + 1),
+  }))
+  const coincide = (paciente, filtro) =>
+    (!filtro.estado || paciente.estado === filtro.estado) &&
+    (!filtro.$or || filtro.$or.some((condicion) => {
+      const [campo, valor] = Object.entries(condicion)[0]
+      return valor.$regex ? new RegExp(valor.$regex, 'i').test(paciente[campo]) :
+        paciente[campo] === valor
+    }))
+  Paciente.countDocuments = async (filtro) => datos.filter((item) => coincide(item, filtro)).length
+  Paciente.find = (filtro) => {
+    let resultado = datos.filter((item) => coincide(item, filtro))
+    return {
+      sort(orden) {
+        resultado.sort((a, b) => {
+          for (const [campo, direccion] of Object.entries(orden)) {
+            const primero = campo === '_id' ? a.id : a[campo]
+            const segundo = campo === '_id' ? b.id : b[campo]
+            const diferencia = primero < segundo ? -1 : primero > segundo ? 1 : 0
+            if (diferencia) return diferencia * direccion
+          }
+          return 0
+        })
+        return this
+      },
+      skip(cantidad) { resultado = resultado.slice(cantidad); return this },
+      limit(cantidad) { return Promise.resolve(resultado.slice(0, cantidad)) },
+    }
+  }
+  const primera = await pedir('/api/pacientes', { token })
+  assert.equal(primera.status, 200)
+  assert.equal(primera.body.pacientes.length, 40)
+  assert.equal(primera.body.total, 85)
+  assert.equal(primera.body.totalPaginas, 3)
+  assert.equal(primera.body.pacientes[0].codigo, 'PAC-000002')
+  const ultima = await pedir('/api/pacientes?pagina=99', { token })
+  assert.equal(ultima.body.pagina, 2)
+  assert.equal(ultima.body.pacientes.length, 5)
+  const descendente = await pedir('/api/pacientes?orden=codigo_desc', { token })
+  assert.equal(descendente.body.pacientes[0].codigo, 'PAC-000086')
+  const alfabetico = await pedir('/api/pacientes?orden=alfabetico_asc', { token })
+  assert.equal(alfabetico.body.pacientes[0].apellidos, 'Alfa')
+  const alfabeticoInverso = await pedir('/api/pacientes?orden=alfabetico_desc', { token })
+  assert.equal(alfabeticoInverso.body.pacientes[0].apellidos, 'Zeta')
+  const filtrado = await pedir('/api/pacientes?estado=ACTIVO&buscar=PAC-', { token })
+  assert.equal(filtrado.body.total, 45)
+  assert.equal(filtrado.body.totalPaginas, 2)
+  const ultimos = await pedir('/api/pacientes?orden=ultimos_10&pagina=2', { token })
+  assert.equal(ultimos.body.pacientes.length, 10)
+  assert.equal(ultimos.body.pagina, 0)
+  assert.equal(ultimos.body.totalPaginas, 1)
+  assert.equal(ultimos.body.pacientes[0].codigo, 'PAC-000086')
+  const vacio = await pedir('/api/pacientes?buscar=inexistente', { token })
+  assert.equal(vacio.body.total, 0)
+  assert.equal(vacio.body.totalPaginas, 1)
+  assert.equal((await pedir('/api/pacientes?orden=desconocido', { token })).status, 400)
 })
