@@ -34,7 +34,7 @@ const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
   useCambiosSinGuardar(hayCambios)
 
 function vacio() {
-  return { fotografia: '', nombres: '', apellidos: '', parentesco: '', telefono: '', correo: '', direccion: '' }
+  return { fotografia: '', nombres: '', apellidos: '', parentesco: '', telefono: '', correo: '', direccion: '', recibirPublicaciones: false }
 }
 
 function capturarTelefono(evento, datos) {
@@ -86,9 +86,9 @@ async function crear() {
   error.value = ''
   aviso.value = ''
   try {
-    await solicitarApi('/api/responsables', { method: 'POST', token: sesion.token, body: nuevo.value })
+    const respuesta = await solicitarApi('/api/responsables', { method: 'POST', token: sesion.token, body: nuevo.value })
     nuevo.value = vacio()
-    aviso.value = 'Responsable registrado'
+    aviso.value = respuesta.mensaje || 'Responsable registrado'
     await cargar()
   } catch (errorApi) {
     fallo(errorApi)
@@ -112,11 +112,11 @@ async function guardar() {
   error.value = ''
   aviso.value = ''
   try {
-    const { id, codigo, ...datos } = edicion.value
-    await solicitarApi(`/api/responsables/${id}`, { method: 'PUT', token: sesion.token, body: datos })
+    const { id, codigo, correoVerificado, ...datos } = edicion.value
+    const respuesta = await solicitarApi(`/api/responsables/${id}`, { method: 'PUT', token: sesion.token, body: datos })
     edicion.value = null
     edicionOriginal.value = null
-    aviso.value = 'Responsable actualizado'
+    aviso.value = respuesta.mensaje || 'Responsable actualizado'
     await cargar()
   } catch (errorApi) {
     fallo(errorApi)
@@ -201,6 +201,7 @@ useOpcionesVivas(cargar, ['responsables'])
       <p>Código: <strong>{{ detalle.codigo || 'Pendiente de asignación' }}</strong></p>
       <p><strong>{{ detalle.nombres }} {{ detalle.apellidos }}</strong> · {{ detalle.parentesco }}</p>
       <p>Correo: {{ detalle.correo }} · Teléfono: {{ detalle.telefono }}</p>
+      <p>Verificación de correo: {{ detalle.correoVerificado ? 'Verificado' : 'Pendiente' }}</p>
       <p>Dirección: {{ detalle.direccion }}</p>
       <ImagenVista :valor="detalle.fotografia" alt="Fotografía del responsable" />
       <h3>Pacientes asociados</h3>
@@ -236,6 +237,7 @@ useOpcionesVivas(cargar, ['responsables'])
                   pattern="[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,63}" placeholder="usuario@dominio.com"
                   title="Escribe un correo con el formato usuario@dominio.com" />
               </label>
+              <label class="paciente-campo-ancho"><input v-model="edicion.recibirPublicaciones" type="checkbox" /> Recibir publicaciones por correo después de verificarlo (opcional)</label>
               <label class="paciente-campo-ancho">Dirección <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.direccion" required maxlength="300" /></label>
             </div>
           </div>

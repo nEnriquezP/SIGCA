@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import InicioView from '../views/InicioView.vue'
 import EstadoView from '../views/EstadoView.vue'
 import LoginView from '../views/LoginView.vue'
+import VerificarCorreoView from '../views/VerificarCorreoView.vue'
+import RecuperarPasswordView from '../views/RecuperarPasswordView.vue'
+import RestablecerPasswordView from '../views/RestablecerPasswordView.vue'
 import UsuariosView from '../views/UsuariosView.vue'
 import PacientesView from '../views/PacientesView.vue'
 import ResponsablesView from '../views/ResponsablesView.vue'
@@ -26,6 +29,9 @@ const router = createRouter({
     { path: '/estado-sistema', name: 'estado-sistema', component: EstadoView,
       meta: { requiereSesion: true } },
     { path: '/ingresar', name: 'ingresar', component: LoginView },
+    { path: '/verificar-correo', name: 'verificar-correo', component: VerificarCorreoView },
+    { path: '/recuperar-password', name: 'recuperar-password', component: RecuperarPasswordView },
+    { path: '/restablecer-password', name: 'restablecer-password', component: RestablecerPasswordView },
     { path: '/servicios', name: 'servicios', component: ServiciosView,
       props: { administracion: false } },
     { path: '/solicitar-cita', name: 'solicitar-cita', component: SolicitudCitaView },
@@ -71,6 +77,7 @@ router.beforeEach(async (destino) => {
   const sesion = useSesionStore()
   await sesion.restaurar()
   if (!sesion.autenticado) return { name: 'ingresar' }
+  if (sesion.usuario?.debeCambiarPassword && destino.name !== 'mi-password') return { name: 'mi-password' }
   if (destino.meta.permiso && !sesion.tienePermiso(destino.meta.permiso)) return { name: 'inicio' }
 })
 

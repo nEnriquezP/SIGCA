@@ -169,10 +169,10 @@ async function crear() {
   aviso.value = ''
   guardando.value = true
   try {
-    await solicitarApi('/api/usuarios', { method: 'POST', token: sesion.token, body: nuevo.value })
+    const respuesta = await solicitarApi('/api/usuarios', { method: 'POST', token: sesion.token, body: nuevo.value })
     nuevo.value = { nombre: '', correo: '', rol: 'RECEPCIONISTA', password: '' }
     verPasswordInicial.value = false
-    aviso.value = 'Usuario creado'
+    aviso.value = respuesta.mensaje || 'Usuario creado. Debe verificar su correo antes de ingresar.'
     await cargar()
   } catch (fallo) {
     manejarError(fallo)
@@ -377,7 +377,8 @@ useOpcionesVivas(() => Promise.all([cargar(), cargarRoles()]), ['usuarios', 'rol
                 <span>{{ usuario.nombre }}</span></div></td>
               <td>{{ usuario.correo }}</td>
               <td>{{ nombreRol(usuario.rol) }}</td>
-              <td>{{ usuario.activo ? 'Activo' : 'Inactivo' }}</td>
+              <td>{{ usuario.activo ? 'Activo' : 'Inactivo' }}<br />
+                <small>{{ usuario.correoVerificado ? 'Correo verificado' : 'Correo pendiente de verificar' }}</small></td>
               <td>
                 <div class="usuario-menu-acciones" @keydown.esc="accionesAbiertas = null">
                   <button type="button" class="secundario usuario-boton-acciones"
@@ -426,6 +427,7 @@ useOpcionesVivas(() => Promise.all([cargar(), cargarRoles()]), ['usuarios', 'rol
         </div>
         <dl>
           <div><dt>Correo electrónico</dt><dd>{{ usuarioEnDetalle.correo }}</dd></div>
+          <div><dt>Verificación</dt><dd>{{ usuarioEnDetalle.correoVerificado ? 'Correo verificado' : 'Pendiente de verificación' }}</dd></div>
           <div><dt>Rol</dt><dd>{{ nombreRol(usuarioEnDetalle.rol) }}</dd></div>
           <div><dt>Estado</dt><dd>{{ usuarioEnDetalle.activo ? 'Activo' : 'Inactivo' }}</dd></div>
         </dl>

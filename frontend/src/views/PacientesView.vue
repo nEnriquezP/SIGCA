@@ -83,13 +83,13 @@ const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
 
 function vacio() {
   return { fotografia: '', nombres: '', apellidos: '', fechaNacimiento: '', sexo: '',
-    telefono: '', direccion: '', fechaInicioProceso: '', observacionesAdministrativas: '',
+    telefono: '', correo: '', recibirPublicaciones: false, direccion: '', fechaInicioProceso: '', observacionesAdministrativas: '',
     responsables: [] }
 }
 
 function responsableVacio() {
   return { fotografia: '', nombres: '', apellidos: '', parentesco: '', telefono: '',
-    correo: '', direccion: '' }
+    correo: '', direccion: '', recibirPublicaciones: false }
 }
 
 async function abrirAltaResponsable(destino) {
@@ -331,10 +331,10 @@ async function crear() {
   error.value = ''
   aviso.value = ''
   try {
-    await solicitarApi('/api/pacientes', { method: 'POST', token: sesion.token, body: nuevo.value })
+    const respuesta = await solicitarApi('/api/pacientes', { method: 'POST', token: sesion.token, body: nuevo.value })
     nuevo.value = vacio()
     buscarResponsableNuevo.value = ''
-    aviso.value = 'Paciente registrado'
+    aviso.value = respuesta.mensaje || 'Paciente registrado'
     await cargar(true)
   } catch (errorApi) {
     fallo(errorApi)
@@ -392,13 +392,13 @@ async function guardar() {
   error.value = ''
   aviso.value = ''
   try {
-    const { id, codigo, edad, estado, ...datos } = edicion.value
-    await solicitarApi(`/api/pacientes/${id}`, { method: 'PUT', token: sesion.token, body: datos })
+    const { id, codigo, edad, estado, correoVerificado, createdAt, updatedAt, ...datos } = edicion.value
+    const respuesta = await solicitarApi(`/api/pacientes/${id}`, { method: 'PUT', token: sesion.token, body: datos })
     edicion.value = null
     edicionOriginal.value = null
     buscarResponsableEdicion.value = ''
     cargarResponsables('nuevo')
-    aviso.value = 'Paciente actualizado'
+    aviso.value = respuesta.mensaje || 'Paciente actualizado'
     await cargar(true)
   } catch (errorApi) {
     fallo(errorApi)
@@ -484,6 +484,10 @@ onUnmounted(() => {
                   title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, nuevo)" />
                 <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
               </label>
+              <label>Correo electrónico <span class="requisito-campo">Opcional</span>
+                <input v-model.trim="nuevo.correo" type="email" maxlength="254" placeholder="usuario@dominio.com" />
+                <small>Si lo agregas, enviaremos un enlace de verificación.</small>
+              </label>
               <label>Inicio del proceso <span class="requisito-campo">Obligatorio</span>
                 <input v-model="nuevo.fechaInicioProceso" type="date" required :min="nuevo.fechaNacimiento || undefined" :max="hoy" />
                 <small>Desde el nacimiento del paciente hasta hoy.</small>
@@ -494,6 +498,7 @@ onUnmounted(() => {
           <ImagenCampo v-model="nuevo.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria mostrar-requisito proporcion="1:1" />
         </div>
         <label>Observaciones administrativas <span class="requisito-campo">Opcional</span><textarea v-model.trim="nuevo.observacionesAdministrativas" maxlength="2000" /></label>
+        <label><input v-model="nuevo.recibirPublicaciones" type="checkbox" :disabled="!nuevo.correo" /> Recibir publicaciones por correo después de verificarlo (opcional)</label>
         <fieldset class="paciente-responsables">
           <legend>Responsables asociados <span class="requisito-campo">Opcional</span></legend>
           <label>Buscar responsable por código, nombre, correo o identificador <span class="requisito-campo">Opcional</span>
@@ -628,6 +633,8 @@ onUnmounted(() => {
           <h3>Contacto y proceso</h3>
           <dl class="detalle-paciente-datos">
             <div><dt>Teléfono</dt><dd>{{ detalle.telefono }}</dd></div>
+            <div><dt>Correo electrónico</dt><dd>{{ detalle.correo || 'No registrado' }}
+              <small v-if="detalle.correo"> · {{ detalle.correoVerificado ? 'Verificado' : 'Pendiente de verificación' }}</small></dd></div>
             <div><dt>Dirección</dt><dd>{{ detalle.direccion }}</dd></div>
             <div><dt>Inicio del proceso</dt><dd>{{ formatearFecha(detalle.fechaInicioProceso) }}</dd></div>
           </dl>
@@ -704,6 +711,10 @@ onUnmounted(() => {
                   title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, edicion)" />
                 <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
               </label>
+              <label>Correo electrónico <span class="requisito-campo">Opcional</span>
+                <input v-model.trim="edicion.correo" type="email" maxlength="254" placeholder="usuario@dominio.com" />
+                <small>{{ edicion.correoVerificado ? 'Correo verificado' : 'Pendiente de verificación' }}</small>
+              </label>
               <label>Inicio del proceso <span class="requisito-campo">Obligatorio</span>
                 <input v-model="edicion.fechaInicioProceso" type="date" required :min="edicion.fechaNacimiento || undefined" :max="hoy" />
                 <small>Desde el nacimiento del paciente hasta hoy.</small>
@@ -714,6 +725,7 @@ onUnmounted(() => {
           <ImagenCampo v-model="edicion.fotografia" categoria="paciente" etiqueta="Fotografía del paciente" obligatoria mostrar-requisito proporcion="1:1" />
         </div>
         <label>Observaciones administrativas <span class="requisito-campo">Opcional</span><textarea v-model.trim="edicion.observacionesAdministrativas" maxlength="2000" /></label>
+        <label><input v-model="edicion.recibirPublicaciones" type="checkbox" :disabled="!edicion.correo" /> Recibir publicaciones por correo después de verificarlo (opcional)</label>
         <fieldset class="paciente-responsables">
           <legend>Responsables asociados <span class="requisito-campo">Opcional</span></legend>
           <label>Buscar responsable por código, nombre, correo o identificador <span class="requisito-campo">Opcional</span>

@@ -16,13 +16,28 @@ const original = ref(JSON.stringify(formulario.value))
 const guardando = ref(false)
 const error = ref('')
 const aviso = ref('')
+const recibirPublicaciones = ref(false)
 const hayCambios = computed(() => JSON.stringify(formulario.value) !== original.value)
 const { advertenciaVisible, seguirEditando, salirSinGuardar } = useCambiosSinGuardar(hayCambios)
 
 onMounted(() => {
   formulario.value = { avatar: sesion.usuario?.avatar || '', fotografia: sesion.usuario?.fotografia || '' }
   original.value = JSON.stringify(formulario.value)
+  recibirPublicaciones.value = sesion.usuario?.recibirPublicaciones === true
 })
+
+async function guardarCorreos() {
+  error.value = ''
+  aviso.value = ''
+  try {
+    const datos = await solicitarApi('/api/auth/preferencias-correo', {
+      method: 'PUT', token: sesion.token,
+      body: { recibirPublicaciones: recibirPublicaciones.value },
+    })
+    sesion.actualizarUsuario(datos.usuario)
+    aviso.value = 'Preferencia de correo guardada'
+  } catch (fallo) { error.value = fallo.message || 'No se pudo guardar la preferencia' }
+}
 
 function seleccionarAvatar(id) {
   formulario.value = { avatar: id, fotografia: '' }
@@ -71,6 +86,16 @@ async function guardar() {
         <p>{{ sesion.usuario?.correo }}</p>
         <p>Rol: {{ sesion.usuario?.rol }}</p>
       </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Correo y avisos</h2>
+      <p>Estado: {{ sesion.usuario?.correoVerificado ? 'Verificado' : 'Pendiente de verificación' }}</p>
+      <p v-if="!sesion.usuario?.correoVerificado"><RouterLink to="/verificar-correo">Solicitar enlace de verificación</RouterLink></p>
+      <form @submit.prevent="guardarCorreos">
+        <label><input v-model="recibirPublicaciones" type="checkbox" /> Recibir publicaciones del portal por correo (opcional)</label>
+        <button type="submit">Guardar preferencia</button>
+      </form>
     </section>
 
     <form class="tarjeta formulario-mi-cuenta" @submit.prevent="guardar">

@@ -240,6 +240,7 @@ function quitar() {
       <button type="button" class="secundario" @click="usarCamara">Usar cámara</button>
       <button v-if="tieneValor" type="button" class="secundario" @click="quitar">Quitar</button>
     </div>
+    <small>Formatos admitidos: JPG/JPEG, PNG y WebP. Tamaño máximo: 5 MB por imagen.</small>
     <input ref="archivoInput" class="entrada-archivo-oculta" type="file" tabindex="-1" accept="image/jpeg,image/png,image/webp" :aria-label="`Elegir ${etiqueta}`" @change="seleccionar" />
     <input ref="camaraInput" class="entrada-archivo-oculta" type="file" tabindex="-1" accept="image/jpeg,image/png,image/webp" capture="user" :aria-label="`Fotografiar ${etiqueta}`" @change="seleccionar" />
     <p v-if="error && !imagen" class="mensaje-error" role="alert">{{ error }}</p>

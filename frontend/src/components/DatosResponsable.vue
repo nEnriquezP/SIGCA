@@ -35,6 +35,7 @@ function capturarTelefono(evento) {
             pattern="[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,63}" placeholder="usuario@dominio.com"
             title="Escribe un correo con el formato usuario@dominio.com" />
         </label>
+        <label class="paciente-campo-ancho"><input v-model="datos.recibirPublicaciones" type="checkbox" /> Recibir publicaciones por correo después de verificarlo (opcional)</label>
         <label class="paciente-campo-ancho">Dirección <span class="requisito-campo">Obligatorio</span>
           <input v-model.trim="datos.direccion" required maxlength="300" />
         </label>
