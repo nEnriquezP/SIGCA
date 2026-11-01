@@ -260,6 +260,14 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
     datos: { ...paciente, responsables: ['111111111111111111111111'] } })).status, 400)
   const registro = await pedir('/api/pacientes', { metodo: 'POST', token, datos: paciente })
   assert.equal(registro.status, 201)
+  assert.deepEqual(registro.body.paciente.responsables, [idResponsable])
+  const sinAsociacion = await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
+    datos: { ...paciente, responsables: [] } })
+  assert.equal(sinAsociacion.status, 200)
+  const asociadoOtraVez = await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
+    datos: paciente })
+  assert.equal(asociadoOtraVez.status, 200)
+  assert.deepEqual(asociadoOtraVez.body.paciente.responsables, [idResponsable])
   for (const telefono of ['05551234', '5555123', '555512345', '5555 1234', '5555ABCD']) {
     const rechazo = await pedir('/api/pacientes', { metodo: 'POST', token,
       datos: { ...paciente, telefono } })

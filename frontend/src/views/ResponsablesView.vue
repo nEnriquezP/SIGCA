@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
 import ImagenCampo from '../components/ImagenCampo.vue'
+import DatosResponsable from '../components/DatosResponsable.vue'
 import ImagenVista from '../components/ImagenVista.vue'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
 import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
@@ -157,32 +158,7 @@ useOpcionesVivas(cargar, ['responsables'])
     <section v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" class="tarjeta">
       <h2>Registrar responsable</h2>
       <form class="formulario-responsable" @submit.prevent="crear">
-        <div class="paciente-form-layout">
-          <div class="paciente-form-datos">
-            <h3>Datos del responsable</h3>
-            <div class="paciente-campos">
-              <label>Nombres <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.nombres" required maxlength="120" /></label>
-              <label>Apellidos <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
-              <label>Parentesco <span class="requisito-campo">Obligatorio</span>
-                <input v-model.trim="nuevo.parentesco" list="parentescos-comunes" required maxlength="80" />
-                <small>Elige una sugerencia o escribe otro parentesco.</small>
-              </label>
-              <label>Teléfono <span class="requisito-campo">Obligatorio</span>
-                <input :value="nuevo.telefono" type="tel" inputmode="numeric" autocomplete="tel-national"
-                  required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}" placeholder="Ej. 55551234"
-                  title="Escribe 8 números; el primero debe ser de 1 a 9" @input="capturarTelefono($event, nuevo)" />
-                <small>8 dígitos, sin espacios y sin iniciar con 0.</small>
-              </label>
-              <label class="paciente-campo-ancho">Correo electrónico <span class="requisito-campo">Obligatorio</span>
-                <input v-model.trim="nuevo.correo" type="email" required maxlength="254"
-                  pattern="[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,63}" placeholder="usuario@dominio.com"
-                  title="Escribe un correo con el formato usuario@dominio.com" />
-              </label>
-              <label class="paciente-campo-ancho">Dirección <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.direccion" required maxlength="300" /></label>
-            </div>
-          </div>
-          <ImagenCampo v-model="nuevo.fotografia" categoria="responsable" etiqueta="Fotografía del responsable" obligatoria mostrar-requisito proporcion="1:1" />
-        </div>
+        <DatosResponsable v-model="nuevo" />
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Registrar' }}</button>
       </form>
     </section>

@@ -1,15 +1,17 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
 import ImagenCampo from '../components/ImagenCampo.vue'
 import ImagenVista from '../components/ImagenVista.vue'
+import DatosResponsable from '../components/DatosResponsable.vue'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
 import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
 import { fechaCorta, etiquetaEstado } from '../utils/formatoCita.js'
 import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
 import { errorActual, mostrarError } from '../services/avisos.js'
+import { incorporarResponsable } from '../utils/estadoFormulario.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
@@ -33,6 +35,11 @@ const detalle = ref(null)
 const historialCitas = ref([])
 const totalCitas = ref(0)
 const nuevo = ref(vacio())
+const altaResponsable = ref(null)
+const destinoResponsable = ref('nuevo')
+const guardandoResponsable = ref(false)
+const dialogoResponsable = ref(null)
+const advertenciaResponsableVisible = ref(false)
 const hoy = hoyEnGuatemala()
 const fechaMinimaNacimiento = restarAnios(hoy, 120)
 const sexos = [
@@ -41,8 +48,10 @@ const sexos = [
 ]
 const edicionConCambios = computed(() => edicion.value !== null &&
   (JSON.stringify(edicion.value) !== edicionOriginal.value || Boolean(buscarResponsableEdicion.value)))
+const responsableConCambios = computed(() => altaResponsable.value !== null &&
+  JSON.stringify(altaResponsable.value) !== JSON.stringify(responsableVacio()))
 const hayCambios = computed(() => JSON.stringify(nuevo.value) !== JSON.stringify(vacio()) ||
-  Boolean(buscarResponsableNuevo.value) || edicionConCambios.value)
+  Boolean(buscarResponsableNuevo.value) || edicionConCambios.value || responsableConCambios.value)
 const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
   useCambiosSinGuardar(hayCambios)
 
@@ -50,6 +59,55 @@ function vacio() {
   return { fotografia: '', nombres: '', apellidos: '', fechaNacimiento: '', sexo: '',
     telefono: '', direccion: '', fechaInicioProceso: '', observacionesAdministrativas: '',
     responsables: [] }
+}
+
+function responsableVacio() {
+  return { fotografia: '', nombres: '', apellidos: '', parentesco: '', telefono: '',
+    correo: '', direccion: '' }
+}
+
+async function abrirAltaResponsable(destino) {
+  if (!sesion.tienePermiso('RESPONSABLES_GESTIONAR') || altaResponsable.value) return
+  destinoResponsable.value = destino
+  altaResponsable.value = responsableVacio()
+  await nextTick()
+  dialogoResponsable.value?.showModal()
+  dialogoResponsable.value?.querySelector('input:not([type="file"])')?.focus()
+}
+
+function descartarAltaResponsable() {
+  advertenciaResponsableVisible.value = false
+  dialogoResponsable.value?.close()
+  altaResponsable.value = null
+}
+
+function cancelarAltaResponsable() {
+  if (guardandoResponsable.value) return
+  if (responsableConCambios.value) advertenciaResponsableVisible.value = true
+  else descartarAltaResponsable()
+}
+
+async function guardarAltaResponsable() {
+  if (!altaResponsable.value || guardandoResponsable.value) return
+  if (!altaResponsable.value.fotografia) return fallo(new Error('Carga una fotografía del responsable'))
+  guardandoResponsable.value = true
+  try {
+    const { responsable } = await solicitarApi('/api/responsables', {
+      method: 'POST', token: sesion.token, body: altaResponsable.value,
+    })
+    const destino = destinoResponsable.value === 'edicion' ? edicion : nuevo
+    const resultado = incorporarResponsable(destino.value, responsablesDisponibles.value, responsable)
+    destino.value = resultado.paciente
+    responsablesDisponibles.value = resultado.disponibles
+    descartarAltaResponsable()
+    error.value = ''
+    aviso.value = `Responsable ${responsable.codigo || ''} guardado y seleccionado. ` +
+      'Guarda el paciente para asociarlo; el responsable ya existe como registro independiente.'
+  } catch (errorApi) {
+    fallo(errorApi)
+  } finally {
+    guardandoResponsable.value = false
+  }
 }
 
 function formatearFecha(fecha) {
@@ -250,7 +308,7 @@ onMounted(async () => {
 <template>
   <main class="contenedor">
     <h1>Pacientes</h1>
-    <p>Los responsables se registran primero en la sección Responsables y se asocian aquí.</p>
+    <p>Puedes seleccionar un responsable existente o agregarlo aquí sin perder los datos del paciente.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
@@ -295,6 +353,8 @@ onMounted(async () => {
             <input v-model="buscarResponsableNuevo" maxlength="80" />
           </label>
           <button type="button" class="secundario" @click="cargarResponsables('nuevo')">Buscar responsables</button>
+          <button v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" type="button"
+            class="secundario" @click="abrirAltaResponsable('nuevo')">Agregar responsable</button>
           <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
             <input v-model="nuevo.responsables" type="checkbox" :value="responsable.id" />
             {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
@@ -306,6 +366,20 @@ onMounted(async () => {
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Registrar' }}</button>
       </form>
     </section>
+
+    <dialog ref="dialogoResponsable" class="dialogo-responsable" aria-labelledby="titulo-alta-responsable"
+      @cancel.prevent="cancelarAltaResponsable">
+      <h2 id="titulo-alta-responsable">Agregar responsable</h2>
+      <p>Al guardar, el responsable existirá como registro independiente aunque luego abandones el formulario del paciente. La asociación se guardará cuando registres o actualices al paciente.</p>
+      <form v-if="altaResponsable" class="formulario-responsable" @submit.prevent="guardarAltaResponsable">
+        <DatosResponsable v-model="altaResponsable" />
+        <div class="acciones">
+          <button type="submit" :disabled="guardandoResponsable">{{ guardandoResponsable ? 'Guardando…' : 'Guardar responsable' }}</button>
+          <button type="button" class="secundario" :disabled="guardandoResponsable"
+            @click="cancelarAltaResponsable">Cancelar</button>
+        </div>
+      </form>
+    </dialog>
 
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
@@ -422,6 +496,8 @@ onMounted(async () => {
             <input v-model="buscarResponsableEdicion" maxlength="80" />
           </label>
           <button type="button" class="secundario" @click="cargarResponsables('edicion')">Buscar responsables</button>
+          <button v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" type="button"
+            class="secundario" @click="abrirAltaResponsable('edicion')">Agregar responsable</button>
           <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
             <input v-model="edicion.responsables" type="checkbox" :value="responsable.id" />
             {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
@@ -436,5 +512,7 @@ onMounted(async () => {
       </form>
     </section>
     <AdvertenciaCambios :abierto="advertenciaVisible" @seguir="seguirEditando" @salir="salirSinGuardar" />
+    <AdvertenciaCambios :abierto="advertenciaResponsableVisible"
+      @seguir="advertenciaResponsableVisible = false" @salir="descartarAltaResponsable" />
   </main>
 </template>

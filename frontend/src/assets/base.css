@@ -366,6 +366,14 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .dialogo-cambios::backdrop { background: #102e50b8; }
 .dialogo-cambios h2 { margin: 0 0 10px; color: #133a5f; }
 .dialogo-cambios p { margin: 0 0 22px; }
+.dialogo-responsable { width: min(980px, calc(100vw - 28px)); max-height: 90dvh; overflow: auto; border: 0; border-radius: 12px; padding: 24px; box-shadow: 0 14px 44px #102e5040; }
+.dialogo-responsable::backdrop { background: #102e50b8; }
+.dialogo-responsable h2 { margin: 0 0 10px; color: #133a5f; }
+.dialogo-responsable > p { margin: 0 0 20px; line-height: 1.5; }
+@media (max-width: 650px) {
+  .dialogo-responsable { padding: 17px; }
+  .dialogo-responsable .paciente-form-layout, .dialogo-responsable .paciente-campos { grid-template-columns: 1fr; }
+}
 .dialogo-resultado-servicio { width: min(92vw, 500px); }
 .dialogo-resultado-servicio .acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .dialogo-resultado-servicio .acciones button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; width: 100%; padding: 11px 8px; font-size: .875rem; white-space: nowrap; }
