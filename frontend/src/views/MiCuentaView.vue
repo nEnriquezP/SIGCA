@@ -78,7 +78,7 @@ async function guardar() {
       <p>Puedes elegir una imagen del equipo o usar la cámara del teléfono o de la computadora si el navegador lo permite. Antes de guardarla podrás recortarla.</p>
       <ImagenCampo :model-value="formulario.fotografia" categoria="usuario" etiqueta="Fotografía de perfil"
         proporcion="1:1" @update:model-value="seleccionarFoto" />
-      <h3>O elige un avatar</h3>
+      <h3>O elige un avatar <span class="requisito-campo">Opcional</span></h3>
       <div class="opciones-avatar" role="group" aria-label="Avatares disponibles">
         <button v-for="opcion in avatares" :key="opcion.id" type="button" class="opcion-avatar"
           :class="{ elegido: formulario.avatar === opcion.id }" :aria-pressed="formulario.avatar === opcion.id"

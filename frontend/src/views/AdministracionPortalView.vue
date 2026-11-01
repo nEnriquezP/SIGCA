@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
 import ImagenCampo from '../components/ImagenCampo.vue'
+import { errorActual, mostrarError } from '../services/avisos.js'
 
 const emit = defineEmits(['contenido-actualizado'])
 const router = useRouter()
@@ -38,6 +39,7 @@ function fallo(f) {
     router.push({ name: 'ingresar' })
   }
   error.value = f.message || 'No se pudo completar la operación'
+  if (errorActual.value?.mensaje !== error.value) mostrarError(error.value)
 }
 
 async function cargar() {
@@ -199,16 +201,16 @@ onMounted(cargar)
       <section class="tarjeta">
         <h2>Identidad e información institucional</h2>
         <form class="formulario-grid" @submit.prevent="guardarContenido">
-          <label>Nombre del centro<input v-model="contenido.nombreCentro" required maxlength="120" /></label>
+          <label>Nombre del centro <span class="requisito-campo">Obligatorio</span><input v-model="contenido.nombreCentro" required maxlength="120" /></label>
           <ImagenCampo v-model="contenido.logo" categoria="logo" etiqueta="Logotipo institucional" proporcion="1:1" />
-          <label>Información principal<textarea v-model="contenido.informacionPrincipal" required maxlength="2000" /></label>
-          <label>Misión<textarea v-model="contenido.mision" required maxlength="2000" /></label>
-          <label>Visión<textarea v-model="contenido.vision" required maxlength="2000" /></label>
-          <label>Correo de contacto<input v-model="contenido.contacto.correo" type="email" required maxlength="254" /></label>
-          <label>Teléfono de contacto<input v-model="contenido.contacto.telefono" type="tel" required maxlength="30" /></label>
-          <label>Dirección<input v-model="contenido.contacto.direccion" required maxlength="300" /></label>
+          <label>Información principal <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.informacionPrincipal" required maxlength="2000" /></label>
+          <label>Misión <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.mision" required maxlength="2000" /></label>
+          <label>Visión <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.vision" required maxlength="2000" /></label>
+          <label>Correo de contacto <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.correo" type="email" required maxlength="254" /></label>
+          <label>Teléfono de contacto <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.telefono" type="tel" required maxlength="30" /></label>
+          <label>Dirección <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.direccion" required maxlength="300" /></label>
           <fieldset>
-            <legend>Imágenes del carrusel</legend>
+            <legend>Imágenes del carrusel <span class="requisito-campo">Opcional; si se usa, 5 a 10 imágenes obligatorias</span></legend>
             <p>Guarda ninguna imagen o entre 5 y 10. No se muestran imágenes de ejemplo.</p>
             <div class="lista-imagenes">
               <ImagenCampo v-for="(_, indice) in contenido.carrusel" :key="indice"
@@ -226,11 +228,11 @@ onMounted(cargar)
       <section class="tarjeta">
         <h2>Publicaciones educativas</h2>
         <form class="formulario-grid" @submit.prevent="guardarPublicacion">
-          <label>Título<input v-model="publicacion.titulo" required maxlength="160" /></label>
-          <label>Fecha de publicación<input v-model="publicacion.fechaPublicacion" type="date" required /></label>
-          <label>Descripción<textarea v-model="publicacion.descripcion" required maxlength="4000" /></label>
+          <label>Título <span class="requisito-campo">Obligatorio</span><input v-model="publicacion.titulo" required maxlength="160" /></label>
+          <label>Fecha de publicación <span class="requisito-campo">Obligatorio</span><input v-model="publicacion.fechaPublicacion" type="date" required /></label>
+          <label>Descripción <span class="requisito-campo">Obligatorio</span><textarea v-model="publicacion.descripcion" required maxlength="4000" /></label>
           <ImagenCampo v-model="publicacion.imagen" categoria="publicacion" etiqueta="Imagen de publicación" />
-          <label>Enlace opcional<input v-model="publicacion.enlace" maxlength="500" /></label>
+          <label>Enlace <span class="requisito-campo">Opcional</span><input v-model="publicacion.enlace" maxlength="500" /></label>
           <div class="acciones"><button type="submit" :disabled="guardando">{{ publicacionId ? 'Guardar cambios' : 'Crear publicación' }}</button>
             <button v-if="publicacionId" type="button" class="secundario" @click="cancelarPublicacion">Cancelar</button></div>
         </form>
@@ -248,11 +250,11 @@ onMounted(cargar)
       <section class="tarjeta">
         <h2>Capacitaciones y actividades</h2>
         <form class="formulario-grid" @submit.prevent="guardarActividad">
-          <label>Tipo<select v-model="actividad.tipo"><option value="CAPACITACION">Capacitación</option>
+          <label>Tipo <span class="requisito-campo">Obligatorio</span><select v-model="actividad.tipo"><option value="CAPACITACION">Capacitación</option>
             <option value="ESCUELA_PADRES">Escuela para padres</option><option value="OTRA">Otra actividad</option></select></label>
-          <label>Título<input v-model="actividad.titulo" required maxlength="160" /></label>
-          <label>Descripción<textarea v-model="actividad.descripcion" required maxlength="4000" /></label>
-          <fieldset><legend>Imágenes relacionadas</legend>
+          <label>Título <span class="requisito-campo">Obligatorio</span><input v-model="actividad.titulo" required maxlength="160" /></label>
+          <label>Descripción <span class="requisito-campo">Obligatorio</span><textarea v-model="actividad.descripcion" required maxlength="4000" /></label>
+          <fieldset><legend>Imágenes relacionadas <span class="requisito-campo">Opcional; cada imagen agregada es obligatoria</span></legend>
             <div class="lista-imagenes"><ImagenCampo v-for="(_, indice) in actividad.imagenes" :key="indice"
               :model-value="actividad.imagenes[indice]" categoria="actividad"
               :etiqueta="`Imagen ${indice + 1} de la actividad`" obligatoria

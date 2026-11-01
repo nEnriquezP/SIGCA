@@ -42,10 +42,10 @@ async function cambiar() {
       <p>Después del cambio tendrás que iniciar sesión de nuevo.</p>
       <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
       <form @submit.prevent="cambiar">
-        <label>Contraseña actual
+        <label>Contraseña actual <span class="requisito-campo">Obligatorio</span>
           <input v-model="passwordActual" type="password" required autocomplete="current-password" />
         </label>
-        <label>Nueva contraseña
+        <label>Nueva contraseña <span class="requisito-campo">Obligatorio</span>
           <input v-model="passwordNueva" type="password" required minlength="8" maxlength="30"
             pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[@#$_])[A-Za-z0-9@#$_]{8,30}"
             autocomplete="new-password" />

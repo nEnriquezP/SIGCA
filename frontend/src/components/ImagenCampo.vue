@@ -3,13 +3,14 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { obtenerImagenPrivada, subirArchivoImagen } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
 import ImagenVista from './ImagenVista.vue'
+import { errorActual, mostrarError } from '../services/avisos.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   categoria: { type: String, required: true },
   etiqueta: { type: String, required: true },
   obligatoria: { type: Boolean, default: false },
-  mostrarRequisito: { type: Boolean, default: false },
+  mostrarRequisito: { type: Boolean, default: true },
   proporcion: { type: String, default: '4:3' },
 })
 const emit = defineEmits(['update:modelValue'])
@@ -41,6 +42,9 @@ watch(() => props.modelValue, (valor) => {
     URL.revokeObjectURL(vistaLocal.value)
     vistaLocal.value = ''
   }
+})
+watch(error, (mensaje) => {
+  if (mensaje && errorActual.value?.mensaje !== mensaje) mostrarError(mensaje)
 })
 watch([zoom, horizontal, vertical], dibujar)
 onUnmounted(() => {
@@ -253,9 +257,9 @@ function quitar() {
       <p class="ayuda-recorte">Arrastra la imagen para acomodarla. Si no se mueve en una dirección, aumenta primero la ampliación.</p>
       <canvas ref="lienzo" :width="ancho" :height="alto" role="img" :aria-label="`Vista del recorte de ${etiqueta}`"
         @pointerdown="iniciarArrastre" @pointermove="moverArrastre" @pointerup="terminarArrastre" @pointercancel="terminarArrastre"></canvas>
-      <label>Ampliación <input v-model.number="zoom" type="range" min="1" max="3" step="0.01" /></label>
-      <label>Desplazamiento horizontal <input v-model.number="horizontal" type="range" min="-100" max="100" step="1" /></label>
-      <label>Desplazamiento vertical <input v-model.number="vertical" type="range" min="-100" max="100" step="1" /></label>
+      <label>Ampliación <span class="requisito-campo">Opcional</span><input v-model.number="zoom" type="range" min="1" max="3" step="0.01" /></label>
+      <label>Desplazamiento horizontal <span class="requisito-campo">Opcional</span><input v-model.number="horizontal" type="range" min="-100" max="100" step="1" /></label>
+      <label>Desplazamiento vertical <span class="requisito-campo">Opcional</span><input v-model.number="vertical" type="range" min="-100" max="100" step="1" /></label>
       <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
       <div class="acciones">
         <button type="button" :disabled="cargando" @click="confirmar">{{ cargando ? 'Cargando…' : 'Confirmar recorte' }}</button>

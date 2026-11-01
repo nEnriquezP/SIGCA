@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { solicitarApi } from '../services/api.js'
+import { mostrarError } from '../services/avisos.js'
 
 const contenido = ref(null)
 const cargando = ref(true)
@@ -37,6 +38,7 @@ async function enviar() {
       !datos.asunto || datos.asunto.length > 160 ||
       !datos.mensaje || datos.mensaje.length > 4000) {
     error.value = 'Revisa nombre, correo, teléfono, asunto y mensaje'
+    mostrarError(error.value)
     return
   }
   enviando.value = true
@@ -72,11 +74,11 @@ onMounted(cargar)
       <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
       <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
       <form class="formulario-grid" @submit.prevent="enviar">
-        <label>Nombre<input v-model="formulario.nombre" required maxlength="120" autocomplete="name" /></label>
-        <label>Correo electrónico<input v-model="formulario.correo" type="email" required maxlength="254" autocomplete="email" /></label>
-        <label>Teléfono<input v-model="formulario.telefono" type="tel" required maxlength="30" autocomplete="tel" pattern="[+0-9][0-9 ()+.-]{6,29}" /></label>
-        <label>Asunto<input v-model="formulario.asunto" required maxlength="160" /></label>
-        <label>Mensaje<textarea v-model="formulario.mensaje" required maxlength="4000" /></label>
+        <label>Nombre <span class="requisito-campo">Obligatorio</span><input v-model="formulario.nombre" required maxlength="120" autocomplete="name" /></label>
+        <label>Correo electrónico <span class="requisito-campo">Obligatorio</span><input v-model="formulario.correo" type="email" required maxlength="254" autocomplete="email" /></label>
+        <label>Teléfono <span class="requisito-campo">Obligatorio</span><input v-model="formulario.telefono" type="tel" required maxlength="30" autocomplete="tel" pattern="[+0-9][0-9 ()+.-]{6,29}" /></label>
+        <label>Asunto <span class="requisito-campo">Obligatorio</span><input v-model="formulario.asunto" required maxlength="160" /></label>
+        <label>Mensaje <span class="requisito-campo">Obligatorio</span><textarea v-model="formulario.mensaje" required maxlength="4000" /></label>
         <button type="submit" :disabled="enviando">{{ enviando ? 'Enviando…' : 'Enviar mensaje' }}</button>
       </form>
     </section>

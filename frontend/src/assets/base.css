@@ -292,6 +292,28 @@ button.secundario { background: #e7edf4; color: #203047; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.selector-pacientes { grid-column: 1 / -1; min-width: 0; border: 1px solid #cbd9e6; border-radius: 10px; padding: 15px; }
+.selector-pacientes legend { font-weight: 700; }
+.selector-opciones { display: grid; gap: 5px; max-height: 310px; overflow-y: auto; margin-top: 10px; }
+.selector-opcion { width: 100%; text-align: left; background: #edf3f8; color: #173753; }
+.selector-opcion[aria-pressed="true"] { outline: 2px solid #0874a7; background: #def1fa; }
+.selector-seleccionado { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.personas-cita { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.persona-cita { display: flex; align-items: center; gap: 16px; min-width: 0; padding: 18px; border: 1px solid #d9e2ed; border-radius: 12px; background: #f8fbfd; }
+.persona-cita h3, .persona-cita p { margin: 3px 0; overflow-wrap: anywhere; }
+.persona-cita .avatar-usuario, .persona-cita .imagen-vista { flex: none; width: 80px; height: 80px; }
+.persona-cita .imagen-vista img, .persona-cita .imagen-vista svg { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+.datos-cita { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.datos-cita > div { padding: 12px; border: 1px solid #e1e8ee; border-radius: 8px; }
+.datos-cita dt { color: #526477; font-size: .86rem; }
+.datos-cita dd { margin: 4px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.cuadro-error, .dialogo-confirmacion-cita { max-width: min(480px, calc(100vw - 28px)); border: 0; border-radius: 14px; padding: 24px; box-shadow: 0 20px 60px #0d263c44; }
+.cuadro-error::backdrop, .dialogo-confirmacion-cita::backdrop { background: #142b3e99; }
+.cuadro-error h2 { color: #8b2222; }
+.formulario-validado label:has(:invalid)::after, label[data-error-campo]::after { content: attr(data-error-campo); display: block; color: #a32424; font-size: .82rem; margin-top: 4px; }
+.formulario-validado label:has(:invalid):not([data-error-campo])::after { content: 'Revisa este campo'; }
+.formulario-validado :invalid, [data-campo][aria-invalid="true"] { border-color: #a32424; outline-color: #a32424; }
+@media (max-width: 650px) { .personas-cita, .datos-cita { grid-template-columns: 1fr; } }
 .campo-ancho { grid-column: 1 / -1; }
 .estado-cita { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: .84rem; font-weight: 700; white-space: nowrap; }
 .estado-pendiente { color: #715000; background: #fff1c9; }

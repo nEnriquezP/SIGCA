@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
+import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
 import AvatarUsuario from '../components/AvatarUsuario.vue'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
 import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
@@ -279,6 +280,7 @@ async function restablecerPassword() {
 }
 
 onMounted(() => Promise.all([cargar(), cargarRoles()]))
+useOpcionesVivas(() => Promise.all([cargar(), cargarRoles()]), ['usuarios', 'roles'])
 </script>
 
 <template>
@@ -312,10 +314,10 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
           <input v-model.trim="formularioRol.nombre" required maxlength="60" placeholder="Ej. Coordinación de citas" />
         </label>
         <fieldset class="permisos-lista">
-          <legend>Permisos <span class="requisito-campo">Opcional</span></legend>
+          <legend>Permisos <span class="requisito-campo">Obligatorio; la lista puede estar vacía</span></legend>
           <label v-for="permiso in catalogoPermisos.filter((item) => item.asignable !== false)" :key="permiso.codigo">
             <input v-model="formularioRol.permisos" type="checkbox" :value="permiso.codigo" @change="ajustarDependencias" />
-            <span>{{ permiso.nombre }}</span>
+            <span>{{ permiso.nombre }} <span class="requisito-campo">Opcional</span></span>
           </label>
         </fieldset>
         <p>Para gestionar un módulo también se necesita permiso de consulta; se agrega automáticamente. Administrar usuarios y roles queda reservado al Administrador.</p>
@@ -329,15 +331,15 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
     <section class="tarjeta">
       <h2>Crear usuario</h2>
       <form class="formulario-grid formulario-usuarios" @submit.prevent="crear">
-        <label>Nombre<input v-model.trim="nuevo.nombre" @input="nuevo.nombre = limpiarNombre($event)" required maxlength="120" placeholder="Solo letras y espacios" /></label>
-        <label>Correo electrónico<input v-model.trim="nuevo.correo" type="email" :pattern="patronCorreo" title="Escribe un correo válido, por ejemplo usuario@dominio.com" required autocomplete="off" /></label>
-        <label>Rol
+        <label>Nombre <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.nombre" @input="nuevo.nombre = limpiarNombre($event)" required maxlength="120" placeholder="Solo letras y espacios" /></label>
+        <label>Correo electrónico <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.correo" type="email" :pattern="patronCorreo" title="Escribe un correo válido, por ejemplo usuario@dominio.com" required autocomplete="off" /></label>
+        <label>Rol <span class="requisito-campo">Obligatorio</span>
           <select v-model="nuevo.rol" class="selector-rol">
             <option v-for="rol in roles" :key="rol.codigo" :value="rol.codigo">{{ rol.nombre }}</option>
           </select>
         </label>
         <div class="campo-password">
-          <label for="password-inicial">Contraseña inicial</label>
+          <label for="password-inicial">Contraseña inicial <span class="requisito-campo">Obligatorio</span></label>
           <div class="password-control">
             <input id="password-inicial" v-model="nuevo.password" :type="verPasswordInicial ? 'text' : 'password'"
               required minlength="8" maxlength="30" :pattern="patronPassword" autocomplete="new-password"
@@ -433,9 +435,9 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
     <section v-if="edicion" class="tarjeta">
       <h2>Editar usuario</h2>
       <form class="formulario-grid formulario-usuarios" @submit.prevent="guardar">
-        <label>Nombre<input v-model.trim="edicion.nombre" @input="edicion.nombre = limpiarNombre($event)" required maxlength="120" placeholder="Solo letras y espacios" /></label>
-        <label>Correo electrónico<input v-model.trim="edicion.correo" type="email" :pattern="patronCorreo" title="Escribe un correo válido, por ejemplo usuario@dominio.com" required /></label>
-        <label>Rol
+        <label>Nombre <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.nombre" @input="edicion.nombre = limpiarNombre($event)" required maxlength="120" placeholder="Solo letras y espacios" /></label>
+        <label>Correo electrónico <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.correo" type="email" :pattern="patronCorreo" title="Escribe un correo válido, por ejemplo usuario@dominio.com" required /></label>
+        <label>Rol <span class="requisito-campo">Obligatorio</span>
           <select v-model="edicion.rol" class="selector-rol" :disabled="edicion.id === sesion.usuario?.id">
             <option v-for="rol in roles" :key="rol.codigo" :value="rol.codigo">{{ rol.nombre }}</option>
           </select>
@@ -452,7 +454,7 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
       <p>Confirma la operación con tu contraseña de administrador. La cuenta deberá iniciar sesión de nuevo.</p>
       <form class="formulario-grid" @submit.prevent="restablecerPassword">
         <div class="campo-password">
-          <label for="password-nueva-usuario">Nueva contraseña</label>
+          <label for="password-nueva-usuario">Nueva contraseña <span class="requisito-campo">Obligatorio</span></label>
           <div class="password-control">
             <input id="password-nueva-usuario" v-model="restablecimiento.passwordNueva"
               :type="verPasswordNueva ? 'text' : 'password'" required minlength="8" maxlength="30"
@@ -475,7 +477,7 @@ onMounted(() => Promise.all([cargar(), cargarRoles()]))
           </ul>
         </div>
         <div class="campo-password">
-          <label for="password-admin-actual">Tu contraseña actual</label>
+          <label for="password-admin-actual">Tu contraseña actual <span class="requisito-campo">Obligatorio</span></label>
           <div class="password-control">
             <input id="password-admin-actual" v-model="restablecimiento.passwordAdministrador"
               :type="verPasswordAdministrador ? 'text' : 'password'" required autocomplete="current-password" />

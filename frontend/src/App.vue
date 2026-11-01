@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSesionStore } from './stores/sesion.js'
 import { solicitarApi } from './services/api.js'
 import AvatarUsuario from './components/AvatarUsuario.vue'
+import CuadroError from './components/CuadroError.vue'
+import { mostrarError } from './services/avisos.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -111,6 +113,29 @@ function cerrarConEscape(evento) {
   }
 }
 
+function avisarCampoInvalido(evento) {
+  const formulario = evento.target.form
+  if (!formulario) return
+  formulario.classList.add('formulario-validado')
+  evento.target.setAttribute('aria-invalid', 'true')
+  const etiquetaCampo = evento.target.closest('label') ||
+    (evento.target.id ? document.querySelector(`label[for="${evento.target.id}"]`) : null)
+  etiquetaCampo?.setAttribute('data-error-campo', 'Revisa este campo')
+  if (formulario.dataset.avisoInvalido) return
+  formulario.dataset.avisoInvalido = '1'
+  queueMicrotask(() => { delete formulario.dataset.avisoInvalido })
+  const etiqueta = etiquetaCampo?.textContent?.replace(/Obligatorio/g, '').trim().split('\n')[0] || 'obligatorio'
+  mostrarError(`Revisa el campo ${etiqueta}.`, evento.target.dataset.campo || '')
+}
+
+function limpiarMarcaInvalida(evento) {
+  if (!evento.target.form || !evento.target.checkValidity?.()) return
+  evento.target.removeAttribute('aria-invalid')
+  const etiquetaCampo = evento.target.closest('label') ||
+    (evento.target.id ? document.querySelector(`label[for="${evento.target.id}"]`) : null)
+  etiquetaCampo?.removeAttribute('data-error-campo')
+}
+
 watch(() => route.fullPath, cerrarMenus)
 
 onMounted(() => {
@@ -118,11 +143,15 @@ onMounted(() => {
   cargarIdentidad()
   document.addEventListener('pointerdown', cerrarAlSalir)
   document.addEventListener('keydown', cerrarConEscape)
+  document.addEventListener('invalid', avisarCampoInvalido, true)
+  document.addEventListener('input', limpiarMarcaInvalida, true)
 })
 
 onUnmounted(() => {
   document.removeEventListener('pointerdown', cerrarAlSalir)
   document.removeEventListener('keydown', cerrarConEscape)
+  document.removeEventListener('invalid', avisarCampoInvalido, true)
+  document.removeEventListener('input', limpiarMarcaInvalida, true)
 })
 
 async function salir() {
@@ -246,4 +275,5 @@ async function salir() {
       </nav>
     </footer>
   </div>
+  <CuadroError />
 </template>
