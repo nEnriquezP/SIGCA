@@ -20,6 +20,8 @@ const edicion = ref(null)
 const edicionOriginal = ref(null)
 const restablecimiento = ref(null)
 const accionesAbiertas = ref(null)
+const enviandoVerificacion = ref(null)
+const resultadoVerificacion = ref(null)
 const usuarioEnDetalle = ref(null)
 const dialogoUsuario = ref(null)
 const verPasswordInicial = ref(false)
@@ -228,6 +230,26 @@ async function cambiarEstado(usuario) {
   }
 }
 
+async function reenviarVerificacion(usuario) {
+  accionesAbiertas.value = null
+  resultadoVerificacion.value = null
+  enviandoVerificacion.value = usuario.id
+  try {
+    const respuesta = await solicitarApi('/api/correo/reenviar', {
+      method: 'POST', body: { tipo: 'USUARIO', correo: usuario.correo },
+    })
+    resultadoVerificacion.value = {
+      id: usuario.id, mensaje: respuesta.mensaje, error: false,
+    }
+  } catch (fallo) {
+    resultadoVerificacion.value = {
+      id: usuario.id, mensaje: fallo.message || 'No se pudo solicitar el enlace.', error: true,
+    }
+  } finally {
+    enviandoVerificacion.value = null
+  }
+}
+
 async function cancelarEdicion() {
   if (edicion.value !== null && JSON.stringify(edicion.value) !== edicionOriginal.value &&
       !await confirmarSalida()) return
@@ -400,6 +422,11 @@ useOpcionesVivas(() => Promise.all([cargar(), cargarRoles()]), ['usuarios', 'rol
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11V7a4 4 0 0 1 8 0v4" /><rect x="3" y="11" width="12" height="10" rx="2" /><path d="M18 9a5 5 0 0 1 2 8M20 9V5m0 4h-4" /></svg>
                       Restablecer contraseña
                     </button>
+                    <button v-if="usuario.activo && !usuario.correoVerificado" type="button"
+                      :disabled="enviandoVerificacion !== null" @click="reenviarVerificacion(usuario)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 7 9-7" /><path d="M16 3h5v5" /></svg>
+                      {{ enviandoVerificacion === usuario.id ? 'Solicitando…' : 'Reenviar verificación' }}
+                    </button>
                     <button type="button" :disabled="usuario.id === sesion.usuario?.id"
                       @click="accionesAbiertas = null; cambiarEstado(usuario)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path v-if="usuario.activo" d="m5.5 5.5 13 13" /><path v-else d="m8 12 3 3 5-6" /></svg>
@@ -407,6 +434,11 @@ useOpcionesVivas(() => Promise.all([cargar(), cargarRoles()]), ['usuarios', 'rol
                     </button>
                   </div>
                 </div>
+                <small v-if="resultadoVerificacion?.id === usuario.id"
+                  :class="resultadoVerificacion.error ? 'mensaje-error' : 'mensaje-exito'"
+                  :role="resultadoVerificacion.error ? 'alert' : 'status'">
+                  {{ resultadoVerificacion.mensaje }}
+                </small>
               </td>
             </tr>
             <tr v-if="!usuarios.length"><td colspan="5">Todavía no hay usuarios registrados.</td></tr>
