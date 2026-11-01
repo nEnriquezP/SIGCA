@@ -127,8 +127,8 @@ router.get('/', async (req, res) => {
   const ordenes = {
     codigo_asc: { codigo: 1, _id: 1 },
     codigo_desc: { codigo: -1, _id: -1 },
-    alfabetico_asc: { apellidos: 1, nombres: 1, _id: 1 },
-    alfabetico_desc: { apellidos: -1, nombres: -1, _id: -1 },
+    alfabetico_asc: { nombres: 1, apellidos: 1, _id: 1 },
+    alfabetico_desc: { nombres: -1, apellidos: -1, _id: -1 },
     ultimos_10: { createdAt: -1, _id: -1 },
   }
   if ((req.query.buscar !== undefined && typeof req.query.buscar !== 'string') ||

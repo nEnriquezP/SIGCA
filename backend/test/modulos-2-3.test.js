@@ -323,7 +323,7 @@ test('listado de pacientes ordena y pagina el conjunto filtrado', async () => {
   const datos = Array.from({ length: 85 }, (_, indice) => ({
     ...pacientes.get(idPaciente), id: String(indice + 1).padStart(24, '0'),
     codigo: `PAC-${String(indice + 2).padStart(6, '0')}`,
-    nombres: indice % 2 ? 'Beatriz' : 'Ana', apellidos: indice % 2 ? 'Zeta' : 'Alfa',
+    nombres: indice % 2 ? 'Beatriz' : 'Ana', apellidos: indice % 2 ? 'Alfa' : 'Zeta',
     estado: indice < 45 ? 'ACTIVO' : 'INACTIVO',
     createdAt: new Date(2026, 0, indice + 1),
   }))
@@ -366,9 +366,11 @@ test('listado de pacientes ordena y pagina el conjunto filtrado', async () => {
   const descendente = await pedir('/api/pacientes?orden=codigo_desc', { token })
   assert.equal(descendente.body.pacientes[0].codigo, 'PAC-000086')
   const alfabetico = await pedir('/api/pacientes?orden=alfabetico_asc', { token })
-  assert.equal(alfabetico.body.pacientes[0].apellidos, 'Alfa')
+  assert.equal(alfabetico.body.pacientes[0].nombres, 'Ana')
+  assert.equal(alfabetico.body.pacientes[0].apellidos, 'Zeta')
   const alfabeticoInverso = await pedir('/api/pacientes?orden=alfabetico_desc', { token })
-  assert.equal(alfabeticoInverso.body.pacientes[0].apellidos, 'Zeta')
+  assert.equal(alfabeticoInverso.body.pacientes[0].nombres, 'Beatriz')
+  assert.equal(alfabeticoInverso.body.pacientes[0].apellidos, 'Alfa')
   const filtrado = await pedir('/api/pacientes?estado=ACTIVO&buscar=PAC-', { token })
   assert.equal(filtrado.body.total, 45)
   assert.equal(filtrado.body.totalPaginas, 2)

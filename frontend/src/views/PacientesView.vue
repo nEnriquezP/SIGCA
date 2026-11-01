@@ -555,8 +555,8 @@ onUnmounted(() => {
           <select v-model="orden" @change="buscarListado">
             <option value="codigo_asc">Código ascendente</option>
             <option value="codigo_desc">Código descendente</option>
-            <option value="alfabetico_asc">Alfabético ascendente</option>
-            <option value="alfabetico_desc">Alfabético descendente</option>
+            <option value="alfabetico_asc">Nombre A–Z</option>
+            <option value="alfabetico_desc">Nombre Z–A</option>
             <option value="ultimos_10">Últimos 10 registrados</option>
           </select>
         </label>
