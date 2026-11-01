@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
 import { etiquetaEstado, fechaCorta, mesGuatemala } from '../utils/formatoCita.js'
+import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
@@ -82,6 +83,19 @@ async function moverMes(direccion) {
     .toISOString().slice(0, 7)
   await cargarMes()
 }
+async function refrescarProfesionales() {
+  if (!gestiona.value) return
+  try {
+    const datos = await solicitarApi('/api/citas/opciones', { token: sesion.token, silencioso: true })
+    profesionales.value = datos.profesionales
+    if (profesional.value && !datos.profesionales.some((item) => item.id === profesional.value)) {
+      profesional.value = ''
+      await cargarMes()
+    }
+  } catch (err) { fallo(err) }
+}
+useOpcionesVivas(refrescarProfesionales, ['usuarios'])
+
 onMounted(async () => {
   if (gestiona.value) {
     try {
@@ -105,7 +119,7 @@ onMounted(async () => {
           <h2>{{ tituloMes }}</h2>
           <button type="button" class="secundario" aria-label="Mes siguiente" @click="moverMes(1)">→</button>
         </div>
-        <label v-if="gestiona">Profesional
+        <label v-if="gestiona">Profesional <span class="requisito-campo">Opcional</span>
           <select v-model="profesional" @change="cargarMes"><option value="">Todos</option>
             <option v-for="p in profesionales" :key="p.id" :value="p.id">{{ p.nombre }}</option>
           </select></label>

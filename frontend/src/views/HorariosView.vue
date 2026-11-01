@@ -3,6 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
+import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
 
 const props = defineProps({ administracion: { type: Boolean, default: false } })
 const router = useRouter()
@@ -50,15 +51,24 @@ function manejarError(fallo) {
   error.value = fallo.message || 'No se pudo completar la operación'
 }
 
-async function cargar() {
+async function cargar(preservarFormulario = false) {
   cargando.value = true
   error.value = ''
   try {
+    const anterior = horarioDe(seleccionado.value)
+    const baseAnterior = anterior ? { activo: anterior.activo,
+      intervalos: anterior.intervalos.map((intervalo) => ({ ...intervalo })) } :
+      { activo: false, intervalos: [] }
+    const hayEdicion = JSON.stringify(formulario.value) !== JSON.stringify(baseAnterior)
     const ruta = props.administracion ? '/api/horarios/administracion' : '/api/horarios'
     const datos = await solicitarApi(ruta,
       { token: props.administracion ? sesion.token : undefined })
     horarios.value = datos.horarios
-    if (props.administracion) seleccionar(seleccionado.value)
+    if (props.administracion && !(preservarFormulario && hayEdicion)) seleccionar(seleccionado.value)
+    else if (props.administracion && hayEdicion &&
+        JSON.stringify(anterior) !== JSON.stringify(horarioDe(seleccionado.value))) {
+      aviso.value = 'El horario cambió mientras editabas. Revisa los datos antes de guardar.'
+    }
   } catch (fallo) {
     manejarError(fallo)
   } finally {
@@ -93,7 +103,8 @@ async function guardar() {
 }
 
 onMounted(cargar)
-watch(() => props.administracion, cargar)
+useOpcionesVivas(() => cargar(true), ['horarios'])
+watch(() => props.administracion, () => cargar())
 </script>
 
 <template>
@@ -137,17 +148,17 @@ watch(() => props.administracion, cargar)
     <section v-if="administracion && sesion.tienePermiso('HORARIOS_GESTIONAR')" class="tarjeta">
       <h2>Configurar {{ nombreDia(seleccionado) }}</h2>
       <form @submit.prevent="guardar">
-        <label>Día
+        <label>Día <span class="requisito-campo">Obligatorio</span>
           <select :value="seleccionado" @change="seleccionar($event.target.value)">
             <option v-for="[dia, nombre] in dias" :key="dia" :value="dia">{{ nombre }}</option>
           </select>
         </label>
-        <label><span>Día abierto al público</span><input v-model="formulario.activo" type="checkbox" style="width: auto" /></label>
+        <label><span>Día abierto al público <span class="requisito-campo">Obligatorio</span></span><input v-model="formulario.activo" type="checkbox" style="width: auto" /></label>
         <fieldset>
-          <legend>Intervalos de atención</legend>
+          <legend>Intervalos de atención <span class="requisito-campo">Obligatorios si el día está abierto</span></legend>
           <div v-for="(intervalo, indice) in formulario.intervalos" :key="indice" class="formulario-grid" style="display: grid; margin-bottom: 12px">
-            <label>Inicio<input v-model="intervalo.horaInicio" type="time" required /></label>
-            <label>Fin<input v-model="intervalo.horaFin" type="time" required /></label>
+            <label>Inicio <span class="requisito-campo">Obligatorio si agregas un intervalo</span><input v-model="intervalo.horaInicio" type="time" required /></label>
+            <label>Fin <span class="requisito-campo">Obligatorio si agregas un intervalo</span><input v-model="intervalo.horaFin" type="time" required /></label>
             <button type="button" class="secundario" @click="quitarIntervalo(indice)">Quitar intervalo</button>
           </div>
           <button type="button" class="secundario" :disabled="formulario.intervalos.length >= 8" @click="agregarIntervalo">Agregar intervalo</button>

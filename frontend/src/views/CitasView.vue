@@ -6,6 +6,13 @@ import { useSesionStore } from '../stores/sesion.js'
 import { fechaCorta, fechaHoraGuatemala, etiquetaEstado, precioQuetzales } from '../utils/formatoCita.js'
 import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
+import PacientesActivosSelector from '../components/PacientesActivosSelector.vue'
+import ConfirmarCita from '../components/ConfirmarCita.vue'
+import ImagenVista from '../components/ImagenVista.vue'
+import AvatarUsuario from '../components/AvatarUsuario.vue'
+import { avisoEspera, diasHasta, fechaMaximaGuatemala, hoyGuatemala } from '../utils/fechasCita.js'
+import { mostrarError } from '../services/avisos.js'
+import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,8 +23,8 @@ const total = ref(0)
 const pagina = ref(0)
 const filtro = ref({ paciente: String(route.query.paciente || ''),
   profesional: '', fecha: String(route.query.fecha || ''), estado: '' })
-const opciones = ref({ pacientes: [], servicios: [], profesionales: [] })
-const buscarPaciente = ref('')
+const opciones = ref({ servicios: [], profesionales: [] })
+const pacienteElegido = ref(null)
 const nueva = ref(formularioVacio())
 const detalle = ref(null)
 const reprogramacion = ref(null)
@@ -26,6 +33,7 @@ const cargando = ref(false)
 const operando = ref(false)
 const error = ref('')
 const aviso = ref('')
+const confirmacionCita = ref(null)
 const hayCambios = computed(() => JSON.stringify(nueva.value) !== JSON.stringify(formularioVacio()) ||
   Boolean(reprogramacion.value && JSON.stringify(reprogramacion.value) !== reprogramacionOriginal.value))
 const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
@@ -73,12 +81,22 @@ async function moverPagina(direccion) {
 async function cargarOpciones() {
   if (!gestiona.value) return
   try {
-    const query = buscarPaciente.value.trim() ?
-      `?buscarPaciente=${encodeURIComponent(buscarPaciente.value.trim())}` : ''
-    const datos = await solicitarApi(`/api/citas/opciones${query}`, { token: sesion.token })
-    const actual = opciones.value.pacientes.find((p) => p.id === nueva.value.paciente)
-    opciones.value = { ...datos, pacientes: actual && !datos.pacientes.some((p) => p.id === actual.id) ?
-      [actual, ...datos.pacientes] : datos.pacientes }
+    const datos = await solicitarApi('/api/citas/opciones', { token: sesion.token,
+      silencioso: true })
+    opciones.value = { servicios: datos.servicios, profesionales: datos.profesionales }
+    if (nueva.value.servicio && !datos.servicios.some((s) => s.id === nueva.value.servicio)) {
+      nueva.value.servicio = ''
+      aviso.value = 'El servicio seleccionado ya no está activo. Elige otro.'
+    }
+    if (nueva.value.profesional && !datos.profesionales.some((p) => p.id === nueva.value.profesional)) {
+      nueva.value.profesional = ''
+      aviso.value = 'El profesional seleccionado ya no está activo. Elige otro.'
+    }
+    if (reprogramacion.value?.profesional &&
+        !datos.profesionales.some((p) => p.id === reprogramacion.value.profesional)) {
+      reprogramacion.value.profesional = ''
+      aviso.value = 'El profesional de la reprogramación ya no está activo. Elige otro.'
+    }
   } catch (err) { fallo(err) }
 }
 async function ver(id) {
@@ -90,7 +108,36 @@ async function ver(id) {
     reprogramacionOriginal.value = ''
   } catch (err) { fallo(err) }
 }
+function prepararConfirmacion(tipo) {
+  if (operando.value || confirmacionCita.value) return
+  const datos = tipo === 'nueva' ? nueva.value : reprogramacion.value
+  const paciente = tipo === 'nueva' ? null : detalle.value?.paciente
+  const dias = diasHasta(datos?.fecha)
+  if (dias === null || dias < 0 || dias > 365 ||
+      (dias === 0 && datos.horaInicio <= new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Guatemala', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      }).format(new Date()))) {
+    mostrarError('Elige una fecha y hora futuras dentro de los próximos 365 días de Guatemala.', 'fecha')
+    return
+  }
+  if (tipo === 'nueva' && !nueva.value.paciente) {
+    mostrarError('Selecciona un paciente activo.', 'paciente')
+    return
+  }
+  const nombre = tipo === 'nueva' ?
+    `${pacienteElegido.value?.codigo || 'Sin código'} · ${pacienteElegido.value?.nombre || ''}` :
+    `${paciente.codigo || 'Sin código'} · ${paciente.nombre}`
+  confirmacionCita.value = { tipo, paciente: nombre || 'Paciente seleccionado',
+    fecha: datos.fecha, hora: datos.horaInicio }
+}
+function volverEditar() { if (!operando.value) confirmacionCita.value = null }
+async function confirmarCita() {
+  if (!confirmacionCita.value || operando.value) return
+  if (confirmacionCita.value.tipo === 'nueva') await programar()
+  else await guardarReprogramacion()
+}
 async function programar() {
+  if (operando.value) return
   operando.value = true
   error.value = ''
   aviso.value = ''
@@ -98,11 +145,12 @@ async function programar() {
     const datos = await solicitarApi('/api/citas', { method: 'POST', token: sesion.token,
       body: nueva.value })
     nueva.value = formularioVacio()
-    buscarPaciente.value = ''
+    pacienteElegido.value = null
+    confirmacionCita.value = null
     aviso.value = 'Cita programada en estado pendiente.'
     await cargar()
     await ver(datos.cita.id)
-  } catch (err) { fallo(err) } finally { operando.value = false }
+  } catch (err) { confirmacionCita.value = null; fallo(err) } finally { operando.value = false }
 }
 async function iniciarReprogramacion() {
   if (reprogramacion.value && !await confirmarSalida()) return
@@ -118,7 +166,7 @@ async function cancelarReprogramacion() {
   reprogramacionOriginal.value = ''
 }
 async function guardarReprogramacion() {
-  if (!detalle.value || !reprogramacion.value) return
+  if (!detalle.value || !reprogramacion.value || operando.value) return
   operando.value = true
   error.value = ''
   aviso.value = ''
@@ -128,10 +176,11 @@ async function guardarReprogramacion() {
       body: reprogramacion.value })
     reprogramacion.value = null
     reprogramacionOriginal.value = ''
+    confirmacionCita.value = null
     aviso.value = 'Cita reprogramada.'
     await cargar()
     await ver(id)
-  } catch (err) { fallo(err) } finally { operando.value = false }
+  } catch (err) { confirmacionCita.value = null; fallo(err) } finally { operando.value = false }
 }
 async function cambiarEstado(estado) {
   if (!detalle.value || !window.confirm(`¿Cambiar la cita a ${etiquetaEstado(estado)}?`)) return
@@ -159,6 +208,7 @@ onMounted(async () => {
   await Promise.all([cargar(), cargarOpciones()])
   if (route.query.id) await ver(String(route.query.id))
 })
+useOpcionesVivas(cargarOpciones, ['servicios', 'usuarios'])
 </script>
 
 <template>
@@ -170,27 +220,26 @@ onMounted(async () => {
 
     <section v-if="gestiona" class="tarjeta">
       <h2>Programar cita</h2>
-      <form class="formulario-grid" @submit.prevent="programar">
-        <label>Buscar paciente activo por código o nombre
-          <input v-model="buscarPaciente" maxlength="80" /></label>
-        <button type="button" class="secundario" @click="cargarOpciones">Buscar pacientes</button>
-        <label>Paciente activo
-          <select v-model="nueva.paciente" required><option disabled value="">Selecciona un paciente</option>
-            <option v-for="p in opciones.pacientes" :key="p.id" :value="p.id">{{ p.codigo || 'Sin código' }} · {{ p.nombre }}</option>
-          </select></label>
-        <label>Servicio activo
-          <select v-model="nueva.servicio" required><option disabled value="">Selecciona un servicio</option>
+      <form class="formulario-grid" @submit.prevent="prepararConfirmacion('nueva')">
+        <PacientesActivosSelector v-model="nueva.paciente" endpoint="/api/citas/opciones"
+          class="campo-ancho" @seleccion="pacienteElegido = $event" @invalido="aviso = $event" />
+        <label>Servicio activo <span class="requisito-campo">Obligatorio</span>
+          <select v-model="nueva.servicio" data-campo="servicio" required><option disabled value="">Selecciona un servicio</option>
             <option v-for="s in opciones.servicios" :key="s.id" :value="s.id">{{ s.codigo || '' }} · {{ s.nombre }} ({{ s.duracionMinutos }} min, {{ precioQuetzales(s.precioCentavos) }})</option>
           </select></label>
-        <label>Profesional activo
-          <select v-model="nueva.profesional" required><option disabled value="">Selecciona un profesional</option>
+        <label>Profesional activo <span class="requisito-campo">Obligatorio</span>
+          <select v-model="nueva.profesional" data-campo="profesional" required><option disabled value="">Selecciona un profesional</option>
             <option v-for="p in opciones.profesionales" :key="p.id" :value="p.id">{{ p.nombre }}</option>
           </select></label>
-        <label>Fecha <input v-model="nueva.fecha" type="date" required /></label>
-        <label>Hora de inicio en Guatemala <input v-model="nueva.horaInicio" type="time" required /></label>
-        <label class="campo-ancho">Observaciones administrativas (opcional)
+        <label>Fecha <span class="requisito-campo">Obligatorio</span>
+          <input v-model="nueva.fecha" data-campo="fecha" type="date" :min="hoyGuatemala()"
+            :max="fechaMaximaGuatemala()" required />
+          <small v-if="nueva.fecha" role="status">{{ avisoEspera(nueva.fecha) }}</small></label>
+        <label>Hora de inicio en Guatemala <span class="requisito-campo">Obligatorio</span>
+          <input v-model="nueva.horaInicio" data-campo="horaInicio" type="time" required /></label>
+        <label class="campo-ancho">Observaciones administrativas <span class="requisito-campo">Opcional</span>
           <textarea v-model="nueva.observacionesAdministrativas" maxlength="2000" /></label>
-        <button type="submit" :disabled="operando">{{ operando ? 'Guardando…' : 'Programar cita' }}</button>
+        <button type="submit" :disabled="operando">Revisar cita</button>
       </form>
       <p v-if="!opciones.profesionales.length">No hay profesionales activos disponibles.</p>
     </section>
@@ -198,11 +247,11 @@ onMounted(async () => {
     <section class="tarjeta">
       <h2>{{ filtro.paciente ? 'Historial de citas del paciente' : 'Consultar citas' }}</h2>
       <form class="formulario-grid" @submit.prevent="filtrar">
-        <label>Fecha <input v-model="filtro.fecha" type="date" /></label>
-        <label>Estado <select v-model="filtro.estado"><option value="">Todos</option>
+        <label>Fecha <span class="requisito-campo">Opcional</span><input v-model="filtro.fecha" type="date" /></label>
+        <label>Estado <span class="requisito-campo">Opcional</span><select v-model="filtro.estado"><option value="">Todos</option>
           <option v-for="estado in ['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA']"
             :key="estado" :value="estado">{{ etiquetaEstado(estado) }}</option></select></label>
-        <label v-if="gestiona">Profesional <select v-model="filtro.profesional">
+        <label v-if="gestiona">Profesional <span class="requisito-campo">Opcional</span><select v-model="filtro.profesional">
           <option value="">Todos</option><option v-for="p in opciones.profesionales" :key="p.id" :value="p.id">{{ p.nombre }}</option>
         </select></label>
         <button type="submit">Buscar</button>
@@ -231,13 +280,27 @@ onMounted(async () => {
 
     <section v-if="detalle" class="tarjeta">
       <h2>Detalle de la cita</h2>
-      <p><strong>{{ etiquetaPaciente(detalle) }}</strong> · {{ detalle.servicio.nombre }}</p>
-      <p>Profesional: {{ detalle.profesional.nombre }}</p>
-      <p>Fecha: {{ fechaCorta(detalle.fecha) }} · {{ detalle.horaInicio }}–{{ detalle.horaFin }} (Guatemala)</p>
-      <p>Duración histórica: {{ detalle.duracionMinutos }} minutos · Precio histórico: {{ precioQuetzales(detalle.precioCentavos) }}</p>
-      <p>Estado: <span class="estado-cita" :class="`estado-${detalle.estado.toLowerCase()}`">{{ etiquetaEstado(detalle.estado) }}</span></p>
-      <p>Creada: {{ fechaHoraGuatemala(detalle.creadoEn) }} (Guatemala)</p>
-      <p v-if="gestiona">Observaciones administrativas: {{ detalle.observacionesAdministrativas || 'Sin observaciones' }}</p>
+      <div class="personas-cita">
+        <article class="persona-cita">
+          <AvatarUsuario :usuario="{ ...detalle.profesional, fotografia: detalle.profesional.imagen }" />
+          <div><h3>Profesional</h3><p>{{ detalle.profesional.nombre }}</p></div>
+        </article>
+        <article class="persona-cita">
+          <ImagenVista :valor="detalle.paciente.imagen || ''" alt="Fotografía del paciente" silueta />
+          <div><h3>Paciente</h3><p>{{ detalle.paciente.nombre }}</p>
+            <p>{{ detalle.paciente.codigo || 'Sin código asignado' }}</p></div>
+        </article>
+      </div>
+      <dl class="datos-cita">
+        <div><dt>Servicio</dt><dd>{{ detalle.servicio.nombre }}</dd></div>
+        <div><dt>Fecha</dt><dd>{{ fechaCorta(detalle.fecha) }}</dd></div>
+        <div><dt>Horario en Guatemala</dt><dd>{{ detalle.horaInicio }}–{{ detalle.horaFin }}</dd></div>
+        <div><dt>Duración histórica</dt><dd>{{ detalle.duracionMinutos }} minutos</dd></div>
+        <div><dt>Precio histórico</dt><dd>{{ precioQuetzales(detalle.precioCentavos) }}</dd></div>
+        <div><dt>Estado</dt><dd><span class="estado-cita" :class="`estado-${detalle.estado.toLowerCase()}`">{{ etiquetaEstado(detalle.estado) }}</span></dd></div>
+        <div><dt>Creada</dt><dd>{{ fechaHoraGuatemala(detalle.creadoEn) }} (Guatemala)</dd></div>
+        <div v-if="gestiona"><dt>Observaciones administrativas</dt><dd>{{ detalle.observacionesAdministrativas || 'Sin observaciones' }}</dd></div>
+      </dl>
       <p v-if="detalle.solicitudCita && gestiona">Origen: solicitud convertida.
         <RouterLink :to="`/gestion-solicitudes`">Abrir solicitudes</RouterLink></p>
       <div class="acciones">
@@ -250,22 +313,29 @@ onMounted(async () => {
         <button v-if="!gestiona && detalle.estado === 'CONFIRMADA'" type="button" :disabled="operando"
           @click="cambiarEstado('COMPLETADA')">Marcar completada</button>
       </div>
-      <form v-if="reprogramacion" class="formulario-grid" @submit.prevent="guardarReprogramacion">
+      <form v-if="reprogramacion" class="formulario-grid" @submit.prevent="prepararConfirmacion('reprogramacion')">
         <h3 class="campo-ancho">Reprogramar cita</h3>
         <p class="campo-ancho">Se conservan paciente, servicio, duración y precio histórico.</p>
-        <label>Fecha <input v-model="reprogramacion.fecha" type="date" required /></label>
-        <label>Hora de inicio en Guatemala <input v-model="reprogramacion.horaInicio" type="time" required /></label>
-        <label>Profesional activo <select v-model="reprogramacion.profesional" required>
+        <label>Fecha <span class="requisito-campo">Obligatorio</span>
+          <input v-model="reprogramacion.fecha" data-campo="fecha" type="date" :min="hoyGuatemala()"
+            :max="fechaMaximaGuatemala()" required />
+          <small role="status">{{ avisoEspera(reprogramacion.fecha) }}</small></label>
+        <label>Hora de inicio en Guatemala <span class="requisito-campo">Obligatorio</span>
+          <input v-model="reprogramacion.horaInicio" data-campo="horaInicio" type="time" required /></label>
+        <label>Profesional activo <span class="requisito-campo">Obligatorio</span>
+          <select v-model="reprogramacion.profesional" data-campo="profesional" required>
           <option v-for="p in opciones.profesionales" :key="p.id" :value="p.id">{{ p.nombre }}</option>
         </select></label>
-        <label class="campo-ancho">Observaciones administrativas
+        <label class="campo-ancho">Observaciones administrativas <span class="requisito-campo">Opcional</span>
           <textarea v-model="reprogramacion.observacionesAdministrativas" maxlength="2000" /></label>
         <div class="acciones campo-ancho">
-          <button type="submit" :disabled="operando">Guardar reprogramación</button>
+          <button type="submit" :disabled="operando">Revisar reprogramación</button>
           <button type="button" class="secundario" @click="cancelarReprogramacion">Cerrar</button>
         </div>
       </form>
     </section>
+    <ConfirmarCita :datos="confirmacionCita" :ocupada="operando"
+      @confirmar="confirmarCita" @volver="volverEditar" />
     <AdvertenciaCambios :abierto="advertenciaVisible" @seguir="seguirEditando" @salir="salirSinGuardar" />
   </main>
 </template>

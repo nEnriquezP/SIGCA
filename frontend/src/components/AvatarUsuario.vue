@@ -18,6 +18,11 @@ watch(() => props.usuario?.fotografia, async (fotografia, _anterior, alLimpiar) 
   })
   fuente.value = ''
   if (!fotografia) return
+  if (!fotografia.startsWith('/api/imagenes/privadas/') &&
+      !fotografia.startsWith('/api/citas/')) {
+    fuente.value = fotografia
+    return
+  }
   try {
     const blob = await obtenerImagenPrivada(fotografia, sesion.token)
     if (!vigente) return

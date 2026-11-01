@@ -7,10 +7,14 @@ import ImagenCampo from '../components/ImagenCampo.vue'
 import ImagenVista from '../components/ImagenVista.vue'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
 import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
+import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
+import { errorActual, mostrarError } from '../services/avisos.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
 const responsables = ref([])
+const pagina = ref(0)
+const hayMas = ref(false)
 const buscar = ref('')
 const error = ref('')
 const aviso = ref('')
@@ -44,15 +48,30 @@ function fallo(errorApi) {
     router.push({ name: 'ingresar' })
   }
   error.value = errorApi.message || 'No se pudo completar la operación'
+  if (errorActual.value?.mensaje !== error.value) mostrarError(error.value)
+}
+
+async function buscarListado() {
+  pagina.value = 0
+  await cargar()
+}
+
+async function moverPagina(direccion) {
+  pagina.value = Math.max(0, pagina.value + direccion)
+  await cargar()
 }
 
 async function cargar() {
   cargando.value = true
   error.value = ''
   try {
-    const query = buscar.value.trim() ? `?buscar=${encodeURIComponent(buscar.value.trim())}` : ''
+    const parametros = new URLSearchParams()
+    if (buscar.value.trim()) parametros.set('buscar', buscar.value.trim())
+    if (pagina.value) parametros.set('pagina', String(pagina.value))
+    const query = parametros.size ? `?${parametros}` : ''
     const datos = await solicitarApi(`/api/responsables${query}`, { token: sesion.token })
     responsables.value = datos.responsables
+    hayMas.value = Boolean(datos.hayMas)
   } catch (errorApi) {
     fallo(errorApi)
   } finally {
@@ -125,6 +144,7 @@ async function cancelarEdicion() {
 }
 
 onMounted(cargar)
+useOpcionesVivas(cargar, ['responsables'])
 </script>
 
 <template>
@@ -169,7 +189,7 @@ onMounted(cargar)
 
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
-      <form @submit.prevent="cargar">
+      <form @submit.prevent="buscarListado">
         <label>Código, identificador, nombre, apellido, correo o teléfono <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" /></label>
         <button type="submit">Buscar</button>
       </form>
@@ -193,6 +213,12 @@ onMounted(cargar)
         </table>
       </div>
     </section>
+
+    <nav class="acciones" aria-label="Páginas de resultados">
+      <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(-1)">Anterior</button>
+      <span>Página {{ pagina + 1 }}</span>
+      <button type="button" class="secundario" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente</button>
+    </nav>
 
     <section v-if="detalle" class="tarjeta">
       <h2>Detalle del responsable</h2>

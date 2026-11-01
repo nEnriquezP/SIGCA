@@ -6,11 +6,15 @@ import { useSesionStore } from '../stores/sesion.js'
 import ImagenCampo from '../components/ImagenCampo.vue'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
 import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
+import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
+import { mostrarError } from '../services/avisos.js'
 
 const props = defineProps({ administracion: { type: Boolean, default: false } })
 const router = useRouter()
 const sesion = useSesionStore()
 const servicios = ref([])
+const pagina = ref(0)
+const hayMas = ref(false)
 const buscar = ref('')
 const estadoFiltro = ref('')
 const detalle = ref(null)
@@ -98,6 +102,17 @@ function manejarError(fallo) {
     router.push({ name: 'ingresar' })
   }
   error.value = fallo.message || 'No se pudo completar la operación'
+  if (!fallo.status) mostrarError(error.value)
+}
+
+async function buscarListado() {
+  pagina.value = 0
+  await cargar()
+}
+
+async function moverPagina(direccion) {
+  pagina.value = Math.max(0, pagina.value + direccion)
+  await cargar()
 }
 
 async function cargar() {
@@ -106,11 +121,13 @@ async function cargar() {
   const parametros = new URLSearchParams()
   if (buscar.value.trim()) parametros.set('buscar', buscar.value.trim())
   if (props.administracion && estadoFiltro.value) parametros.set('estado', estadoFiltro.value)
+    if (pagina.value) parametros.set('pagina', String(pagina.value))
   const ruta = props.administracion ? '/api/servicios/administracion' : '/api/servicios'
   try {
     const datos = await solicitarApi(`${ruta}${parametros.size ? `?${parametros}` : ''}`,
       { token: props.administracion ? sesion.token : undefined })
     servicios.value = datos.servicios
+    hayMas.value = Boolean(datos.hayMas)
   } catch (fallo) {
     manejarError(fallo)
   } finally {
@@ -246,6 +263,7 @@ async function cambiarEstado(servicio) {
 }
 
 onMounted(cargar)
+useOpcionesVivas(cargar, ['servicios'])
 onBeforeRouteUpdate(() => confirmarSalida())
 watch(() => props.administracion, () => {
   cerrarDetalle()
@@ -300,9 +318,9 @@ watch(() => props.administracion, () => {
 
     <section ref="listadoSeccion" class="tarjeta">
       <h2>Consultar y buscar</h2>
-      <form class="formulario-grid" @submit.prevent="cargar">
-        <label>Código, nombre o descripción<input v-model="buscar" maxlength="80" placeholder="Ej. SERV-INT-0001" /></label>
-        <label v-if="administracion">Estado
+      <form class="formulario-grid" @submit.prevent="buscarListado">
+        <label>Código, nombre o descripción <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" placeholder="Ej. SERV-INT-0001" /></label>
+        <label v-if="administracion">Estado <span class="requisito-campo">Opcional</span>
           <select v-model="estadoFiltro">
             <option value="">Todos</option><option value="ACTIVO">Activo</option>
             <option value="INACTIVO">Inactivo</option>
@@ -353,6 +371,12 @@ watch(() => props.administracion, () => {
         </article>
       </div>
     </section>
+
+    <nav class="acciones" aria-label="Páginas de resultados">
+      <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(-1)">Anterior</button>
+      <span>Página {{ pagina + 1 }}</span>
+      <button type="button" class="secundario" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente</button>
+    </nav>
 
     <section v-if="detalle && administracion" ref="detalleSeccion" class="tarjeta servicio-detalle">
       <button type="button" class="servicio-detalle-cerrar" aria-label="Cerrar detalle del servicio" title="Cerrar detalle" @click="cerrarDetalle">×</button>

@@ -8,11 +8,17 @@ import ImagenVista from '../components/ImagenVista.vue'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
 import { useCambiosSinGuardar } from '../composables/useCambiosSinGuardar.js'
 import { fechaCorta, etiquetaEstado } from '../utils/formatoCita.js'
+import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
+import { errorActual, mostrarError } from '../services/avisos.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
 const pacientes = ref([])
+const pagina = ref(0)
+const hayMas = ref(false)
 const responsablesDisponibles = ref([])
+const paginaResponsables = ref(0)
+const hayMasResponsables = ref(false)
 const buscarResponsableNuevo = ref('')
 const buscarResponsableEdicion = ref('')
 const buscar = ref('')
@@ -76,6 +82,17 @@ function fallo(errorApi) {
     router.push({ name: 'ingresar' })
   }
   error.value = errorApi.message || 'No se pudo completar la operación'
+  if (errorActual.value?.mensaje !== error.value) mostrarError(error.value)
+}
+
+async function buscarListado() {
+  pagina.value = 0
+  await cargar()
+}
+
+async function moverPagina(direccion) {
+  pagina.value = Math.max(0, pagina.value + direccion)
+  await cargar()
 }
 
 async function cargar() {
@@ -85,9 +102,11 @@ async function cargar() {
     const parametros = new URLSearchParams()
     if (buscar.value.trim()) parametros.set('buscar', buscar.value.trim())
     if (estadoFiltro.value) parametros.set('estado', estadoFiltro.value)
+    if (pagina.value) parametros.set('pagina', String(pagina.value))
     const query = parametros.size ? `?${parametros}` : ''
     const datos = await solicitarApi(`/api/pacientes${query}`, { token: sesion.token })
     pacientes.value = datos.pacientes
+    hayMas.value = Boolean(datos.hayMas)
   } catch (errorApi) {
     fallo(errorApi)
   } finally {
@@ -95,15 +114,19 @@ async function cargar() {
   }
 }
 
-async function cargarResponsables(tipo = 'nuevo') {
+async function cargarResponsables(tipo = 'nuevo', mas = false) {
   try {
     const texto = tipo === 'edicion' ? buscarResponsableEdicion.value : buscarResponsableNuevo.value
-    const query = texto.trim() ? `?buscar=${encodeURIComponent(texto.trim())}` : ''
-    const datos = await solicitarApi(`/api/responsables${query}`, { token: sesion.token })
+    const siguiente = mas ? paginaResponsables.value + 1 : 0
+    const parametros = new URLSearchParams({ pagina: String(siguiente) })
+    if (texto.trim()) parametros.set('buscar', texto.trim())
+    const datos = await solicitarApi(`/api/responsables?${parametros}`, { token: sesion.token })
+    paginaResponsables.value = siguiente
+    hayMasResponsables.value = Boolean(datos.hayMas)
     const seleccionados = new Set([
       ...nuevo.value.responsables, ...(edicion.value?.responsables ?? []),
     ])
-    const opciones = [...datos.responsables,
+    const opciones = [...(mas ? responsablesDisponibles.value : []), ...datos.responsables,
       ...responsablesDisponibles.value.filter((item) => seleccionados.has(item.id))]
     responsablesDisponibles.value = [...new Map(opciones.map((item) => [item.id, item])).values()]
   } catch (errorApi) {
@@ -212,6 +235,13 @@ async function cambiarEstado(paciente) {
   }
 }
 
+useOpcionesVivas(() => {
+  if (sesion.tienePermiso('RESPONSABLES_VER')) {
+    cargarResponsables(edicion.value ? 'edicion' : 'nuevo')
+  }
+}, ['responsables'])
+useOpcionesVivas(cargar, ['pacientes'])
+
 onMounted(async () => {
   await Promise.all([cargar(), sesion.tienePermiso('RESPONSABLES_VER') ? cargarResponsables() : Promise.resolve()])
 })
@@ -270,6 +300,8 @@ onMounted(async () => {
             {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
           </label>
           <p v-if="!responsablesDisponibles.length">Todavía no hay responsables registrados.</p>
+          <button v-if="hayMasResponsables" type="button" class="secundario"
+            @click="cargarResponsables('nuevo', true)">Cargar 100 responsables más</button>
         </fieldset>
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Registrar' }}</button>
       </form>
@@ -277,7 +309,7 @@ onMounted(async () => {
 
     <section class="tarjeta">
       <h2>Consultar y buscar</h2>
-      <form class="formulario-grid" @submit.prevent="cargar">
+      <form class="formulario-grid" @submit.prevent="buscarListado">
         <label>Código, identificador, nombre, apellido o teléfono <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" /></label>
         <label>Estado <span class="requisito-campo">Opcional</span>
           <select v-model="estadoFiltro">
@@ -310,6 +342,12 @@ onMounted(async () => {
         </table>
       </div>
     </section>
+
+    <nav class="acciones" aria-label="Páginas de resultados">
+      <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(-1)">Anterior</button>
+      <span>Página {{ pagina + 1 }}</span>
+      <button type="button" class="secundario" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente</button>
+    </nav>
 
     <section v-if="detalle" class="tarjeta">
       <h2>Detalle del paciente</h2>
@@ -388,6 +426,8 @@ onMounted(async () => {
             <input v-model="edicion.responsables" type="checkbox" :value="responsable.id" />
             {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
           </label>
+          <button v-if="hayMasResponsables" type="button" class="secundario"
+            @click="cargarResponsables('edicion', true)">Cargar 100 responsables más</button>
         </fieldset>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Guardar cambios</button>

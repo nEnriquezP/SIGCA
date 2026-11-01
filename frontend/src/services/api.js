@@ -1,3 +1,5 @@
+import { mostrarError, notificarCambio } from './avisos.js'
+
 function obtenerUrlBase() {
   const urlBase = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '')
 
@@ -8,24 +10,35 @@ function obtenerUrlBase() {
   return urlBase
 }
 
-export async function solicitarApi(ruta, { method = 'GET', body, token } = {}) {
+export async function solicitarApi(ruta, { method = 'GET', body, token, signal,
+  silencioso = false } = {}) {
   const headers = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const respuesta = await fetch(`${obtenerUrlBase()}${ruta}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+  let respuesta
+  try {
+    respuesta = await fetch(`${obtenerUrlBase()}${ruta}`, {
+      method, headers, signal,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  } catch (error) {
+    if (error.name === 'AbortError') throw error
+    const fallo = new Error('No se pudo conectar con el servidor. Comprueba la conexión e inténtalo de nuevo.')
+    if (!silencioso) mostrarError(fallo.message)
+    throw fallo
+  }
   const datos = await respuesta.json().catch(() => null)
 
   if (!respuesta.ok) {
     const error = new Error(datos?.mensaje || 'No se pudo completar la solicitud')
     error.status = respuesta.status
+    error.campo = typeof datos?.campo === 'string' ? datos.campo : ''
+    if (!silencioso) mostrarError(error.message, error.campo)
     throw error
   }
 
+  if (method !== 'GET') notificarCambio(ruta)
   return datos
 }
 
@@ -51,6 +64,7 @@ export async function subirArchivoImagen(categoria, archivo, token) {
   if (!respuesta.ok) {
     const error = new Error(datos?.mensaje || 'No se pudo cargar la imagen')
     error.status = respuesta.status
+    mostrarError(error.message)
     throw error
   }
   return datos.imagen.valor
