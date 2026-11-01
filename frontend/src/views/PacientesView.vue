@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
@@ -19,10 +19,17 @@ const pacientes = ref([])
 const pagina = ref(0)
 const hayMas = ref(false)
 const responsablesDisponibles = ref([])
+const listaCompletaResponsables = ref(null)
 const paginaResponsables = ref(0)
 const hayMasResponsables = ref(false)
 const buscarResponsableNuevo = ref('')
 const buscarResponsableEdicion = ref('')
+const tipoBusquedaResponsables = ref('nuevo')
+const buscandoResponsables = ref(false)
+const errorBusquedaResponsables = ref('')
+let esperaBusquedaResponsables
+let controladorResponsables
+let secuenciaResponsables = 0
 const buscar = ref('')
 const estadoFiltro = ref('')
 const error = ref('')
@@ -52,6 +59,16 @@ const responsableConCambios = computed(() => altaResponsable.value !== null &&
   JSON.stringify(altaResponsable.value) !== JSON.stringify(responsableVacio()))
 const hayCambios = computed(() => JSON.stringify(nuevo.value) !== JSON.stringify(vacio()) ||
   Boolean(buscarResponsableNuevo.value) || edicionConCambios.value || responsableConCambios.value)
+const textoBusquedaResponsables = computed(() => tipoBusquedaResponsables.value === 'edicion' ?
+  buscarResponsableEdicion.value : buscarResponsableNuevo.value)
+const responsablesVisibles = computed(() => {
+  const texto = textoBusquedaResponsables.value.trim().toLocaleLowerCase('es-GT')
+  if (!texto) return responsablesDisponibles.value
+  return responsablesDisponibles.value.filter((responsable) =>
+    [responsable.codigo, responsable.nombres, responsable.apellidos, responsable.correo,
+      responsable.telefono, responsable.id].some((valor) =>
+      String(valor ?? '').toLocaleLowerCase('es-GT').includes(texto)))
+})
 const { advertenciaVisible, confirmarSalida, seguirEditando, salirSinGuardar } =
   useCambiosSinGuardar(hayCambios)
 
@@ -99,6 +116,13 @@ async function guardarAltaResponsable() {
     const resultado = incorporarResponsable(destino.value, responsablesDisponibles.value, responsable)
     destino.value = resultado.paciente
     responsablesDisponibles.value = resultado.disponibles
+    if (listaCompletaResponsables.value !== null) {
+      listaCompletaResponsables.value = [...new Map([
+        ...listaCompletaResponsables.value, responsable,
+      ].map((item) => [item.id, item])).values()]
+    }
+    if (destinoResponsable.value === 'edicion') buscarResponsableEdicion.value = ''
+    else buscarResponsableNuevo.value = ''
     descartarAltaResponsable()
     error.value = ''
     aviso.value = `Responsable ${responsable.codigo || ''} guardado y seleccionado. ` +
@@ -173,12 +197,26 @@ async function cargar() {
 }
 
 async function cargarResponsables(tipo = 'nuevo', mas = false) {
+  clearTimeout(esperaBusquedaResponsables)
+  controladorResponsables?.abort()
+  const controlador = new AbortController()
+  controladorResponsables = controlador
+  const secuencia = ++secuenciaResponsables
+  tipoBusquedaResponsables.value = tipo
+  buscandoResponsables.value = true
+  errorBusquedaResponsables.value = ''
   try {
     const texto = tipo === 'edicion' ? buscarResponsableEdicion.value : buscarResponsableNuevo.value
     const siguiente = mas ? paginaResponsables.value + 1 : 0
     const parametros = new URLSearchParams({ pagina: String(siguiente) })
     if (texto.trim()) parametros.set('buscar', texto.trim())
-    const datos = await solicitarApi(`/api/responsables?${parametros}`, { token: sesion.token })
+    const datos = await solicitarApi(`/api/responsables?${parametros}`, {
+      token: sesion.token, signal: controlador.signal, silencioso: true,
+    })
+    if (secuencia !== secuenciaResponsables) return
+    if (!texto.trim() && !mas) {
+      listaCompletaResponsables.value = datos.hayMas ? null : datos.responsables
+    }
     paginaResponsables.value = siguiente
     hayMasResponsables.value = Boolean(datos.hayMas)
     const seleccionados = new Set([
@@ -188,9 +226,49 @@ async function cargarResponsables(tipo = 'nuevo', mas = false) {
       ...responsablesDisponibles.value.filter((item) => seleccionados.has(item.id))]
     responsablesDisponibles.value = [...new Map(opciones.map((item) => [item.id, item])).values()]
   } catch (errorApi) {
-    fallo(errorApi)
+    if (secuencia !== secuenciaResponsables || errorApi.name === 'AbortError') return
+    if (errorApi.status === 401) fallo(errorApi)
+    else errorBusquedaResponsables.value = errorApi.message || 'No se pudo buscar responsables'
+  } finally {
+    if (secuencia === secuenciaResponsables) {
+      buscandoResponsables.value = false
+      controladorResponsables = null
+    }
   }
 }
+
+function programarBusquedaResponsables(tipo) {
+  tipoBusquedaResponsables.value = tipo
+  clearTimeout(esperaBusquedaResponsables)
+  controladorResponsables?.abort()
+  ++secuenciaResponsables
+  paginaResponsables.value = 0
+  hayMasResponsables.value = false
+  buscandoResponsables.value = true
+  errorBusquedaResponsables.value = ''
+  if (listaCompletaResponsables.value !== null) {
+    const seleccionados = new Set([
+      ...nuevo.value.responsables, ...(edicion.value?.responsables ?? []),
+    ])
+    responsablesDisponibles.value = [...new Map([
+      ...listaCompletaResponsables.value,
+      ...responsablesDisponibles.value.filter((item) => seleccionados.has(item.id)),
+    ].map((item) => [item.id, item])).values()]
+    buscandoResponsables.value = false
+    return
+  }
+  esperaBusquedaResponsables = setTimeout(() => cargarResponsables(tipo), 250)
+}
+
+watch(buscarResponsableNuevo, () => programarBusquedaResponsables('nuevo'))
+watch(buscarResponsableEdicion, () => {
+  if (edicion.value) programarBusquedaResponsables('edicion')
+})
+
+onUnmounted(() => {
+  clearTimeout(esperaBusquedaResponsables)
+  controladorResponsables?.abort()
+})
 
 async function crear() {
   if (!nuevo.value.fotografia) return fallo(new Error('Carga una fotografía del paciente'))
@@ -226,6 +304,7 @@ async function consultar(paciente) {
     edicion.value = null
     edicionOriginal.value = null
     buscarResponsableEdicion.value = ''
+    cargarResponsables('nuevo')
   } catch (errorApi) {
     fallo(errorApi)
   }
@@ -244,6 +323,7 @@ async function editar(paciente) {
       ...responsablesDisponibles.value, ...datos.paciente.responsables,
     ].map((item) => [item.id, item])).values()]
     detalle.value = null
+    cargarResponsables('edicion')
   } catch (errorApi) {
     fallo(errorApi)
   }
@@ -260,6 +340,7 @@ async function guardar() {
     edicion.value = null
     edicionOriginal.value = null
     buscarResponsableEdicion.value = ''
+    cargarResponsables('nuevo')
     aviso.value = 'Paciente actualizado'
     await cargar()
   } catch (errorApi) {
@@ -274,6 +355,7 @@ async function cancelarEdicion() {
   edicion.value = null
   edicionOriginal.value = null
   buscarResponsableEdicion.value = ''
+  cargarResponsables('nuevo')
 }
 
 async function cambiarEstado(paciente) {
@@ -350,18 +432,29 @@ onMounted(async () => {
         <fieldset class="paciente-responsables">
           <legend>Responsables asociados <span class="requisito-campo">Opcional</span></legend>
           <label>Buscar responsable por código, nombre, correo o identificador <span class="requisito-campo">Opcional</span>
-            <input v-model="buscarResponsableNuevo" maxlength="80" />
+            <input v-model="buscarResponsableNuevo" maxlength="80"
+              @focus="tipoBusquedaResponsables !== 'nuevo' && programarBusquedaResponsables('nuevo')" />
           </label>
-          <button type="button" class="secundario" @click="cargarResponsables('nuevo')">Buscar responsables</button>
+          <small>La búsqueda se actualiza mientras escribes.</small>
           <button v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" type="button"
             class="secundario" @click="abrirAltaResponsable('nuevo')">Agregar responsable</button>
-          <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
-            <input v-model="nuevo.responsables" type="checkbox" :value="responsable.id" />
-            {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
-          </label>
-          <p v-if="!responsablesDisponibles.length">Todavía no hay responsables registrados.</p>
-          <button v-if="hayMasResponsables" type="button" class="secundario"
-            @click="cargarResponsables('nuevo', true)">Cargar 100 responsables más</button>
+          <p role="status">Responsables seleccionados: {{ nuevo.responsables.length }}</p>
+          <template v-if="tipoBusquedaResponsables === 'nuevo'">
+            <p v-if="buscandoResponsables" role="status">Buscando responsables…</p>
+            <p v-if="errorBusquedaResponsables" class="mensaje-error" role="alert">{{ errorBusquedaResponsables }}
+              <button type="button" class="secundario" @click="cargarResponsables('nuevo')">Reintentar</button>
+            </p>
+            <template v-else>
+              <label v-for="responsable in responsablesVisibles" :key="responsable.id">
+                <input v-model="nuevo.responsables" type="checkbox" :value="responsable.id" />
+                {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
+              </label>
+              <p v-if="!buscandoResponsables && !responsablesVisibles.length" role="status">{{ buscarResponsableNuevo.trim() ?
+                'Búsqueda sin resultados encontrados' : 'Todavía no hay responsables registrados.' }}</p>
+              <button v-if="!buscandoResponsables && hayMasResponsables" type="button" class="secundario"
+                @click="cargarResponsables('nuevo', true)">Cargar 100 responsables más</button>
+            </template>
+          </template>
         </fieldset>
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Registrar' }}</button>
       </form>
@@ -493,17 +586,29 @@ onMounted(async () => {
         <fieldset class="paciente-responsables">
           <legend>Responsables asociados <span class="requisito-campo">Opcional</span></legend>
           <label>Buscar responsable por código, nombre, correo o identificador <span class="requisito-campo">Opcional</span>
-            <input v-model="buscarResponsableEdicion" maxlength="80" />
+            <input v-model="buscarResponsableEdicion" maxlength="80"
+              @focus="tipoBusquedaResponsables !== 'edicion' && programarBusquedaResponsables('edicion')" />
           </label>
-          <button type="button" class="secundario" @click="cargarResponsables('edicion')">Buscar responsables</button>
+          <small>La búsqueda se actualiza mientras escribes.</small>
           <button v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" type="button"
             class="secundario" @click="abrirAltaResponsable('edicion')">Agregar responsable</button>
-          <label v-for="responsable in responsablesDisponibles" :key="responsable.id">
-            <input v-model="edicion.responsables" type="checkbox" :value="responsable.id" />
-            {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
-          </label>
-          <button v-if="hayMasResponsables" type="button" class="secundario"
-            @click="cargarResponsables('edicion', true)">Cargar 100 responsables más</button>
+          <p role="status">Responsables seleccionados: {{ edicion.responsables.length }}</p>
+          <template v-if="tipoBusquedaResponsables === 'edicion'">
+            <p v-if="buscandoResponsables" role="status">Buscando responsables…</p>
+            <p v-if="errorBusquedaResponsables" class="mensaje-error" role="alert">{{ errorBusquedaResponsables }}
+              <button type="button" class="secundario" @click="cargarResponsables('edicion')">Reintentar</button>
+            </p>
+            <template v-else>
+              <label v-for="responsable in responsablesVisibles" :key="responsable.id">
+                <input v-model="edicion.responsables" type="checkbox" :value="responsable.id" />
+                {{ responsable.codigo || 'Sin código' }} · {{ responsable.nombres }} {{ responsable.apellidos }} ({{ responsable.parentesco }})
+              </label>
+              <p v-if="!buscandoResponsables && !responsablesVisibles.length" role="status">{{ buscarResponsableEdicion.trim() ?
+                'Búsqueda sin resultados encontrados' : 'Todavía no hay responsables registrados.' }}</p>
+              <button v-if="!buscandoResponsables && hayMasResponsables" type="button" class="secundario"
+                @click="cargarResponsables('edicion', true)">Cargar 100 responsables más</button>
+            </template>
+          </template>
         </fieldset>
         <div class="acciones">
           <button type="submit" :disabled="guardando">Guardar cambios</button>
