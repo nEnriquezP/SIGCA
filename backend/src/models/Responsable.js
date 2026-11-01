@@ -8,6 +8,8 @@ const responsableSchema = new mongoose.Schema({
   parentesco: { type: String, required: true, trim: true, maxlength: 80 },
   telefono: { type: String, required: true, trim: true, maxlength: 30 },
   correo: { type: String, required: true, lowercase: true, trim: true, maxlength: 254 },
+  correoVerificado: { type: Boolean, default: false },
+  recibirPublicaciones: { type: Boolean, default: false },
   direccion: { type: String, required: true, trim: true, maxlength: 300 },
 }, { timestamps: true })
 

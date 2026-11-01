@@ -53,6 +53,10 @@ export async function autenticar(req, res, next) {
 
   req.usuario = usuario
   req.permisos = new Set(await permisosDeUsuario(usuario))
+  if (usuario.debeCambiarPassword === true &&
+      !['/api/auth/me', '/api/auth/password'].includes(req.path.startsWith('/api/') ? req.path : req.originalUrl.split('?')[0])) {
+    return res.status(403).json({ mensaje: 'Debes cambiar tu contraseña inicial antes de continuar' })
+  }
   next()
 }
 

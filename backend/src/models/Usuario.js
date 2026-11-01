@@ -18,6 +18,10 @@ const usuarioSchema = new mongoose.Schema({
   fotografia: { type: String, default: '', maxlength: 500,
     validate: (valor) => !valor || /^\/api\/imagenes\/privadas\/[0-9a-f-]{36}$/.test(valor) },
   activo: { type: Boolean, default: true },
+  correoVerificado: { type: Boolean, default: false },
+  verificacionPendiente: { type: Boolean, default: false },
+  recibirPublicaciones: { type: Boolean, default: false },
+  debeCambiarPassword: { type: Boolean, default: false },
 }, { timestamps: true })
 
 export default mongoose.model('Usuario', usuarioSchema)

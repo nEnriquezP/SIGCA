@@ -46,6 +46,10 @@ before(async () => {
     publicaciones.set(item.id, item)
     return item
   }
+  Publicacion.findById = async (id) => {
+    const item = publicaciones.get(String(id))
+    return item ? { ...item } : null
+  }
   Publicacion.findByIdAndUpdate = async (id, cambio) => {
     const item = publicaciones.get(String(id))
     if (!item) return null

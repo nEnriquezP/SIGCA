@@ -6,7 +6,8 @@ import MensajeContacto from '../models/MensajeContacto.js'
 const router = Router()
 const limitarEnvios = rateLimit({
   windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false,
-  message: { mensaje: 'Demasiados mensajes. Intenta de nuevo en 15 minutos.' },
+  message: (req) => ({ mensaje: `Demasiados mensajes. Intenta de nuevo en ${Math.max(1,
+    Math.ceil((new Date(req.rateLimit?.resetTime).getTime() - Date.now()) / 60000))} minuto(s).` }),
 })
 const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const telefonoValido = /^[+\d][\d\s()+.-]{6,29}$/

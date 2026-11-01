@@ -7,12 +7,14 @@ import Paciente from '../models/Paciente.js'
 import Servicio from '../models/Servicio.js'
 import SolicitudCita from '../models/SolicitudCita.js'
 import Usuario from '../models/Usuario.js'
+import { avisarCita } from '../services/correo.js'
 import { ahoraGuatemala, errorCita, fechaMaximaGuatemala, fechaValida, prepararCita } from '../services/prepararCita.js'
 
 const router = Router()
 const limitarEnvios = rateLimit({
   windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false,
-  message: { mensaje: 'Demasiadas solicitudes. Intenta de nuevo en 15 minutos.' },
+  message: (req) => ({ mensaje: `Demasiadas solicitudes. Intenta de nuevo en ${Math.max(1,
+    Math.ceil((new Date(req.rateLimit?.resetTime).getTime() - Date.now()) / 60000))} minuto(s).` }),
 })
 const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const telefonoValido = /^[+\d][\d\s()+.-]{6,29}$/
@@ -181,6 +183,7 @@ router.post('/:id/convertir', async (req, res) => {
       if (resultado.matchedCount !== 1) throw errorCita(409, 'La solicitud cambió durante la conversión')
       return String(cita.id)
     })
+    await avisarCita(citaId, 'PENDIENTE')
     res.status(201).json({ solicitud: { id: req.params.id, estado: 'ATENDIDA', cita: citaId },
       mensaje: 'Cita creada en estado PENDIENTE. La solicitud fue atendida.' })
   } catch (error) {

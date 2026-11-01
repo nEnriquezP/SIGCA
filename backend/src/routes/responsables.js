@@ -5,6 +5,7 @@ import Paciente from '../models/Paciente.js'
 import Responsable from '../models/Responsable.js'
 import { fotoPrivadaValida } from '../services/imagenes.js'
 import { siguienteCodigoResponsable } from '../services/codigosResponsable.js'
+import { emitirEnlace } from '../services/correo.js'
 
 const router = Router()
 const campos = ['fotografia', 'nombres', 'apellidos', 'parentesco', 'telefono', 'correo', 'direccion']
@@ -15,8 +16,9 @@ router.use(autenticar, permitirRoles('ADMINISTRADOR', 'RECEPCIONISTA'))
 
 function validar(datos) {
   if (!datos || typeof datos !== 'object' || Array.isArray(datos) ||
-      Object.keys(datos).length !== campos.length ||
-      Object.keys(datos).some((campo) => !campos.includes(campo))) {
+      Object.keys(datos).some((campo) => ![...campos, 'recibirPublicaciones'].includes(campo)) ||
+      !campos.every((campo) => campo in datos) ||
+      (datos.recibirPublicaciones !== undefined && typeof datos.recibirPublicaciones !== 'boolean')) {
     return 'Debes completar los campos del responsable'
   }
   for (const campo of campos) {
@@ -43,12 +45,15 @@ function respuesta(responsable) {
   return { id: responsable.id, codigo: responsable.codigo ?? null,
     fotografia: responsable.fotografia, nombres: responsable.nombres,
     apellidos: responsable.apellidos, parentesco: responsable.parentesco,
-    telefono: responsable.telefono, correo: responsable.correo, direccion: responsable.direccion }
+    telefono: responsable.telefono, correo: responsable.correo, direccion: responsable.direccion,
+    correoVerificado: responsable.correoVerificado === true,
+    recibirPublicaciones: responsable.recibirPublicaciones === true }
 }
 
 function limpiar(datos) {
-  return Object.fromEntries(campos.map((campo) => [campo,
-    campo === 'correo' ? datos[campo].trim().toLowerCase() : datos[campo].trim()]))
+  return { ...Object.fromEntries(campos.map((campo) => [campo,
+    campo === 'correo' ? datos[campo].trim().toLowerCase() : datos[campo].trim()])),
+    ...(datos.recibirPublicaciones !== undefined ? { recibirPublicaciones: datos.recibirPublicaciones } : {}) }
 }
 
 function filtroBusqueda(texto) {
@@ -100,7 +105,10 @@ router.post('/', async (req, res) => {
   }
   const codigo = await siguienteCodigoResponsable()
   const responsable = await Responsable.create({ ...limpiar(req.body), codigo })
-  res.status(201).json({ responsable: respuesta(responsable) })
+  const enviado = await emitirEnlace('RESPONSABLE', responsable, 'VERIFICAR')
+  res.status(201).json({ responsable: respuesta(responsable), mensaje: enviado ?
+    'Responsable registrado. Enviamos un enlace de verificación a su correo.' :
+    'Responsable registrado. El enlace no pudo enviarse; solicítalo de nuevo en Verificar correo.' })
 })
 
 router.put('/:id', async (req, res) => {
@@ -114,10 +122,17 @@ router.put('/:id', async (req, res) => {
   if (!await fotoPrivadaValida(req.body.fotografia.trim(), 'responsable', actual.fotografia)) {
     return res.status(400).json({ mensaje: 'Carga una fotografía privada para el responsable' })
   }
-  const responsable = await Responsable.findByIdAndUpdate(req.params.id, limpiar(req.body),
+  const datos = limpiar(req.body)
+  if (datos.correo !== actual.correo) datos.correoVerificado = false
+  const responsable = await Responsable.findByIdAndUpdate(req.params.id, datos,
     { returnDocument: 'after', runValidators: true })
   if (!responsable) return res.status(404).json({ mensaje: 'Responsable no encontrado' })
-  res.json({ responsable: respuesta(responsable) })
+  const cambiaCorreo = datos.correo !== actual.correo
+  const enviado = cambiaCorreo ? await emitirEnlace('RESPONSABLE', responsable, 'VERIFICAR') : false
+  res.json({ responsable: respuesta(responsable), mensaje: !cambiaCorreo ?
+    'Responsable actualizado.' : enviado ?
+      'Responsable actualizado. Enviamos un enlace de verificación al nuevo correo.' :
+      'Responsable actualizado. El enlace no pudo enviarse; solicítalo de nuevo en Verificar correo.' })
 })
 
 export default router

@@ -6,6 +6,7 @@ import Usuario from '../models/Usuario.js'
 import Rol from '../models/Rol.js'
 import { correoCuentaValido, nombreCuentaValido, passwordNuevaValida,
   REGLA_PASSWORD } from '../services/validacionCuenta.js'
+import { correoConfigurado, emitirEnlace } from '../services/correo.js'
 
 const router = Router()
 const roles = new Set(['ADMINISTRADOR', 'RECEPCIONISTA', 'PROFESIONAL'])
@@ -21,6 +22,9 @@ function respuestaUsuario(usuario) {
     avatar: usuario.avatar || '',
     fotografia: usuario.fotografia || '',
     activo: usuario.activo,
+    correoVerificado: usuario.correoVerificado === true,
+    verificacionPendiente: usuario.verificacionPendiente === true,
+    debeCambiarPassword: usuario.debeCambiarPassword === true,
   }
 }
 
@@ -61,7 +65,7 @@ function errorDeDuplicado(error, res) {
 
 router.get('/', async (req, res) => {
   const usuarios = await Usuario.find()
-    .select('nombre correo rol activo avatar fotografia')
+    .select('nombre correo rol activo avatar fotografia correoVerificado verificacionPendiente debeCambiarPassword')
     .sort({ nombre: 1 })
   res.json({ usuarios: usuarios.map(respuestaUsuario) })
 })
@@ -76,6 +80,7 @@ router.get('/:id', async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
+  if (!correoConfigurado()) return res.status(503).json({ mensaje: 'Configura el servicio de correo antes de crear cuentas nuevas' })
   const error = validarCampos(req.body, { nuevo: true })
   if (error) return res.status(400).json({ mensaje: error })
   if (!roles.has(req.body.rol) && !await Rol.exists({ codigo: req.body.rol })) {
@@ -90,8 +95,14 @@ router.post('/', async (req, res) => {
       passwordHash: await bcrypt.hash(password, 12),
       rol,
       activo: true,
+      correoVerificado: false,
+      verificacionPendiente: true,
+      debeCambiarPassword: true,
     })
-    res.status(201).json({ usuario: respuestaUsuario(usuario) })
+    const enviado = await emitirEnlace('USUARIO', usuario, 'VERIFICAR')
+    res.status(201).json({ usuario: respuestaUsuario(usuario),
+      mensaje: enviado ? 'Usuario creado. Debe verificar su correo antes de ingresar.' :
+        'Usuario creado, pero no se pudo enviar el enlace. Solicita un reenvío desde Verificar correo.' })
   } catch (errorCreacion) {
     if (!errorDeDuplicado(errorCreacion, res)) throw errorCreacion
   }
@@ -112,9 +123,14 @@ async function actualizarUsuario(req, res) {
   if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' })
 
   const { nombre, correo, rol, activo } = req.body
+  const cambiaCorreo = correo !== undefined && correo.trim().toLowerCase() !== usuario.correo
   const cambiaRol = rol !== undefined && rol !== usuario.rol
   const desactiva = activo === false && usuario.activo
   const cambiaEstado = activo !== undefined && activo !== usuario.activo
+
+  if (cambiaCorreo && !correoConfigurado()) {
+    return res.status(503).json({ mensaje: 'Configura el servicio de correo antes de cambiar la dirección de una cuenta' })
+  }
 
   if (usuario.id === req.usuario.id && (cambiaRol || desactiva)) {
     return res.status(409).json({ mensaje: 'No puedes cambiar tu propio rol ni desactivar tu cuenta' })
@@ -126,13 +142,20 @@ async function actualizarUsuario(req, res) {
   }
 
   if (nombre !== undefined) usuario.nombre = nombre.trim()
-  if (correo !== undefined) usuario.correo = correo.trim().toLowerCase()
+  if (cambiaCorreo) {
+    usuario.correo = correo.trim().toLowerCase()
+    usuario.correoVerificado = false
+    usuario.verificacionPendiente = true
+  }
   if (rol !== undefined) usuario.rol = rol
   if (activo !== undefined) usuario.activo = activo
-  if (cambiaRol || cambiaEstado) usuario.tokenVersion = (usuario.tokenVersion ?? 0) + 1
+  if (cambiaRol || cambiaEstado || cambiaCorreo) usuario.tokenVersion = (usuario.tokenVersion ?? 0) + 1
 
   try {
     await usuario.save()
+    if (usuario.verificacionPendiente && correo !== undefined) {
+      await emitirEnlace('USUARIO', usuario, 'VERIFICAR')
+    }
     res.json({ usuario: respuestaUsuario(usuario) })
   } catch (errorActualizacion) {
     if (!errorDeDuplicado(errorActualizacion, res)) throw errorActualizacion
@@ -169,6 +192,7 @@ router.put('/:id/password', async (req, res) => {
   }
 
   usuario.passwordHash = await bcrypt.hash(datos.passwordNueva, 12)
+  usuario.debeCambiarPassword = true
   usuario.tokenVersion = (usuario.tokenVersion ?? 0) + 1
   await usuario.save()
   res.json({ mensaje: 'Contraseña restablecida' })

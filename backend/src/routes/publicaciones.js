@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Publicacion from '../models/Publicacion.js'
 import { imagenValida } from '../models/Servicio.js'
+import { avisarPublicacion } from '../services/correo.js'
 
 const router = Router()
 
@@ -62,6 +63,7 @@ router.post('/', autenticar, permitirRoles('ADMINISTRADOR'), async (req, res) =>
   const error = validar(req.body)
   if (error) return res.status(400).json({ mensaje: error })
   const item = await Publicacion.create(limpiar(req.body))
+  if (item.activo) await avisarPublicacion(item)
   res.status(201).json({ publicacion: respuesta(item, true) })
 })
 
@@ -80,9 +82,12 @@ router.patch('/:id/estado', autenticar, permitirRoles('ADMINISTRADOR'), async (r
   if (!req.body || Object.keys(req.body).length !== 1 || typeof req.body.activo !== 'boolean') {
     return res.status(400).json({ mensaje: 'Estado inválido' })
   }
+  const anterior = await Publicacion.findById(req.params.id)
+  if (!anterior) return res.status(404).json({ mensaje: 'Publicación no encontrada' })
   const item = await Publicacion.findByIdAndUpdate(req.params.id, { activo: req.body.activo },
     { returnDocument: 'after', runValidators: true })
   if (!item) return res.status(404).json({ mensaje: 'Publicación no encontrada' })
+  if (item.activo && !anterior.activo) await avisarPublicacion(item)
   res.json({ publicacion: respuesta(item, true) })
 })
 

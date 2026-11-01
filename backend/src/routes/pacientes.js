@@ -5,11 +5,13 @@ import Paciente from '../models/Paciente.js'
 import Responsable from '../models/Responsable.js'
 import { siguienteCodigoPaciente } from '../services/codigosPaciente.js'
 import { fotoPrivadaValida } from '../services/imagenes.js'
+import { correoCuentaValido } from '../services/validacionCuenta.js'
+import { emitirEnlace } from '../services/correo.js'
 
 const router = Router()
 const campos = ['fotografia', 'nombres', 'apellidos', 'fechaNacimiento', 'sexo', 'telefono',
-  'direccion', 'fechaInicioProceso', 'observacionesAdministrativas', 'responsables']
-const requeridos = campos.filter((campo) => !['observacionesAdministrativas', 'responsables'].includes(campo))
+  'direccion', 'fechaInicioProceso', 'observacionesAdministrativas', 'responsables', 'correo', 'recibirPublicaciones']
+const requeridos = campos.filter((campo) => !['observacionesAdministrativas', 'responsables', 'correo', 'recibirPublicaciones'].includes(campo))
 const longitudes = { fotografia: 500, nombres: 120, apellidos: 120, telefono: 30,
   direccion: 300, observacionesAdministrativas: 2000 }
 const sexos = new Set(['FEMENINO', 'MASCULINO', 'OTRO', 'PREFIERE_NO_DECIR'])
@@ -63,6 +65,12 @@ function validar(datos) {
   if (!/^[1-9][0-9]{7}$/.test(datos.telefono)) {
     return 'El teléfono debe tener 8 dígitos y no comenzar con 0'
   }
+  if (datos.correo !== undefined && datos.correo !== '' && !correoCuentaValido(datos.correo)) {
+    return 'El correo del paciente debe tener formato usuario@dominio.com'
+  }
+  if (datos.recibirPublicaciones !== undefined && typeof datos.recibirPublicaciones !== 'boolean') {
+    return 'Preferencia de publicaciones inválida'
+  }
   const hoy = hoyEnGuatemala()
   if (!fechaValida(datos.fechaNacimiento) || datos.fechaNacimiento > hoy ||
       datos.fechaNacimiento < restarAnios(hoy, 120)) {
@@ -94,6 +102,8 @@ function limpiar(datos) {
     apellidos: datos.apellidos.trim(), fechaNacimiento: datos.fechaNacimiento,
     sexo: datos.sexo, telefono: datos.telefono.trim(), direccion: datos.direccion.trim(),
     fechaInicioProceso: datos.fechaInicioProceso,
+    correo: (datos.correo ?? '').trim().toLowerCase(),
+    recibirPublicaciones: datos.correo ? (datos.recibirPublicaciones ?? false) : false,
     observacionesAdministrativas: (datos.observacionesAdministrativas ?? '').trim(),
     responsables: datos.responsables ?? [],
   }
@@ -105,6 +115,8 @@ function respuesta(paciente) {
     apellidos: paciente.apellidos, fechaNacimiento: paciente.fechaNacimiento,
     edad: edad(paciente.fechaNacimiento), sexo: paciente.sexo, telefono: paciente.telefono,
     direccion: paciente.direccion, fechaInicioProceso: paciente.fechaInicioProceso,
+    correo: paciente.correo || '', correoVerificado: paciente.correoVerificado === true,
+    recibirPublicaciones: paciente.recibirPublicaciones === true,
     observacionesAdministrativas: paciente.observacionesAdministrativas, estado: paciente.estado,
     responsables: paciente.responsables.map((responsable) =>
       typeof responsable === 'object' && responsable.nombres ? {
@@ -183,7 +195,11 @@ router.post('/', async (req, res) => {
   }
   const codigo = await siguienteCodigoPaciente()
   const paciente = await Paciente.create({ ...datos, codigo })
-  res.status(201).json({ paciente: respuesta(paciente) })
+  const enviado = paciente.correo ? await emitirEnlace('PACIENTE', paciente, 'VERIFICAR') : false
+  res.status(201).json({ paciente: respuesta(paciente),
+    mensaje: !paciente.correo ? 'Paciente registrado sin correo propio.' : enviado ?
+      'Paciente registrado. Enviamos un enlace de verificación a su correo.' :
+      'Paciente registrado. El enlace no pudo enviarse; solicítalo de nuevo en Verificar correo.' })
 })
 
 router.put('/:id', async (req, res) => {
@@ -201,10 +217,17 @@ router.put('/:id', async (req, res) => {
   if (!await validarResponsables(datos.responsables)) {
     return res.status(400).json({ mensaje: 'Uno o varios responsables no existen' })
   }
+  if (datos.correo !== actual.correo) datos.correoVerificado = false
+  if (!datos.correo) datos.recibirPublicaciones = false
   const paciente = await Paciente.findByIdAndUpdate(req.params.id, datos,
     { returnDocument: 'after', runValidators: true })
   if (!paciente) return res.status(404).json({ mensaje: 'Paciente no encontrado' })
-  res.json({ paciente: respuesta(paciente) })
+  const cambiaCorreo = datos.correo && datos.correo !== actual.correo
+  const enviado = cambiaCorreo ? await emitirEnlace('PACIENTE', paciente, 'VERIFICAR') : false
+  res.json({ paciente: respuesta(paciente),
+    mensaje: !cambiaCorreo ? 'Paciente actualizado.' : enviado ?
+      'Paciente actualizado. Enviamos un enlace de verificación al nuevo correo.' :
+      'Paciente actualizado. El enlace no pudo enviarse; solicítalo de nuevo en Verificar correo.' })
 })
 
 router.patch('/:id/estado', async (req, res) => {

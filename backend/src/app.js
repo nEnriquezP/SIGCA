@@ -17,6 +17,8 @@ import rutasSolicitudesCita from './routes/solicitudesCita.js'
 import rutasImagenes from './routes/imagenes.js'
 import rutasCitas from './routes/citas.js'
 import rutasRoles from './routes/roles.js'
+import rutasCorreo from './routes/correo.js'
+import rutasAvisos from './routes/avisos.js'
 
 const app = express()
 
@@ -39,6 +41,8 @@ app.get('/api/health', (req, res) => {
 })
 
 app.use('/api/auth', rutasAuth)
+app.use('/api/correo', rutasCorreo)
+app.use('/api/avisos', rutasAvisos)
 app.use('/api/usuarios', rutasUsuarios)
 app.use('/api/roles', rutasRoles)
 app.use('/api/pacientes', rutasPacientes)

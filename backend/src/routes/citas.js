@@ -8,6 +8,7 @@ import Servicio from '../models/Servicio.js'
 import Usuario from '../models/Usuario.js'
 import { descargarImagenPrivada } from '../services/imagenes.js'
 import { errorCita, fechaValida, prepararCita } from '../services/prepararCita.js'
+import { avisarCita } from '../services/correo.js'
 
 const router = Router()
 const estados = ['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA']
@@ -232,6 +233,7 @@ router.post('/', async (req, res) => {
     const cita = await Cita.create({ ...preparada,
       observacionesAdministrativas: datos.observacionesAdministrativas?.trim() ?? '' })
     const guardada = await poblar(Cita.findById(cita.id))
+    await avisarCita(cita.id, 'PENDIENTE')
     res.status(201).json({ cita: respuestaCita(guardada, false, true) })
   } catch (error) {
     if (conflictoDeIndice(error)) throw errorCita(409, 'Horario ocupado; vuelve a consultar la disponibilidad')
@@ -266,6 +268,7 @@ router.put('/:id', async (req, res) => {
       observacionesAdministrativas: datos.observacionesAdministrativas.trim() } },
     { returnDocument: 'after', runValidators: true })
     if (!cita) throw errorCita(409, 'La cita cambió; vuelve a consultarla')
+    await avisarCita(cita.id, 'REPROGRAMADA')
     res.json({ cita: respuestaCita(await poblar(Cita.findById(cita.id)), false, true) })
   } catch (error) {
     if (conflictoDeIndice(error)) throw errorCita(409, 'Horario ocupado; vuelve a consultar la disponibilidad')
@@ -298,6 +301,7 @@ router.patch('/:id/estado', async (req, res) => {
   const cita = await Cita.findOneAndUpdate({ ...filtro, estado: actual.estado },
     { $set: { estado: destino } }, { returnDocument: 'after', runValidators: true })
   if (!cita) return res.status(409).json({ mensaje: 'La cita cambió; vuelve a consultarla' })
+  if (['CONFIRMADA', 'CANCELADA'].includes(destino)) await avisarCita(cita.id, destino)
   res.json({ cita: respuestaCita(await poblar(Cita.findById(cita.id)), profesional, true) })
 })
 

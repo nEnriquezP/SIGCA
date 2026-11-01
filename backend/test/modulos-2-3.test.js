@@ -8,6 +8,7 @@ import Responsable from '../src/models/Responsable.js'
 import Contador from '../src/models/Contador.js'
 import ImagenCargada from '../src/models/ImagenCargada.js'
 import Rol from '../src/models/Rol.js'
+import TokenCorreo from '../src/models/TokenCorreo.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 process.env.CORS_ORIGIN = 'http://localhost:5173'
@@ -196,6 +197,17 @@ test('restablecimiento protegido invalida sesiones anteriores', async () => {
 })
 
 test('administrador crea y edita un rol personalizado; la API aplica permisos de lectura y escritura', async () => {
+  const fetchOriginal = globalThis.fetch
+  const crearTokenCorreoOriginal = TokenCorreo.create
+  const actualizarTokensOriginal = TokenCorreo.updateMany
+  process.env.RESEND_API_KEY = 'clave-de-prueba'
+  process.env.EMAIL_FROM = 'SIGCA <noreply@example.test>'
+  process.env.APP_PUBLIC_URL = 'http://localhost:5173'
+  globalThis.fetch = (url, opciones) => String(url).startsWith('https://api.resend.com/') ?
+    Promise.resolve(new Response('{}', { status: 200 })) : fetchOriginal(url, opciones)
+  TokenCorreo.create = async (datos) => ({ ...datos, _id: randomBytes(12).toString('hex') })
+  TokenCorreo.updateMany = async () => ({ modifiedCount: 0 })
+  try {
   const admin = crearToken(usuarios.get(idAdmin))
   const lista = await pedir('/api/roles', { token: admin })
   assert.equal(lista.status, 200)
@@ -211,6 +223,10 @@ test('administrador crea y edita un rol personalizado; la API aplica permisos de
     datos: { nombre: 'María Prueba', correo: 'maria@miumg.edu.gt',
       rol: rol.body.rol.codigo, password: 'Segura#8a' } })
   assert.equal(nuevo.status, 201)
+  assert.equal(nuevo.body.usuario.verificacionPendiente, true)
+  // El resto de esta prueba se centra en permisos tras completar el alta.
+  usuarios.get(nuevo.body.usuario.id).verificacionPendiente = false
+  usuarios.get(nuevo.body.usuario.id).debeCambiarPassword = false
   const token = crearToken(usuarios.get(nuevo.body.usuario.id))
   const sesion = await pedir('/api/auth/me', { token })
   assert.equal(sesion.status, 200)
@@ -224,6 +240,14 @@ test('administrador crea y edita un rol personalizado; la API aplica permisos de
   assert.equal(actualizado.status, 200)
   assert.equal((await pedir('/api/pacientes', { metodo: 'POST', token, datos: {} })).status, 400)
   assert.equal((await pedir('/api/usuarios', { token })).status, 403)
+  } finally {
+    globalThis.fetch = fetchOriginal
+    TokenCorreo.create = crearTokenCorreoOriginal
+    TokenCorreo.updateMany = actualizarTokensOriginal
+    delete process.env.RESEND_API_KEY
+    delete process.env.EMAIL_FROM
+    delete process.env.APP_PUBLIC_URL
+  }
 })
 
 test('pacientes y responsables validan asociación y baja lógica', async () => {
