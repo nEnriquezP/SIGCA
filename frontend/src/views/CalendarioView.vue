@@ -10,6 +10,11 @@ const router = useRouter()
 const sesion = useSesionStore()
 const gestiona = computed(() => sesion.tienePermiso('CITAS_GESTIONAR'))
 const mes = ref(mesGuatemala())
+const mesElegido = ref(Number(mes.value.slice(5)))
+const anioElegido = ref(Number(mes.value.slice(0, 4)))
+const meses = Array.from({ length: 12 }, (_, indice) => ({ numero: indice + 1,
+  nombre: new Intl.DateTimeFormat('es-GT', { month: 'long', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(2026, indice, 1))) }))
 const profesional = ref('')
 const profesionales = ref([])
 const resumen = ref([])
@@ -25,6 +30,13 @@ const tituloMes = computed(() => new Intl.DateTimeFormat('es-GT', {
   timeZone: 'UTC', month: 'long', year: 'numeric',
 }).format(new Date(`${mes.value}-01T12:00:00Z`)))
 const resumenPorFecha = computed(() => new Map(resumen.value.map((dia) => [dia.fecha, dia])))
+const estadisticas = computed(() => {
+  const totales = { PENDIENTE: 0, CONFIRMADA: 0, COMPLETADA: 0, CANCELADA: 0 }
+  for (const dia of resumen.value) {
+    for (const estado of Object.keys(totales)) totales[estado] += dia.estados?.[estado] || 0
+  }
+  return totales
+})
 const casillas = computed(() => {
   const [anio, numeroMes] = mes.value.split('-').map(Number)
   const primerDia = new Date(Date.UTC(anio, numeroMes - 1, 1)).getUTCDay()
@@ -81,6 +93,17 @@ async function moverMes(direccion) {
   const [anio, numeroMes] = mes.value.split('-').map(Number)
   mes.value = new Date(Date.UTC(anio, numeroMes - 1 + direccion, 1))
     .toISOString().slice(0, 7)
+  mesElegido.value = Number(mes.value.slice(5))
+  anioElegido.value = Number(mes.value.slice(0, 4))
+  await cargarMes()
+}
+async function irAMes() {
+  const anio = Number(anioElegido.value)
+  if (!Number.isInteger(anio) || anio < 1900 || anio > 9998) {
+    error.value = 'Elige un año entre 1900 y 9998'
+    return
+  }
+  mes.value = `${anio}-${String(mesElegido.value).padStart(2, '0')}`
   await cargarMes()
 }
 async function refrescarProfesionales() {
@@ -119,13 +142,31 @@ onMounted(async () => {
           <h2>{{ tituloMes }}</h2>
           <button type="button" class="secundario" aria-label="Mes siguiente" @click="moverMes(1)">→</button>
         </div>
+        <div class="acciones calendario-ir">
+          <label>Mes <span class="requisito-campo">Obligatorio</span>
+            <select v-model.number="mesElegido" @change="irAMes">
+              <option v-for="opcion in meses" :key="opcion.numero" :value="opcion.numero">{{ opcion.nombre }}</option>
+            </select>
+          </label>
+          <label>Año <span class="requisito-campo">Obligatorio</span>
+            <input v-model.number="anioElegido" type="number" min="1900" max="9998" step="1" @change="irAMes" @keyup.enter="irAMes" />
+          </label>
+        </div>
         <label v-if="gestiona">Profesional <span class="requisito-campo">Opcional</span>
           <select v-model="profesional" @change="cargarMes"><option value="">Todos</option>
             <option v-for="p in profesionales" :key="p.id" :value="p.id">{{ p.nombre }}</option>
           </select></label>
       </div>
       <p v-if="cargando" role="status">Cargando mes…</p>
-      <div v-else class="calendario-mes" aria-label="Días del mes">
+      <template v-else>
+      <p v-if="!resumen.length" class="calendario-vacio" role="status">No hay citas en este mes.</p>
+      <div class="calendario-estadisticas" aria-label="Estadísticas del mes">
+        <span class="estado-cita estado-pendiente">Pendientes: {{ estadisticas.PENDIENTE }}</span>
+        <span class="estado-cita estado-confirmada">Confirmadas: {{ estadisticas.CONFIRMADA }}</span>
+        <span class="estado-cita estado-completada">Completadas: {{ estadisticas.COMPLETADA }}</span>
+        <span class="estado-cita estado-cancelada">Canceladas: {{ estadisticas.CANCELADA }}</span>
+      </div>
+      <div class="calendario-mes" aria-label="Días del mes">
         <strong v-for="dia in diasSemana" :key="dia" class="calendario-encabezado">{{ dia }}</strong>
         <div v-for="(fecha, indice) in casillas" :key="fecha || `vacio-${indice}`"
           class="calendario-casilla" :class="{ vacia: !fecha }">
@@ -139,7 +180,7 @@ onMounted(async () => {
           </button>
         </div>
       </div>
-      <p v-if="!resumen.length && !cargando">No hay citas en este mes.</p>
+      </template>
     </section>
     <section v-if="seleccionado" class="tarjeta">
       <h2>Citas del {{ fechaCorta(seleccionado) }}</h2>

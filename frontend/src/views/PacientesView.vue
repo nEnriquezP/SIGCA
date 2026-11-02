@@ -47,6 +47,9 @@ const guardando = ref(false)
 const edicion = ref(null)
 const edicionOriginal = ref(null)
 const detalle = ref(null)
+const registroAbierto = ref(false)
+const busquedaAbierta = ref(true)
+const reenviandoCorreo = ref(false)
 const historialCitas = ref([])
 const totalCitas = ref(0)
 const nuevo = ref(vacio())
@@ -165,6 +168,32 @@ function restarAnios(fecha, anios) {
   const dia = new Date(`${fecha}T12:00:00Z`)
   dia.setUTCFullYear(dia.getUTCFullYear() - anios)
   return dia.toISOString().slice(0, 10)
+}
+
+function edadCalculada(fechaNacimiento) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaNacimiento) || fechaNacimiento > hoy) return null
+  const [anio, mes, dia] = fechaNacimiento.split('-').map(Number)
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia))
+  if (fecha.getUTCFullYear() !== anio || fecha.getUTCMonth() !== mes - 1 || fecha.getUTCDate() !== dia) return null
+  let edad = Number(hoy.slice(0, 4)) - anio
+  if (hoy.slice(5) < fechaNacimiento.slice(5)) edad--
+  return edad
+}
+
+function requiereResponsable(fechaNacimiento) {
+  const edad = edadCalculada(fechaNacimiento)
+  return edad !== null && edad < 18
+}
+
+async function reenviarCorreoPaciente() {
+  if (!detalle.value?.id || reenviandoCorreo.value) return
+  reenviandoCorreo.value = true
+  try {
+    const respuesta = await solicitarApi('/api/correo/reenviar', {
+      method: 'POST', token: sesion.token, body: { tipo: 'PACIENTE', id: detalle.value.id },
+    })
+    aviso.value = respuesta.mensaje
+  } catch (errorApi) { fallo(errorApi) } finally { reenviandoCorreo.value = false }
 }
 
 function capturarTelefono(evento, datos) {
@@ -326,6 +355,7 @@ onUnmounted(() => {
 
 async function crear() {
   if (nuevo.value.responsables.length > 5) return fallo(new Error('Un paciente puede tener como máximo cinco responsables'))
+  if (requiereResponsable(nuevo.value.fechaNacimiento) && !nuevo.value.responsables.length) return fallo(new Error('Asocia al menos un responsable al paciente menor de 18 años'))
   if (!nuevo.value.fotografia) return fallo(new Error('Carga una fotografía del paciente'))
   guardando.value = true
   error.value = ''
@@ -387,6 +417,7 @@ async function editar(paciente) {
 
 async function guardar() {
   if (edicion.value.responsables.length > 5) return fallo(new Error('Un paciente puede tener como máximo cinco responsables'))
+  if (requiereResponsable(edicion.value.fechaNacimiento) && !edicion.value.responsables.length) return fallo(new Error('Asocia al menos un responsable al paciente menor de 18 años'))
   if (!edicion.value.fotografia) return fallo(new Error('Carga una fotografía del paciente'))
   guardando.value = true
   error.value = ''
@@ -460,8 +491,10 @@ onUnmounted(() => {
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
     <section v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')" class="tarjeta">
-      <h2>Registrar paciente</h2>
-      <form class="formulario-paciente" @submit.prevent="crear">
+      <header class="seccion-plegable-cabecera"><h2>Registrar paciente</h2>
+        <button type="button" class="secundario" :aria-expanded="registroAbierto" aria-controls="formulario-registro-paciente"
+          @click="registroAbierto = !registroAbierto">{{ registroAbierto ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <form v-show="registroAbierto" id="formulario-registro-paciente" class="formulario-paciente" @submit.prevent="crear">
         <div class="paciente-form-layout">
           <div class="paciente-form-datos">
             <h3>Datos del paciente</h3>
@@ -470,7 +503,7 @@ onUnmounted(() => {
               <label>Apellidos <span class="requisito-campo">Obligatorio</span><input v-model.trim="nuevo.apellidos" required maxlength="120" /></label>
               <label>Fecha de nacimiento <span class="requisito-campo">Obligatorio</span>
                 <input v-model="nuevo.fechaNacimiento" type="date" required :min="fechaMinimaNacimiento" :max="hoy" />
-                <small>Entre {{ formatearFecha(fechaMinimaNacimiento) }} y hoy.</small>
+                <small>Entre {{ formatearFecha(fechaMinimaNacimiento) }} y hoy. <span v-if="edadCalculada(nuevo.fechaNacimiento) !== null">Edad: {{ edadCalculada(nuevo.fechaNacimiento) }} años.</span></small>
               </label>
               <label>Sexo <span class="requisito-campo">Obligatorio</span>
                 <select v-model="nuevo.sexo" required>
@@ -500,7 +533,7 @@ onUnmounted(() => {
         <label>Observaciones administrativas <span class="requisito-campo">Opcional</span><textarea v-model.trim="nuevo.observacionesAdministrativas" maxlength="2000" /></label>
         <label><input v-model="nuevo.recibirPublicaciones" type="checkbox" :disabled="!nuevo.correo" /> Recibir publicaciones por correo después de verificarlo (opcional)</label>
         <fieldset class="paciente-responsables">
-          <legend>Responsables asociados <span class="requisito-campo">Opcional</span></legend>
+          <legend>Responsables asociados <span class="requisito-campo">{{ requiereResponsable(nuevo.fechaNacimiento) ? 'Obligatorio para menores de 18 años' : 'Opcional para adultos' }}</span></legend>
           <label>Buscar responsable por código, nombre, correo o identificador <span class="requisito-campo">Opcional</span>
             <input v-model="buscarResponsableNuevo" maxlength="80"
               @focus="tipoBusquedaResponsables !== 'nuevo' && programarBusquedaResponsables('nuevo')" />
@@ -547,7 +580,10 @@ onUnmounted(() => {
     </dialog>
 
     <section class="tarjeta">
-      <h2>Consultar y buscar</h2>
+      <header class="seccion-plegable-cabecera"><h2>Consultar y buscar</h2>
+        <button type="button" class="secundario" :aria-expanded="busquedaAbierta" aria-controls="listado-pacientes"
+          @click="busquedaAbierta = !busquedaAbierta">{{ busquedaAbierta ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <div v-show="busquedaAbierta" id="listado-pacientes">
       <form class="formulario-grid filtros-pacientes" @submit.prevent="buscarListado">
         <label>Código, identificador, nombre, apellido o teléfono <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" /></label>
         <label>Estado <span class="requisito-campo">Opcional</span>
@@ -601,9 +637,10 @@ onUnmounted(() => {
           </tbody>
         </table>
       </div>
+      </div>
     </section>
 
-    <nav v-if="orden !== 'ultimos_10'" class="acciones paginacion-pacientes" aria-label="Páginas de resultados">
+    <nav v-if="busquedaAbierta && orden !== 'ultimos_10'" class="acciones paginacion-pacientes" aria-label="Páginas de resultados">
       <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(0)">Primera</button>
       <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(pagina - 1)">Anterior</button>
       <span>Página {{ pagina + 1 }} de {{ totalPaginas }}</span>
@@ -618,7 +655,8 @@ onUnmounted(() => {
           <h2>{{ detalle.nombres }} {{ detalle.apellidos }}</h2>
           <p><strong>{{ detalle.codigo || 'Pendiente de asignación' }}</strong></p>
         </div>
-        <span class="detalle-paciente-estado" :class="detalle.estado === 'ACTIVO' ? 'estado-activo' : 'estado-inactivo'">{{ detalle.estado }}</span>
+        <div class="acciones"><span class="detalle-paciente-estado" :class="detalle.estado === 'ACTIVO' ? 'estado-activo' : 'estado-inactivo'">{{ detalle.estado }}</span>
+          <button type="button" class="secundario" aria-label="Cerrar detalle del paciente" @click="detalle = null">×</button></div>
       </header>
       <div class="detalle-paciente-secciones">
         <section class="detalle-paciente-bloque">
@@ -638,6 +676,9 @@ onUnmounted(() => {
             <div><dt>Dirección</dt><dd>{{ detalle.direccion }}</dd></div>
             <div><dt>Inicio del proceso</dt><dd>{{ formatearFecha(detalle.fechaInicioProceso) }}</dd></div>
           </dl>
+          <button v-if="sesion.usuario?.rol === 'ADMINISTRADOR' && detalle.correo && !detalle.correoVerificado"
+            type="button" class="secundario" :disabled="reenviandoCorreo" @click="reenviarCorreoPaciente">
+            {{ reenviandoCorreo ? 'Enviando…' : 'Reenviar verificación' }}</button>
         </section>
       </div>
       <section class="detalle-paciente-bloque">
@@ -663,7 +704,7 @@ onUnmounted(() => {
               <button type="button" class="secundario" @click="moverResponsable(1)">Siguiente</button>
             </div>
           </template>
-          <p v-else>No tiene responsables asociados.</p>
+          <p v-else>{{ detalle.edad < 18 ? 'Menor registrado sin responsable. Asocia uno al actualizar este paciente.' : 'No tiene responsables asociados.' }}</p>
         </section>
       </div>
       <section class="detalle-paciente-bloque">
@@ -698,7 +739,7 @@ onUnmounted(() => {
               <label>Apellidos <span class="requisito-campo">Obligatorio</span><input v-model.trim="edicion.apellidos" required maxlength="120" /></label>
               <label>Fecha de nacimiento <span class="requisito-campo">Obligatorio</span>
                 <input v-model="edicion.fechaNacimiento" type="date" required :min="fechaMinimaNacimiento" :max="hoy" />
-                <small>Entre {{ formatearFecha(fechaMinimaNacimiento) }} y hoy.</small>
+                <small>Entre {{ formatearFecha(fechaMinimaNacimiento) }} y hoy. <span v-if="edadCalculada(edicion.fechaNacimiento) !== null">Edad: {{ edadCalculada(edicion.fechaNacimiento) }} años.</span></small>
               </label>
               <label>Sexo <span class="requisito-campo">Obligatorio</span>
                 <select v-model="edicion.sexo" required>
@@ -727,7 +768,7 @@ onUnmounted(() => {
         <label>Observaciones administrativas <span class="requisito-campo">Opcional</span><textarea v-model.trim="edicion.observacionesAdministrativas" maxlength="2000" /></label>
         <label><input v-model="edicion.recibirPublicaciones" type="checkbox" :disabled="!edicion.correo" /> Recibir publicaciones por correo después de verificarlo (opcional)</label>
         <fieldset class="paciente-responsables">
-          <legend>Responsables asociados <span class="requisito-campo">Opcional</span></legend>
+          <legend>Responsables asociados <span class="requisito-campo">{{ requiereResponsable(edicion.fechaNacimiento) ? 'Obligatorio para menores de 18 años' : 'Opcional para adultos' }}</span></legend>
           <label>Buscar responsable por código, nombre, correo o identificador <span class="requisito-campo">Opcional</span>
             <input v-model="buscarResponsableEdicion" maxlength="80"
               @focus="tipoBusquedaResponsables !== 'edicion' && programarBusquedaResponsables('edicion')" />

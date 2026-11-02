@@ -74,7 +74,7 @@ const nombreCuenta = computed(() => {
 const destinoPanel = computed(() => {
   if (sesion.usuario?.rol === 'ADMINISTRADOR') return '/administracion-portal'
   return gruposVisibles.value.flatMap((grupo) => grupo.opciones)
-    .find((opcion) => opcion.ruta !== '/estado-sistema')?.ruta || '/mi-password'
+    .find((opcion) => opcion.ruta !== '/estado-sistema')?.ruta || '/'
 })
 
 async function cargarIdentidad() {

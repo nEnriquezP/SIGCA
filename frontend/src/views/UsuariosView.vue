@@ -236,7 +236,7 @@ async function reenviarVerificacion(usuario) {
   enviandoVerificacion.value = usuario.id
   try {
     const respuesta = await solicitarApi('/api/correo/reenviar', {
-      method: 'POST', body: { tipo: 'USUARIO', correo: usuario.correo },
+      method: 'POST', token: sesion.token, body: { tipo: 'USUARIO', id: usuario.id },
     })
     resultadoVerificacion.value = {
       id: usuario.id, mensaje: respuesta.mensaje, error: false,

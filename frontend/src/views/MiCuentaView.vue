@@ -91,7 +91,7 @@ async function guardar() {
     <section class="tarjeta">
       <h2>Correo y avisos</h2>
       <p>Estado: {{ sesion.usuario?.correoVerificado ? 'Verificado' : 'Pendiente de verificación' }}</p>
-      <p v-if="!sesion.usuario?.correoVerificado"><RouterLink to="/verificar-correo">Solicitar enlace de verificación</RouterLink></p>
+      <p v-if="!sesion.usuario?.correoVerificado">Solicita al administrador un nuevo enlace de verificación.</p>
       <form @submit.prevent="guardarCorreos">
         <label><input v-model="recibirPublicaciones" type="checkbox" /> Recibir publicaciones del portal por correo (opcional)</label>
         <button type="submit">Guardar preferencia</button>

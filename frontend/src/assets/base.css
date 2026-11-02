@@ -362,6 +362,14 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .calendario-controles { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
 .calendario-controles .acciones { align-items: center; }
 .calendario-controles h2 { margin: 0; min-width: 160px; text-align: center; text-transform: capitalize; }
+.calendario-ir { flex-wrap: wrap; }
+.calendario-ir label { min-width: 130px; }
+.calendario-ir input { width: 110px; }
+.calendario-estadisticas { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.calendario-estadisticas .estado-cita { padding: 8px 12px; }
+.calendario-vacio { margin: 18px 0 4px; font-weight: 600; color: #38506a; }
+.seccion-plegable-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.seccion-plegable-cabecera h2 { margin: 0; }
 .calendario-mes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 18px; }
 .calendario-encabezado { text-align: center; padding: 7px 0; color: #36546e; }
 .calendario-casilla { min-height: 76px; border: 1px solid #d9e2ed; border-radius: 8px; }

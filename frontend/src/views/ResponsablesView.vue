@@ -24,6 +24,7 @@ const guardando = ref(false)
 const edicion = ref(null)
 const edicionOriginal = ref(null)
 const detalle = ref(null)
+const reenviandoCorreo = ref(false)
 const nuevo = ref(vacio())
 const parentescosComunes = ['Madre', 'Padre', 'Hermano/a', 'Abuelo/a', 'Tío/a', 'Tutor/a legal']
 const edicionConCambios = computed(() => edicion.value !== null &&
@@ -138,6 +139,19 @@ async function consultar(responsable) {
   }
 }
 
+async function reenviarCorreoResponsable() {
+  if (!detalle.value) return
+  reenviandoCorreo.value = true
+  aviso.value = ''
+  try {
+    const respuesta = await solicitarApi('/api/correo/reenviar', {
+      method: 'POST', token: sesion.token,
+      body: { tipo: 'RESPONSABLE', id: detalle.value.id },
+    })
+    aviso.value = respuesta.mensaje
+  } catch (errorApi) { fallo(errorApi) } finally { reenviandoCorreo.value = false }
+}
+
 async function cancelarEdicion() {
   if (edicionConCambios.value && !await confirmarSalida()) return
   edicion.value = null
@@ -202,6 +216,10 @@ useOpcionesVivas(cargar, ['responsables'])
       <p><strong>{{ detalle.nombres }} {{ detalle.apellidos }}</strong> · {{ detalle.parentesco }}</p>
       <p>Correo: {{ detalle.correo }} · Teléfono: {{ detalle.telefono }}</p>
       <p>Verificación de correo: {{ detalle.correoVerificado ? 'Verificado' : 'Pendiente' }}</p>
+      <button v-if="sesion.usuario?.rol === 'ADMINISTRADOR' && !detalle.correoVerificado" type="button"
+        class="secundario" :disabled="reenviandoCorreo" @click="reenviarCorreoResponsable">
+        {{ reenviandoCorreo ? 'Enviando…' : 'Reenviar verificación' }}
+      </button>
       <p>Dirección: {{ detalle.direccion }}</p>
       <ImagenVista :valor="detalle.fotografia" alt="Fotografía del responsable" />
       <h3>Pacientes asociados</h3>
