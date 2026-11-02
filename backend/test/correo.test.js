@@ -30,7 +30,7 @@ test('el enlace verificado dura seis horas, se usa una sola vez y sigue válido 
     return { ok: true }
   }
   assert.equal(await emitirEnlace('USUARIO', entidad, 'VERIFICAR'), true)
-  const secreto = /#token=([^\s]+)/.exec(mensaje.texto)[1]
+  const secreto = /#token=([^\s]+)/.exec(mensaje.text)[1]
   assert.equal(guardado.hash, createHash('sha256').update(secreto).digest('hex'))
   const horas = (guardado.vence.getTime() - Date.now()) / 3600000
   assert.ok(horas > 5.99 && horas <= 6)

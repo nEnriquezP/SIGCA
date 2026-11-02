@@ -102,7 +102,7 @@ router.post('/', async (req, res) => {
     const enviado = await emitirEnlace('USUARIO', usuario, 'VERIFICAR')
     res.status(201).json({ usuario: respuestaUsuario(usuario),
       mensaje: enviado ? 'Usuario creado. Debe verificar su correo antes de ingresar.' :
-        'Usuario creado, pero no se pudo enviar el enlace. Solicita un reenvío desde Verificar correo.' })
+        'Usuario creado, pero no se pudo enviar el enlace. Solicita al administrador que lo reenvíe.' })
   } catch (errorCreacion) {
     if (!errorDeDuplicado(errorCreacion, res)) throw errorCreacion
   }

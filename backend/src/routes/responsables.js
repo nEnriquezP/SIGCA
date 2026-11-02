@@ -108,7 +108,7 @@ router.post('/', async (req, res) => {
   const enviado = await emitirEnlace('RESPONSABLE', responsable, 'VERIFICAR')
   res.status(201).json({ responsable: respuesta(responsable), mensaje: enviado ?
     'Responsable registrado. Enviamos un enlace de verificación a su correo.' :
-    'Responsable registrado. El enlace no pudo enviarse; solicítalo de nuevo en Verificar correo.' })
+    'Responsable registrado. El enlace no pudo enviarse; solicita al administrador que lo reenvíe.' })
 })
 
 router.put('/:id', async (req, res) => {
@@ -132,7 +132,7 @@ router.put('/:id', async (req, res) => {
   res.json({ responsable: respuesta(responsable), mensaje: !cambiaCorreo ?
     'Responsable actualizado.' : enviado ?
       'Responsable actualizado. Enviamos un enlace de verificación al nuevo correo.' :
-      'Responsable actualizado. El enlace no pudo enviarse; solicítalo de nuevo en Verificar correo.' })
+      'Responsable actualizado. El enlace no pudo enviarse; solicita al administrador que lo reenvíe.' })
 })
 
 export default router

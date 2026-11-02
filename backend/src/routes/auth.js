@@ -60,7 +60,7 @@ router.post('/login', limitarIntentos, async (req, res) => {
     return res.status(401).json({ mensaje: 'Credenciales incorrectas' })
   }
   if (usuario.verificacionPendiente === true) {
-    return res.status(403).json({ mensaje: 'Verifica tu correo antes de ingresar. Puedes solicitar un nuevo enlace.' })
+    return res.status(403).json({ mensaje: 'Verifica tu correo antes de ingresar. Solicita al administrador que reenvíe el enlace.' })
   }
 
   res.json({ token: crearToken(usuario), usuario: datosPublicos(usuario,

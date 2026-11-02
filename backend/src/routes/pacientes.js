@@ -88,6 +88,9 @@ function validar(datos) {
     return Array.isArray(datos.responsables) && datos.responsables.length > 5 ?
       'Un paciente puede tener como máximo cinco responsables' : 'Lista de responsables inválida'
   }
+  if (edad(datos.fechaNacimiento) < 18 && !datos.responsables?.length) {
+    return 'Asocia al menos un responsable al paciente menor de 18 años'
+  }
   return null
 }
 
@@ -199,7 +202,7 @@ router.post('/', async (req, res) => {
   res.status(201).json({ paciente: respuesta(paciente),
     mensaje: !paciente.correo ? 'Paciente registrado sin correo propio.' : enviado ?
       'Paciente registrado. Enviamos un enlace de verificación a su correo.' :
-      'Paciente registrado. El enlace no pudo enviarse; solicítalo de nuevo en Verificar correo.' })
+      'Paciente registrado. El enlace no pudo enviarse; solicita al administrador que lo reenvíe.' })
 })
 
 router.put('/:id', async (req, res) => {
@@ -227,7 +230,7 @@ router.put('/:id', async (req, res) => {
   res.json({ paciente: respuesta(paciente),
     mensaje: !cambiaCorreo ? 'Paciente actualizado.' : enviado ?
       'Paciente actualizado. Enviamos un enlace de verificación al nuevo correo.' :
-      'Paciente actualizado. El enlace no pudo enviarse; solicítalo de nuevo en Verificar correo.' })
+      'Paciente actualizado. El enlace no pudo enviarse; solicita al administrador que lo reenvíe.' })
 })
 
 router.patch('/:id/estado', async (req, res) => {

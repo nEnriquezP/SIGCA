@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { rateLimit } from 'express-rate-limit'
+import { autenticar } from '../middleware/autenticacion.js'
 import Paciente from '../models/Paciente.js'
 import Responsable from '../models/Responsable.js'
 import Usuario from '../models/Usuario.js'
@@ -21,15 +22,23 @@ router.post('/verificar', limite, async (req, res) => {
   res.json({ mensaje: 'Correo verificado correctamente' })
 })
 
-router.post('/reenviar', limite, async (req, res) => {
+router.post('/reenviar', autenticar, limite, async (req, res) => {
+  if (req.usuario.rol !== 'ADMINISTRADOR') {
+    return res.status(403).json({ mensaje: 'Solo un administrador puede reenviar enlaces de verificación' })
+  }
   const tipo = req.body?.tipo
-  const correo = typeof req.body?.correo === 'string' ? req.body.correo.trim().toLowerCase() : ''
-  if (!modelos[tipo] || !correo || correo.length > 254) {
+  const id = req.body?.id
+  if (!Object.hasOwn(modelos, tipo) || typeof id !== 'string' || !/^[a-f\d]{24}$/i.test(id)) {
     return res.status(400).json({ mensaje: 'Solicitud inválida' })
   }
-  const personas = await modelos[tipo].find({ correo, correoVerificado: { $ne: true } }).limit(10)
-  for (const persona of personas) await emitirEnlace(tipo, persona, 'VERIFICAR')
-  res.json({ mensaje: 'Si el correo está pendiente, enviaremos un nuevo enlace.' })
+  const persona = await modelos[tipo].findOne({ _id: id, correoVerificado: { $ne: true } })
+  if (!persona || !persona.correo) {
+    return res.status(400).json({ mensaje: 'Este registro no tiene un correo pendiente de verificación' })
+  }
+  if (!await emitirEnlace(tipo, persona, 'VERIFICAR')) {
+    return res.status(503).json({ mensaje: 'No se pudo enviar el enlace. Intenta de nuevo más tarde.' })
+  }
+  res.json({ mensaje: 'Se envió un nuevo enlace de verificación.' })
 })
 
 export default router

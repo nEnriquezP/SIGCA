@@ -193,7 +193,57 @@ test('restablecimiento protegido invalida sesiones anteriores', async () => {
   const propia = await pedir('/api/auth/password', { metodo: 'PUT', token: admin,
     datos: { passwordActual: 'ClaveInicial123', passwordNueva: 'OtraClave#7891' } })
   assert.equal(propia.status, 200)
+  assert.equal(usuarios.get(idAdmin).debeCambiarPassword, false)
   assert.equal((await pedir('/api/auth/me', { token: admin })).status, 401)
+})
+
+test('solo administración reenvía verificaciones pendientes de usuarios, pacientes y responsables', async () => {
+  const fetchOriginal = globalThis.fetch
+  const buscarUsuarioOriginal = Usuario.findOne
+  const buscarPacienteOriginal = Paciente.findOne
+  const buscarResponsableOriginal = Responsable.findOne
+  const crearTokenCorreoOriginal = TokenCorreo.create
+  const actualizarTokensOriginal = TokenCorreo.updateMany
+  const ambienteOriginal = Object.fromEntries(['RESEND_API_KEY', 'EMAIL_FROM', 'APP_PUBLIC_URL']
+    .map((clave) => [clave, process.env[clave]]))
+  process.env.RESEND_API_KEY = 'clave-de-prueba'
+  process.env.EMAIL_FROM = 'SIGCA <noreply@example.test>'
+  process.env.APP_PUBLIC_URL = 'http://localhost:5173'
+  globalThis.fetch = (url, opciones) => String(url).startsWith('https://api.resend.com/') ?
+    Promise.resolve(new Response('{}', { status: 200 })) : fetchOriginal(url, opciones)
+  Usuario.findOne = (filtro) => filtro._id ? consulta(usuarios.get(String(filtro._id)) ?? null) :
+    buscarUsuarioOriginal(filtro)
+  Paciente.findOne = ({ _id }) => consulta({ _id, correo: 'paciente@example.test', correoVerificado: false })
+  Responsable.findOne = ({ _id }) => consulta({ _id, correo: 'responsable@example.test', correoVerificado: false })
+  TokenCorreo.create = async (datos) => ({ ...datos, _id: randomBytes(12).toString('hex') })
+  TokenCorreo.updateMany = async () => ({ modifiedCount: 0 })
+  try {
+    const ruta = '/api/correo/reenviar'
+    const datos = { tipo: 'USUARIO', id: idAdmin }
+    assert.equal((await pedir(ruta, { metodo: 'POST', datos })).status, 401)
+    assert.equal((await pedir(ruta, { metodo: 'POST', token: crearToken(usuarios.get(idRecepcion)),
+      datos })).status, 403)
+    const admin = crearToken(usuarios.get(idAdmin))
+    assert.equal((await pedir(ruta, { metodo: 'POST', token: admin,
+      datos: { tipo: 'USUARIO', id: 'incorrecto' } })).status, 400)
+    for (const [tipo, id] of [['USUARIO', idAdmin], ['PACIENTE', idPaciente],
+      ['RESPONSABLE', idResponsable]]) {
+      const respuesta = await pedir(ruta, { metodo: 'POST', token: admin, datos: { tipo, id } })
+      assert.equal(respuesta.status, 200)
+      assert.match(respuesta.body.mensaje, /Se envió/)
+    }
+  } finally {
+    globalThis.fetch = fetchOriginal
+    Usuario.findOne = buscarUsuarioOriginal
+    Paciente.findOne = buscarPacienteOriginal
+    Responsable.findOne = buscarResponsableOriginal
+    TokenCorreo.create = crearTokenCorreoOriginal
+    TokenCorreo.updateMany = actualizarTokensOriginal
+    for (const [clave, valor] of Object.entries(ambienteOriginal)) {
+      if (valor === undefined) delete process.env[clave]
+      else process.env[clave] = valor
+    }
+  }
 })
 
 test('administrador crea y edita un rol personalizado; la API aplica permisos de lectura y escritura', async () => {
@@ -282,6 +332,10 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
     fechaNacimiento: '2015-05-10', sexo: 'MASCULINO', telefono: '55551234',
     direccion: 'Prueba', fechaInicioProceso: '2026-10-20',
     observacionesAdministrativas: '', responsables: [idResponsable] }
+  const menorSinResponsable = await pedir('/api/pacientes', { metodo: 'POST', token,
+    datos: { ...paciente, responsables: [] } })
+  assert.equal(menorSinResponsable.status, 400)
+  assert.match(menorSinResponsable.body.mensaje, /menor de 18 años/)
   const seisResponsables = Array.from({ length: 6 }, (_, indice) => String(indice + 1).padStart(24, '0'))
   const excesoRegistro = await pedir('/api/pacientes', { metodo: 'POST', token,
     datos: { ...paciente, responsables: seisResponsables } })
@@ -299,11 +353,18 @@ test('pacientes y responsables validan asociación y baja lógica', async () => 
   assert.equal(detalle.body.paciente.responsables[0].fotografia, responsable.fotografia)
   const sinAsociacion = await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
     datos: { ...paciente, responsables: [] } })
-  assert.equal(sinAsociacion.status, 200)
+  assert.equal(sinAsociacion.status, 400)
+  assert.match(sinAsociacion.body.mensaje, /menor de 18 años/)
   const asociadoOtraVez = await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
     datos: paciente })
   assert.equal(asociadoOtraVez.status, 200)
   assert.deepEqual(asociadoOtraVez.body.paciente.responsables, [idResponsable])
+  const adultoSinResponsable = await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
+    datos: { ...paciente, fechaNacimiento: '1990-05-10', responsables: [] } })
+  assert.equal(adultoSinResponsable.status, 200)
+  assert.deepEqual(adultoSinResponsable.body.paciente.responsables, [])
+  assert.equal((await pedir(`/api/pacientes/${idPaciente}`, { metodo: 'PUT', token,
+    datos: paciente })).status, 200)
   for (const telefono of ['05551234', '5555123', '555512345', '5555 1234', '5555ABCD']) {
     const rechazo = await pedir('/api/pacientes', { metodo: 'POST', token,
       datos: { ...paciente, telefono } })
