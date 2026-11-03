@@ -8,6 +8,8 @@ import rutasUsuarios from './routes/usuarios.js'
 import rutasPacientes from './routes/pacientes.js'
 import rutasResponsables from './routes/responsables.js'
 import rutasServicios from './routes/servicios.js'
+import rutasMateriales from './routes/materiales.js'
+import rutasAsignacionesMateriales from './routes/asignacionesMateriales.js'
 import rutasHorarios from './routes/horarios.js'
 import rutasContenido from './routes/contenido.js'
 import rutasPublicaciones from './routes/publicaciones.js'
@@ -48,6 +50,8 @@ app.use('/api/roles', rutasRoles)
 app.use('/api/pacientes', rutasPacientes)
 app.use('/api/responsables', rutasResponsables)
 app.use('/api/servicios', rutasServicios)
+app.use('/api/materiales', rutasMateriales)
+app.use('/api/asignaciones-materiales', rutasAsignacionesMateriales)
 app.use('/api/horarios', rutasHorarios)
 app.use('/api/contenido', rutasContenido)
 app.use('/api/publicaciones', rutasPublicaciones)
