@@ -7,10 +7,35 @@ import Usuario from '../models/Usuario.js'
 import Cita from '../models/Cita.js'
 import Publicacion from '../models/Publicacion.js'
 import SolicitudCita from '../models/SolicitudCita.js'
+import ContenidoInstitucional from '../models/ContenidoInstitucional.js'
+import mongoose from 'mongoose'
 
 const modelos = { PACIENTE: Paciente, RESPONSABLE: Responsable, USUARIO: Usuario }
 const horasToken = { VERIFICAR: 6, RECUPERAR: 1 }
 const origen = () => process.env.APP_PUBLIC_URL?.replace(/\/+$/, '')
+const nombrePredeterminado = 'Centro Armonía Atención Psicológica y Estimulación Auditiva Verbal'
+
+async function nombreCentroCorreo() {
+  if (mongoose.connection.readyState !== 1) return nombrePredeterminado
+  try {
+    const contenido = await ContenidoInstitucional.findOne({ clave: 'principal' })
+      .select('nombreCentro').lean()
+    const nombre = (contenido?.nombreCentro || nombrePredeterminado)
+      .replace(/[\r\n<>"]/g, ' ').trim()
+    return nombre || nombrePredeterminado
+  } catch {
+    return nombrePredeterminado
+  }
+}
+
+function direccionRemitente() {
+  const configurado = process.env.EMAIL_FROM?.trim() || ''
+  const direccion = /<([^<>]+)>$/.exec(configurado)?.[1]?.trim() || configurado
+  if (!/^[^\s<>@]+@[^\s<>@]+$/.test(direccion)) {
+    throw new Error('Dirección remitente inválida')
+  }
+  return direccion
+}
 
 export function correoConfigurado() {
   return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && origen())
@@ -18,12 +43,13 @@ export function correoConfigurado() {
 
 export async function enviarCorreo({ destinatario, asunto, texto, clave }) {
   if (!correoConfigurado()) throw new Error('Servicio de correo no configurado')
+  const nombre = await nombreCentroCorreo()
   const respuesta = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       'Content-Type': 'application/json', ...(clave ? { 'Idempotency-Key': clave } : {}) },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [destinatario], subject: asunto,
-      text: texto }),
+    body: JSON.stringify({ from: `${nombre} <${direccionRemitente()}>`, to: [destinatario],
+      subject: asunto, text: `${texto.trimEnd()}\n\n${nombre}` }),
     signal: AbortSignal.timeout(15000),
   })
   if (!respuesta.ok) throw new Error(`Proveedor de correo respondió ${respuesta.status}`)
@@ -134,14 +160,14 @@ export async function avisarCita(citaId, evento) {
     const fecha = fechaHora(cita)
     for (const correo of unicos) {
       await encolar(`cita:${cita.id}:${evento}:${cita.updatedAt?.getTime() ?? 0}:${correo}`,
-        correo, asuntos[evento], `${asuntos[evento]} para ${fecha}. Centro Médico Jalapa.`)
+        correo, asuntos[evento], `${asuntos[evento]} para ${fecha}.`)
       if (evento === 'CONFIRMADA' || (evento === 'REPROGRAMADA' && cita.estado === 'CONFIRMADA')) {
         for (const horas of [24, 6]) {
           const momento = new Date(inicioUTC(cita).getTime() - horas * 3600000)
           if (momento > new Date()) await encolar(
             `recordatorio:${cita.id}:${cita.updatedAt?.getTime() ?? 0}:${horas}:${correo}`,
             correo, `Recordatorio de cita: faltan ${horas} horas`,
-            `Tu cita está programada para ${fecha}. Centro Médico Jalapa.`, momento)
+            `Tu cita está programada para ${fecha}.`, momento)
         }
       }
     }
@@ -153,11 +179,12 @@ export async function avisarCita(citaId, evento) {
 export async function avisarPublicacion(item) {
   if (!correoConfigurado() || !item.activo) return
   try {
+    const nombre = await nombreCentroCorreo()
     const listas = await Promise.all([Paciente, Responsable, Usuario].map((modelo) =>
       modelo.find({ correoVerificado: true, recibirPublicaciones: true }).select('correo')))
     const destinatarios = [...new Set(listas.flat().map((persona) => persona.correo.toLowerCase()))]
     for (const correo of destinatarios) await encolar(`publicacion:${item.id}:${correo}`, correo,
-      'Nueva publicación de Centro Médico Jalapa',
+      `Nueva publicación de ${nombre}`,
       `${item.titulo}. Consulta el portal: ${origen()}/`)
   } catch (error) {
     console.error('No se pudieron preparar avisos de publicación:', error.message)

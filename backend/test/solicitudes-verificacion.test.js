@@ -13,6 +13,8 @@ import Horario, { DIAS } from '../src/models/Horario.js'
 import SolicitudCita from '../src/models/SolicitudCita.js'
 import CodigoCorreoSolicitud from '../src/models/CodigoCorreoSolicitud.js'
 import AvisoCorreo from '../src/models/AvisoCorreo.js'
+import ContenidoInstitucional from '../src/models/ContenidoInstitucional.js'
+import Publicacion from '../src/models/Publicacion.js'
 import Usuario from '../src/models/Usuario.js'
 import { ahoraGuatemala } from '../src/services/prepararCita.js'
 import { crearSolicitudConCodigo } from '../src/services/codigosSolicitud.js'
@@ -20,11 +22,11 @@ import { crearSolicitudConCodigo } from '../src/services/codigosSolicitud.js'
 process.env.DOTENV_CONFIG_PATH = '/dev/null'
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 process.env.RESEND_API_KEY = 'clave-ficticia-local'
-process.env.EMAIL_FROM = 'SIGCA <prueba@example.test>'
+process.env.EMAIL_FROM = 'Centro Médico Jalapa <prueba@example.test>'
 process.env.APP_PUBLIC_URL = 'http://localhost:5173'
 const { default: app } = await import('../src/app.js')
 const { crearToken } = await import('../src/middleware/autenticacion.js')
-const { procesarAvisos } = await import('../src/services/correo.js')
+const { avisarPublicacion, procesarAvisos } = await import('../src/services/correo.js')
 
 const pausa = (ms) => new Promise((resolver) => setTimeout(resolver, ms))
 const enviado = []
@@ -97,6 +99,11 @@ test('código por correo, solicitud verificada y avisos sin usar servicios exter
     await rm(temporal.carpeta, { recursive: true, force: true })
   })
   const base = `http://127.0.0.1:${servidor.address().port}`
+  const nombreCentro = 'Centro Armonía de Prueba'
+  await ContenidoInstitucional.create({ clave: 'principal', nombreCentro,
+    informacionPrincipal: 'Centro de prueba', mision: 'Prueba', vision: 'Prueba',
+    contacto: { correo: 'centro@example.test', telefono: '79223344',
+      direccion: 'Dirección ficticia' } })
   async function pedir(ruta, datos, token, metodo = 'POST') {
     const respuesta = await fetchOriginal(`${base}${ruta}`, { method: metodo,
       headers: { 'Content-Type': 'application/json',
@@ -122,6 +129,8 @@ test('código por correo, solicitud verificada y avisos sin usar servicios exter
   assert.match(enviadoCodigo.body.verificacionId, /^[a-f\d]{24}$/)
   const codigo = /cita es (\d{6})/.exec(enviado[0]?.text)?.[1]
   assert.match(codigo, /^\d{6}$/)
+  assert.equal(enviado[0].from, `${nombreCentro} <prueba@example.test>`)
+  assert.ok(enviado[0].text.endsWith(nombreCentro))
   const desafioGuardado = await CodigoCorreoSolicitud.findById(enviadoCodigo.body.verificacionId)
   assert.match(desafioGuardado.hash, /^[0-9a-f]{64}$/)
   assert.equal(desafioGuardado.toObject().codigo, undefined)
@@ -188,4 +197,12 @@ test('código por correo, solicitud verificada y avisos sin usar servicios exter
   assert.equal((await procesarAvisos()).procesados, 1)
   assert.ok(enviado.some((item) => item.to[0] === 'paciente@example.test' &&
     item.subject === 'Cita confirmada'))
+  await Paciente.updateOne({ _id: paciente.id }, { $set: { recibirPublicaciones: true } })
+  const publicacion = await Publicacion.create({ titulo: 'Novedad ficticia',
+    descripcion: 'Contenido de prueba', fechaPublicacion: ahoraGuatemala().fecha })
+  await avisarPublicacion(publicacion)
+  assert.equal((await procesarAvisos()).procesados, 1)
+  assert.ok(enviado.some((item) => item.subject === `Nueva publicación de ${nombreCentro}`))
+  assert.ok(enviado.every((item) => item.from === `${nombreCentro} <prueba@example.test>` &&
+    item.text.endsWith(nombreCentro) && !item.text.includes('Centro Médico Jalapa')))
 })
