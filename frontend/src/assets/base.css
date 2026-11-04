@@ -289,6 +289,13 @@ button.secundario { background: #e7edf4; color: #203047; }
 .mensaje-error { color: #a32424; font-weight: 600; }
 .mensaje-exito { color: #166044; font-weight: 600; }
 .tabla-contenedor { overflow-x: auto; }
+.pagos-vista .pagos-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; }
+.pagos-vista .pagos-resumen div { padding: 12px; border: 1px solid #d9e2ed; border-radius: 8px; background: #f6f9fc; }
+.pagos-vista .pagos-resumen dt { color: #52677a; font-size: .85rem; }
+.pagos-vista .pagos-resumen dd { margin: 4px 0 0; color: #17365d; font-weight: 700; }
+.pagos-vista .pagos-resultados { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.pagos-vista .tabla-contenedor { margin: 14px 0; }
+.pagos-vista table { min-width: 620px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; }

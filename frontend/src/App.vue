@@ -29,6 +29,7 @@ const grupos = [
       { texto: 'Pacientes', ruta: '/pacientes', permiso: 'PACIENTES_VER', icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 7h5 M19.5 4.5v5' },
       { texto: 'Responsables', ruta: '/responsables', permiso: 'RESPONSABLES_VER', icono: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 20v-2a4 4 0 0 0-3-3.87 M16 2.13a4 4 0 0 1 0 7.75' },
       { texto: 'Materiales educativos', ruta: '/materiales', permiso: 'MATERIALES_VER', icono: 'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5' },
+      { texto: 'Pagos', ruta: '/pagos', permiso: 'PAGOS_VER', icono: 'M3 6h18v12H3z M3 10h18 M7 15h4' },
     ],
   },
   {

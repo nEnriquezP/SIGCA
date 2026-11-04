@@ -724,7 +724,11 @@ onUnmounted(() => {
       </section>
       <section class="detalle-paciente-bloque">
       <h3>Pagos</h3>
-      <p>La consulta de pagos se incorporará en su fase correspondiente.</p>
+      <RouterLink v-if="sesion.tienePermiso('PAGOS_VER')"
+        :to="{ name: 'pagos', query: { paciente: detalle.id } }">
+        Ver pagos y saldos del paciente
+      </RouterLink>
+      <p v-else>No tienes permiso para consultar pagos.</p>
       </section>
     </section>
 
