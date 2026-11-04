@@ -44,12 +44,14 @@ export function correoConfigurado() {
 export async function enviarCorreo({ destinatario, asunto, texto, clave }) {
   if (!correoConfigurado()) throw new Error('Servicio de correo no configurado')
   const nombre = await nombreCentroCorreo()
+  const asuntoVigente = asunto.replaceAll('Centro Médico Jalapa', nombre)
+  const textoVigente = texto.replaceAll('Centro Médico Jalapa', nombre)
   const respuesta = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       'Content-Type': 'application/json', ...(clave ? { 'Idempotency-Key': clave } : {}) },
     body: JSON.stringify({ from: `${nombre} <${direccionRemitente()}>`, to: [destinatario],
-      subject: asunto, text: `${texto.trimEnd()}\n\n${nombre}` }),
+      subject: asuntoVigente, text: `${textoVigente.trimEnd()}\n\n${nombre}` }),
     signal: AbortSignal.timeout(15000),
   })
   if (!respuesta.ok) throw new Error(`Proveedor de correo respondió ${respuesta.status}`)

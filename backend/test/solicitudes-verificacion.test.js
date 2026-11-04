@@ -26,7 +26,7 @@ process.env.EMAIL_FROM = 'Centro Médico Jalapa <prueba@example.test>'
 process.env.APP_PUBLIC_URL = 'http://localhost:5173'
 const { default: app } = await import('../src/app.js')
 const { crearToken } = await import('../src/middleware/autenticacion.js')
-const { avisarPublicacion, procesarAvisos } = await import('../src/services/correo.js')
+const { avisarPublicacion, enviarCorreo, procesarAvisos } = await import('../src/services/correo.js')
 
 const pausa = (ms) => new Promise((resolver) => setTimeout(resolver, ms))
 const enviado = []
@@ -203,6 +203,12 @@ test('código por correo, solicitud verificada y avisos sin usar servicios exter
   await avisarPublicacion(publicacion)
   assert.equal((await procesarAvisos()).procesados, 1)
   assert.ok(enviado.some((item) => item.subject === `Nueva publicación de ${nombreCentro}`))
+  await enviarCorreo({ destinatario: 'persona@example.test',
+    asunto: 'Nueva publicación de Centro Médico Jalapa',
+    texto: 'Visita Centro Médico Jalapa.' })
+  assert.equal(enviado.at(-1).subject, `Nueva publicación de ${nombreCentro}`)
+  assert.ok(enviado.at(-1).text.startsWith(`Visita ${nombreCentro}.`))
   assert.ok(enviado.every((item) => item.from === `${nombreCentro} <prueba@example.test>` &&
-    item.text.endsWith(nombreCentro) && !item.text.includes('Centro Médico Jalapa')))
+    item.text.endsWith(nombreCentro) && !item.text.includes('Centro Médico Jalapa') &&
+    !item.subject.includes('Centro Médico Jalapa')))
 })
