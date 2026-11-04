@@ -21,6 +21,7 @@ import CitasView from '../views/CitasView.vue'
 import CalendarioView from '../views/CalendarioView.vue'
 import MaterialesView from '../views/MaterialesView.vue'
 import PagosView from '../views/PagosView.vue'
+import CajaView from '../views/CajaView.vue'
 import { useSesionStore } from '../stores/sesion.js'
 
 const router = createRouter({
@@ -48,6 +49,8 @@ const router = createRouter({
       meta: { requiereSesion: true, permiso: 'MATERIALES_VER' } },
     { path: '/pagos', name: 'pagos', component: PagosView,
       meta: { requiereSesion: true, permiso: 'PAGOS_VER' } },
+    { path: '/caja', name: 'caja', component: CajaView,
+      meta: { requiereSesion: true, permiso: 'CAJA_HISTORIAL_VER' } },
     { path: '/gestion-servicios', name: 'gestion-servicios', component: ServiciosView,
       props: { administracion: true },
       meta: { requiereSesion: true, permiso: 'SERVICIOS_VER' } },

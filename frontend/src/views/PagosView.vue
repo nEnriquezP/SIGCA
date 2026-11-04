@@ -278,6 +278,9 @@ onMounted(async () => {
 
     <section class="tarjeta">
       <h2>Mi caja</h2>
+      <p><RouterLink :to="{ name: 'caja', query: caja?.id || cierre?.id ?
+        { id: caja?.id || cierre?.id } : {} }">
+        Consultar resumen, movimientos y cierres de caja</RouterLink></p>
       <p v-if="caja">Caja abierta desde {{ fechaHoraGuatemala(caja.abiertaEn) }} (Guatemala).
         Monto inicial: <strong>{{ quetzales(caja.montoInicialCentavos) }}</strong>.</p>
       <template v-if="!caja">
