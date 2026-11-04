@@ -4,11 +4,14 @@ import { autenticar } from '../middleware/autenticacion.js'
 import Cita from '../models/Cita.js'
 import ImagenCargada from '../models/ImagenCargada.js'
 import Paciente from '../models/Paciente.js'
+import Pago from '../models/Pago.js'
 import Servicio from '../models/Servicio.js'
 import Usuario from '../models/Usuario.js'
 import { descargarImagenPrivada } from '../services/imagenes.js'
 import { errorCita, fechaValida, prepararCita } from '../services/prepararCita.js'
 import { avisarCita } from '../services/correo.js'
+import { errorFinanciero, esConflictoFinanciero,
+  resumenSaldoCita } from '../services/finanzas.js'
 
 const router = Router()
 const estados = ['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA']
@@ -148,6 +151,51 @@ router.get('/calendario', async (req, res) => {
     dias.get(fecha).estados[fila._id.estado] = fila.total
   }
   res.json({ mes: req.query.mes, dias: [...dias.values()] })
+})
+
+function consultarFinanzas(req, res, next) {
+  if (!gestor(req) || !req.permisos.has('PAGOS_VER')) {
+    return res.status(403).json({ mensaje: 'Acceso no permitido' })
+  }
+  next()
+}
+
+router.get('/:id/pagos', consultarFinanzas, async (req, res) => {
+  const pagina = req.query.pagina ?? '0'
+  if (!idValido(req.params.id) || Object.keys(req.query).some((campo) => campo !== 'pagina') ||
+      typeof pagina !== 'string' || !/^(0|[1-9]\d{0,3})$/.test(pagina)) {
+    return res.status(400).json({ mensaje: 'Identificador o página inválida' })
+  }
+  res.set('Cache-Control', 'no-store')
+  if (!await Cita.exists({ _id: req.params.id })) {
+    return res.status(404).json({ mensaje: 'Cita no encontrada' })
+  }
+  const numeroPagina = Number(pagina)
+  const filtro = { cita: req.params.id }
+  const [pagos, total] = await Promise.all([
+    Pago.find(filtro).sort({ fechaPago: -1, _id: -1 })
+      .skip(numeroPagina * 50).limit(50),
+    Pago.countDocuments(filtro),
+  ])
+  res.json({ pagos: pagos.map((pago) => ({ id: pago.id,
+    numeroComprobante: pago.numeroComprobante, cita: String(pago.cita),
+    montoCentavos: pago.montoCentavos, metodo: pago.metodo, fechaPago: pago.fechaPago,
+    estado: pago.estado, caja: String(pago.caja),
+    ...(req.usuario.rol === 'ADMINISTRADOR' && pago.estado === 'ANULADO' ? {
+      motivoAnulacion: pago.motivoAnulacion, fechaAnulacion: pago.fechaAnulacion,
+      anuladoPor: pago.anuladoPor ? String(pago.anuladoPor) : null,
+    } : {}) })), total, pagina: numeroPagina,
+  hayMas: (numeroPagina + 1) * 50 < total })
+})
+
+router.get('/:id/saldo', consultarFinanzas, async (req, res) => {
+  if (!idValido(req.params.id) || Object.keys(req.query).length) {
+    return res.status(400).json({ mensaje: 'Identificador inválido' })
+  }
+  res.set('Cache-Control', 'no-store')
+  const cita = await Cita.findById(req.params.id)
+  if (!cita) return res.status(404).json({ mensaje: 'Cita no encontrada' })
+  res.json({ saldo: await resumenSaldoCita(cita) })
 })
 
 router.get('/', async (req, res) => {
@@ -296,8 +344,39 @@ router.patch('/:id/estado', async (req, res) => {
       estadosActivos.includes(actual.estado)
   if (!permitida) return res.status(409).json({ mensaje: 'Transición de estado no permitida' })
 
-  // Fase de pagos: antes de cancelar, rechazar citas que tengan pagos válidos.
-  // Aún no existe ese modelo; esta fase no afirma haber aplicado esa regla.
+  if (destino === 'CANCELADA') {
+    const session = await mongoose.startSession()
+    let cita
+    try {
+      session.startTransaction()
+      const vigente = await Cita.findOne(filtro).session(session)
+      if (!vigente || !estadosActivos.includes(vigente.estado)) {
+        throw errorFinanciero(409, 'La cita cambió; vuelve a consultarla')
+      }
+      if (await Pago.exists({ cita: vigente._id, estado: 'REGISTRADO' }).session(session)) {
+        throw errorFinanciero(409, 'No se puede cancelar una cita con pagos válidos')
+      }
+      const revision = vigente.revisionFinanciera === 0 ?
+        { $in: [null, 0] } : vigente.revisionFinanciera
+      cita = await Cita.findOneAndUpdate({ ...filtro, estado: vigente.estado,
+        revisionFinanciera: revision },
+      { $set: { estado: 'CANCELADA' }, $inc: { revisionFinanciera: 1 } },
+      { returnDocument: 'after', runValidators: true, session })
+      if (!cita) throw errorFinanciero(409, 'La cita cambió; vuelve a consultarla')
+      await session.commitTransaction()
+    } catch (error) {
+      if (session.inTransaction()) await session.abortTransaction()
+      if (esConflictoFinanciero(error) || error.hasErrorLabel?.('UnknownTransactionCommitResult')) {
+        return res.status(409).json({ mensaje: 'Conflicto de cita; vuelve a consultarla' })
+      }
+      throw error
+    } finally {
+      await session.endSession()
+    }
+    await avisarCita(cita.id, 'CANCELADA')
+    return res.json({ cita: respuestaCita(await poblar(Cita.findById(cita.id)), profesional, true) })
+  }
+
   const cita = await Cita.findOneAndUpdate({ ...filtro, estado: actual.estado },
     { $set: { estado: destino } }, { returnDocument: 'after', runValidators: true })
   if (!cita) return res.status(409).json({ mensaje: 'La cita cambió; vuelve a consultarla' })

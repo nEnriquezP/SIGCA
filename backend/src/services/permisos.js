@@ -8,6 +8,12 @@ export const CATALOGO_PERMISOS = [
   { codigo: 'MATERIALES_VER', nombre: 'Consultar materiales educativos', asignable: false },
   { codigo: 'MATERIALES_GESTIONAR', nombre: 'Registrar y modificar materiales educativos', asignable: false },
   { codigo: 'MATERIALES_ASIGNAR', nombre: 'Asignar materiales educativos a pacientes', asignable: false },
+  { codigo: 'CAJA_VER_PROPIA', nombre: 'Consultar la caja propia abierta', asignable: false },
+  { codigo: 'CAJA_ABRIR', nombre: 'Abrir la caja propia', asignable: false },
+  { codigo: 'CAJA_CERRAR_PROPIA', nombre: 'Cerrar la caja propia', asignable: false },
+  { codigo: 'PAGOS_VER', nombre: 'Consultar pagos', asignable: false },
+  { codigo: 'PAGOS_REGISTRAR', nombre: 'Registrar pagos', asignable: false },
+  { codigo: 'PAGOS_ANULAR', nombre: 'Anular pagos', asignable: false },
   { codigo: 'PACIENTES_VER', nombre: 'Consultar pacientes y sus fotografías' },
   { codigo: 'PACIENTES_GESTIONAR', nombre: 'Registrar y modificar pacientes' },
   { codigo: 'RESPONSABLES_VER', nombre: 'Consultar responsables y sus fotografías' },
@@ -34,7 +40,9 @@ export const PERMISOS_PREDEFINIDOS = {
   ADMINISTRADOR: CATALOGO_PERMISOS.map((permiso) => permiso.codigo),
   RECEPCIONISTA: ['SOLICITUDES_VER', 'SOLICITUDES_GESTIONAR', 'PACIENTES_VER',
     'PACIENTES_GESTIONAR', 'RESPONSABLES_VER', 'RESPONSABLES_GESTIONAR',
-    'SERVICIOS_VER', 'HORARIOS_VER', 'CITAS_VER', 'CITAS_GESTIONAR'],
+    'SERVICIOS_VER', 'HORARIOS_VER', 'CITAS_VER', 'CITAS_GESTIONAR',
+    'CAJA_VER_PROPIA', 'CAJA_ABRIR', 'CAJA_CERRAR_PROPIA',
+    'PAGOS_VER', 'PAGOS_REGISTRAR'],
   PROFESIONAL: ['CITAS_VER', 'MATERIALES_VER', 'MATERIALES_ASIGNAR'],
 }
 
@@ -66,6 +74,10 @@ export function permisoParaRuta(req) {
   if (ruta === '/api/citas') return lectura ? 'CITAS_VER' : 'CITAS_GESTIONAR'
   if (ruta === '/api/materiales') return lectura ? 'MATERIALES_VER' : 'MATERIALES_GESTIONAR'
   if (ruta === '/api/asignaciones-materiales') return lectura ? 'MATERIALES_VER' : 'MATERIALES_ASIGNAR'
+  if (ruta === '/api/cajas') return lectura ? 'CAJA_VER_PROPIA' :
+    req.path.endsWith('/cerrar') ? 'CAJA_CERRAR_PROPIA' : 'CAJA_ABRIR'
+  if (ruta === '/api/pagos') return lectura ? 'PAGOS_VER' :
+    req.path.endsWith('/anular') ? 'PAGOS_ANULAR' : 'PAGOS_REGISTRAR'
   if (ruta === '/api/servicios') return lectura ? 'SERVICIOS_VER' : 'SERVICIOS_GESTIONAR'
   if (ruta === '/api/horarios') return lectura ? 'HORARIOS_VER' : 'HORARIOS_GESTIONAR'
   if (['/api/contenido', '/api/publicaciones', '/api/actividades',

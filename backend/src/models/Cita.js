@@ -15,6 +15,8 @@ const schema = new mongoose.Schema({
     validate: Number.isInteger },
   precioCentavos: { type: Number, required: true, min: 1, max: 3000000000,
     validate: Number.isSafeInteger },
+  revisionFinanciera: { type: Number, default: 0, min: 0,
+    validate: Number.isSafeInteger },
   estado: { type: String, enum: ['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA'],
     default: 'PENDIENTE' },
   observacionesAdministrativas: { type: String, trim: true, default: '', maxlength: 2000 },

@@ -28,21 +28,32 @@ async function iniciarMongoTemporal() {
   const puerto = pruebaPuerto.address().port
   await new Promise((resolver) => pruebaPuerto.close(resolver))
   const proceso = spawn('mongod', ['--dbpath', carpeta, '--port', String(puerto),
-    '--bind_ip', '127.0.0.1', '--logpath', join(carpeta, 'mongod.log')], { stdio: 'ignore' })
+    '--bind_ip', '127.0.0.1', '--replSet', 'sigca_citas_prueba',
+    '--logpath', join(carpeta, 'mongod.log')], { stdio: 'ignore' })
   proceso.on('error', () => {})
-  const uri = `mongodb://127.0.0.1:${puerto}/sigca_test`
+  const uriDirecta = `mongodb://127.0.0.1:${puerto}/?directConnection=true`
+  let cliente
   try {
     for (let intento = 0; intento < 60; intento += 1) {
       try {
-        await mongoose.connect(uri, { serverSelectionTimeoutMS: 300 })
-        return { carpeta, proceso }
+        cliente = await new mongoose.mongo.MongoClient(uriDirecta,
+          { serverSelectionTimeoutMS: 300 }).connect()
+        break
       } catch {
         if (proceso.exitCode !== null) throw new Error('No inició MongoDB temporal')
         await pausa(100)
       }
     }
-    throw new Error('MongoDB temporal no respondió')
+    if (!cliente) throw new Error('MongoDB temporal no respondió')
+    await cliente.db('admin').command({ replSetInitiate: { _id: 'sigca_citas_prueba',
+      members: [{ _id: 0, host: `127.0.0.1:${puerto}` }] } })
+    await cliente.close()
+    cliente = null
+    await mongoose.connect(`mongodb://127.0.0.1:${puerto}/sigca_test?replicaSet=sigca_citas_prueba`,
+      { serverSelectionTimeoutMS: 10000 })
+    return { carpeta, proceso }
   } catch (error) {
+    await cliente?.close().catch(() => {})
     proceso.kill('SIGTERM')
     await rm(carpeta, { recursive: true, force: true })
     throw error
