@@ -41,7 +41,7 @@ app.get('/api/health', (req, res) => {
     return res.status(503).json({ estado: 'no disponible' })
   }
 
-  res.json({ estado: 'ok' })
+  res.json({ estado: 'ok', version: process.env.RENDER_GIT_COMMIT?.slice(0, 12) ?? null })
 })
 
 app.use('/api/auth', rutasAuth)
