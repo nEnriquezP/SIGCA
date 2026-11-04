@@ -3,12 +3,18 @@ import { rateLimit } from 'express-rate-limit'
 import mongoose from 'mongoose'
 import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Cita from '../models/Cita.js'
+import CodigoCorreoSolicitud from '../models/CodigoCorreoSolicitud.js'
 import Paciente from '../models/Paciente.js'
 import Servicio from '../models/Servicio.js'
 import SolicitudCita from '../models/SolicitudCita.js'
 import Usuario from '../models/Usuario.js'
-import { avisarCita } from '../services/correo.js'
+import { crearSolicitudConCodigo } from '../services/codigosSolicitud.js'
+import { avisarCita, avisarSolicitud, correoConfigurado, enviarCorreo } from '../services/correo.js'
 import { ahoraGuatemala, errorCita, fechaMaximaGuatemala, fechaValida, prepararCita } from '../services/prepararCita.js'
+import { correoCuentaValido } from '../services/validacionCuenta.js'
+import { codigoSolicitudCorreoCoincide, generarCodigoSolicitudCorreo,
+  hashCodigoSolicitudCorreo, MAX_INTENTOS_CODIGO_SOLICITUD,
+  MINUTOS_CODIGO_SOLICITUD } from '../services/verificacionSolicitud.js'
 
 const router = Router()
 const limitarEnvios = rateLimit({
@@ -16,51 +22,149 @@ const limitarEnvios = rateLimit({
   message: (req) => ({ mensaje: `Demasiadas solicitudes. Intenta de nuevo en ${Math.max(1,
     Math.ceil((new Date(req.rateLimit?.resetTime).getTime() - Date.now()) / 60000))} minuto(s).` }),
 })
-const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const telefonoValido = /^[+\d][\d\s()+.-]{6,29}$/
+const limitarCodigos = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5,
+  standardHeaders: 'draft-8', legacyHeaders: false,
+  message: { mensaje: 'Espera unos minutos antes de solicitar otro código.' } })
+const telefonoValido = /^[1-9][0-9]{7}$/
 
 function texto(valor, maximo) {
   return typeof valor === 'string' && Boolean(valor.trim()) && valor.trim().length <= maximo
 }
 
-function validarSolicitud(datos) {
+export function validarSolicitud(datos) {
   if (!datos || typeof datos !== 'object' || Array.isArray(datos) ||
-      Object.keys(datos).length !== 6 ||
+      Object.keys(datos).length !== 9 ||
       Object.keys(datos).some((campo) => !['nombreSolicitante', 'correo', 'telefono',
-        'servicio', 'fechaPreferida', 'mensajeAdicional'].includes(campo)) ||
-      !texto(datos.nombreSolicitante, 120) || !texto(datos.correo, 254) ||
-      !correoValido.test(datos.correo.trim()) || !texto(datos.telefono, 30) ||
-      !telefonoValido.test(datos.telefono.trim()) ||
+        'servicio', 'fechaPreferida', 'mensajeAdicional', 'verificacionId',
+        'codigoVerificacion', 'recibirPublicaciones'].includes(campo)) ||
+      !texto(datos.nombreSolicitante, 120) ||
       !mongoose.isValidObjectId(datos.servicio) || !fechaValida(datos.fechaPreferida) ||
       (datos.fechaPreferida < ahoraGuatemala().fecha ||
         datos.fechaPreferida > fechaMaximaGuatemala()) ||
       typeof datos.mensajeAdicional !== 'string' || datos.mensajeAdicional.trim().length > 2000) {
     return 'Revisa el contacto, el servicio y la fecha preferida: debe estar entre hoy y los próximos 365 días de Guatemala'
   }
+  if (!correoCuentaValido(datos.correo)) {
+    return 'El correo debe tener la estructura nombre@dominio.com'
+  }
+  if (typeof datos.telefono !== 'string' || !telefonoValido.test(datos.telefono)) {
+    return 'El teléfono debe tener exactamente 8 dígitos y no comenzar con 0'
+  }
+  if (!mongoose.isValidObjectId(datos.verificacionId) ||
+      typeof datos.codigoVerificacion !== 'string' ||
+      !/^\d{6}$/.test(datos.codigoVerificacion) ||
+      typeof datos.recibirPublicaciones !== 'boolean') {
+    return 'Solicita e ingresa el código de seis dígitos enviado a tu correo'
+  }
   return null
 }
 
 function detalle(item) {
-  return { id: item.id, nombreSolicitante: item.nombreSolicitante,
-    correo: item.correo, telefono: item.telefono, servicio: String(item.servicio),
+  return { id: item.id, codigo: item.codigo ?? null,
+    nombreSolicitante: item.nombreSolicitante,
+    correo: item.correo, correoVerificado: item.correoVerificado === true,
+    recibirPublicaciones: item.recibirPublicaciones === true,
+    telefono: item.telefono, servicio: String(item.servicio),
     fechaPreferida: item.fechaPreferida, mensajeAdicional: item.mensajeAdicional,
     estado: item.estado, cita: item.cita ? String(item.cita) : null,
     creadoEn: item.createdAt }
 }
 
+router.post('/enviar-codigo', limitarCodigos, async (req, res) => {
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body) ||
+      Object.keys(req.body).length !== 1 || !correoCuentaValido(req.body.correo)) {
+    return res.status(400).json({ mensaje: 'Escribe un correo con formato nombre@dominio.com' })
+  }
+  if (!correoConfigurado() || typeof process.env.JWT_SECRET !== 'string' ||
+      process.env.JWT_SECRET.length < 32) {
+    return res.status(503).json({ mensaje: 'La verificación por correo no está disponible en este momento' })
+  }
+  const correo = req.body.correo.trim().toLowerCase()
+  const ahora = new Date()
+  const [ultimo, cantidad] = await Promise.all([
+    CodigoCorreoSolicitud.findOne({ correo }).sort({ createdAt: -1 }),
+    CodigoCorreoSolicitud.countDocuments({ correo,
+      createdAt: { $gt: new Date(ahora.getTime() - 3600000) } }),
+  ])
+  if (cantidad >= 5 || (ultimo && ultimo.createdAt > new Date(ahora.getTime() - 60000))) {
+    return res.status(429).json({ mensaje: 'Espera antes de solicitar otro código para este correo' })
+  }
+  const _id = new mongoose.Types.ObjectId()
+  const codigo = generarCodigoSolicitudCorreo()
+  const desafio = await CodigoCorreoSolicitud.create({ _id, correo,
+    hash: hashCodigoSolicitudCorreo(_id, correo, codigo),
+    vence: new Date(ahora.getTime() + MINUTOS_CODIGO_SOLICITUD * 60000) })
+  try {
+    await enviarCorreo({ destinatario: correo, asunto: 'Código para solicitar cita',
+      texto: `Tu código para solicitar una cita es ${codigo}. Vence en ${MINUTOS_CODIGO_SOLICITUD} minutos. ` +
+        'Todavía no se ha registrado una solicitud ni se ha reservado un horario. ' +
+        'Si no solicitaste este código, ignora el mensaje.',
+      clave: `codigo-solicitud:${desafio.id}` })
+  } catch {
+    await CodigoCorreoSolicitud.deleteOne({ _id }).catch(() => {})
+    return res.status(503).json({ mensaje: 'No se pudo enviar el código. Intenta de nuevo más tarde.' })
+  }
+  res.set('Cache-Control', 'no-store')
+  res.json({ verificacionId: desafio.id, venceMinutos: MINUTOS_CODIGO_SOLICITUD,
+    mensaje: 'Enviamos un código de seis dígitos a tu correo. Ingrésalo antes de enviar la solicitud.' })
+})
+
 router.post('/', limitarEnvios, async (req, res) => {
   const error = validarSolicitud(req.body)
   if (error) return res.status(400).json({ mensaje: error })
+  const correo = req.body.correo.trim().toLowerCase()
   const servicio = await Servicio.findOne({ _id: req.body.servicio, estado: 'ACTIVO' })
   if (!servicio) return res.status(409).json({ mensaje: 'El servicio no existe o está inactivo' })
-  const solicitud = await SolicitudCita.create({
-    nombreSolicitante: req.body.nombreSolicitante.trim(),
-    correo: req.body.correo.trim().toLowerCase(), telefono: req.body.telefono.trim(),
-    servicio: servicio.id, fechaPreferida: req.body.fechaPreferida,
-    mensajeAdicional: req.body.mensajeAdicional.trim(),
-  })
-  res.status(201).json({ solicitud: { id: solicitud.id, estado: 'PENDIENTE' },
-    mensaje: 'Solicitud recibida. La fecha es preferida; aún no existe una cita confirmada ni un horario reservado.' })
+  const desafio = await CodigoCorreoSolicitud.findOneAndUpdate({
+    _id: req.body.verificacionId, correo, usado: false,
+    vence: { $gt: new Date() }, intentos: { $lt: MAX_INTENTOS_CODIGO_SOLICITUD },
+  }, { $inc: { intentos: 1 } }, { returnDocument: 'after' })
+  if (!desafio) {
+    return res.status(400).json({ mensaje: 'El código venció, fue utilizado o agotó sus intentos. Solicita otro.' })
+  }
+  if (!codigoSolicitudCorreoCoincide(desafio.hash, desafio.id, correo,
+    req.body.codigoVerificacion)) {
+    return res.status(400).json({ mensaje: 'El código no coincide. Revísalo o solicita otro.' })
+  }
+
+  await SolicitudCita.init()
+  const session = await mongoose.startSession()
+  try {
+    const solicitud = await session.withTransaction(async () => {
+      const consumido = await CodigoCorreoSolicitud.updateOne({ _id: desafio.id,
+        correo, usado: false, vence: { $gt: new Date() } },
+      { $set: { usado: true } }, { session })
+      if (consumido.matchedCount !== 1) {
+        throw errorCita(409, 'El código ya fue usado o venció. Solicita otro.')
+      }
+      const vigente = await Servicio.findOne({ _id: req.body.servicio, estado: 'ACTIVO' },
+        null, { session })
+      if (!vigente) throw errorCita(409, 'El servicio ya no está activo')
+      return crearSolicitudConCodigo({
+        nombreSolicitante: req.body.nombreSolicitante.trim(),
+        correo, correoVerificado: true,
+        recibirPublicaciones: req.body.recibirPublicaciones,
+        telefono: req.body.telefono, servicio: vigente.id,
+        fechaPreferida: req.body.fechaPreferida,
+        mensajeAdicional: req.body.mensajeAdicional.trim(),
+      }, undefined, session)
+    })
+    const correoEnviado = await avisarSolicitud(solicitud, 'RECIBIDA')
+    res.set('Cache-Control', 'no-store')
+    res.status(201).json({ solicitud: { id: solicitud.id, codigo: solicitud.codigo,
+      estado: 'PENDIENTE' },
+    mensaje: 'Solicitud recibida. La fecha es preferida; aún no existe una cita confirmada ni un horario reservado.' +
+      (correoEnviado ? ' Te enviamos una copia al correo verificado.' :
+        ' Conserva el código para consultar con el centro.') })
+  } catch (fallo) {
+    if (fallo.code === 11000 || fallo.code === 112 ||
+        fallo.hasErrorLabel?.('TransientTransactionError')) {
+      return res.status(409).json({ mensaje: 'No se pudo registrar por un conflicto. Comprueba el estado y vuelve a intentar.' })
+    }
+    throw fallo
+  } finally {
+    await session.endSession()
+  }
 })
 
 router.use(autenticar, permitirRoles('ADMINISTRADOR', 'RECEPCIONISTA'))
@@ -78,7 +182,7 @@ router.get('/', async (req, res) => {
   if (req.query.estado) filtro.estado = req.query.estado
   if (buscar) {
     const patron = buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    filtro.$or = ['nombreSolicitante', 'correo'].map((campo) =>
+    filtro.$or = ['codigo', 'nombreSolicitante', 'correo'].map((campo) =>
       ({ [campo]: { $regex: patron, $options: 'i' } }))
     if (mongoose.isValidObjectId(buscar)) filtro.$or.push({ _id: buscar })
   }
@@ -146,6 +250,7 @@ router.patch('/:id/rechazar', async (req, res) => {
     return res.status(existe ? 409 : 404).json({ mensaje: existe ?
       'Solo se puede rechazar una solicitud pendiente' : 'Solicitud no encontrada' })
   }
+  await avisarSolicitud(solicitud, 'RECHAZADA')
   res.json({ solicitud: detalle(solicitud) })
 })
 
@@ -183,6 +288,7 @@ router.post('/:id/convertir', async (req, res) => {
       if (resultado.matchedCount !== 1) throw errorCita(409, 'La solicitud cambió durante la conversión')
       return String(cita.id)
     })
+    await avisarSolicitud(await SolicitudCita.findById(req.params.id), 'ATENDIDA')
     await avisarCita(citaId, 'PENDIENTE')
     res.status(201).json({ solicitud: { id: req.params.id, estado: 'ATENDIDA', cita: citaId },
       mensaje: 'Cita creada en estado PENDIENTE. La solicitud fue atendida.' })

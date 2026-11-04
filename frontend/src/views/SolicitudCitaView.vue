@@ -1,10 +1,12 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { avisoEspera, diasHasta, fechaMaximaGuatemala, hoyGuatemala } from '../utils/fechasCita.js'
 import { mostrarError } from '../services/avisos.js'
 import { useOpcionesVivas } from '../composables/useOpcionesVivas.js'
+import { correoSolicitudValido, limpiarTelefonoSolicitud, requisitosCorreoSolicitud,
+  requisitosTelefonoSolicitud, telefonoSolicitudValido } from '../utils/validacionSolicitud.js'
 
 const route = useRoute()
 const servicios = ref([])
@@ -14,10 +16,70 @@ const enviando = ref(false)
 const error = ref('')
 const confirmacion = ref(null)
 const avisoOpciones = ref('')
+const enviandoCodigo = ref(false)
+const verificacionId = ref('')
+const correoDelCodigo = ref('')
+const codigoVerificacion = ref('')
+const avisoCodigo = ref('')
+const requisitosCorreo = computed(() => requisitosCorreoSolicitud(formulario.value.correo))
+const requisitosTelefono = computed(() => requisitosTelefonoSolicitud(formulario.value.telefono))
 
 function vacio() {
   return { nombreSolicitante: '', correo: '', telefono: '', servicio: '',
-    fechaPreferida: '', mensajeAdicional: '' }
+    fechaPreferida: '', mensajeAdicional: '', recibirPublicaciones: false }
+}
+
+watch(() => formulario.value.correo, (correo) => {
+  if (correo.trim().toLowerCase() === correoDelCodigo.value) return
+  verificacionId.value = ''
+  codigoVerificacion.value = ''
+  avisoCodigo.value = ''
+})
+
+function capturarTelefono(evento) {
+  const limpio = limpiarTelefonoSolicitud(evento.target.value)
+  evento.target.value = limpio
+  formulario.value.telefono = limpio
+}
+
+function capturarCodigo(evento) {
+  const limpio = evento.target.value.replace(/\D/g, '').slice(0, 6)
+  evento.target.value = limpio
+  codigoVerificacion.value = limpio
+}
+
+async function enviarCodigo() {
+  error.value = ''
+  if (!correoSolicitudValido(formulario.value.correo)) {
+    error.value = 'Completa el correo con la estructura nombre@dominio.com antes de pedir el código.'
+    mostrarError(error.value, 'correo')
+    return
+  }
+  const correo = formulario.value.correo.trim().toLowerCase()
+  enviandoCodigo.value = true
+  avisoCodigo.value = ''
+  try {
+    const respuesta = await solicitarApi('/api/solicitudes-cita/enviar-codigo', {
+      method: 'POST', body: { correo },
+    })
+    if (formulario.value.correo.trim().toLowerCase() !== correo) {
+      avisoCodigo.value = 'El correo cambió mientras se enviaba el código. Solicita uno nuevo.'
+      return
+    }
+    verificacionId.value = respuesta.verificacionId
+    correoDelCodigo.value = correo
+    codigoVerificacion.value = ''
+    avisoCodigo.value = respuesta.mensaje
+  } catch (fallo) {
+    error.value = fallo.message || 'No se pudo enviar el código.'
+  } finally {
+    enviandoCodigo.value = false
+  }
+}
+
+function otraSolicitud() {
+  confirmacion.value = null
+  error.value = ''
 }
 
 async function cargar(inicial = false) {
@@ -42,23 +104,47 @@ async function enviar() {
   error.value = ''
   confirmacion.value = null
   const datos = Object.fromEntries(Object.entries(formulario.value).map(([clave, valor]) =>
-    [clave, valor.trim()]))
-  if (!datos.nombreSolicitante || datos.nombreSolicitante.length > 120 ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(datos.correo) || datos.correo.length > 254 ||
-      !/^[+\d][\d\s()+.-]{6,29}$/.test(datos.telefono) ||
-      !servicios.value.some((s) => s.id === datos.servicio) ||
+    [clave, typeof valor === 'string' ? valor.trim() : valor]))
+  if (!datos.nombreSolicitante || datos.nombreSolicitante.length > 120) {
+    error.value = 'Escribe el nombre del solicitante (máximo 120 caracteres).'
+    mostrarError(error.value, 'nombreSolicitante')
+    return
+  }
+  if (!correoSolicitudValido(datos.correo)) {
+    error.value = 'El correo debe tener la estructura nombre@dominio.com. Revisa los requisitos debajo del campo.'
+    mostrarError(error.value, 'correo')
+    return
+  }
+  if (!telefonoSolicitudValido(datos.telefono)) {
+    error.value = 'El teléfono debe tener exactamente 8 dígitos y no comenzar con 0.'
+    mostrarError(error.value, 'telefono')
+    return
+  }
+  if (!verificacionId.value || correoDelCodigo.value !== datos.correo.toLowerCase() ||
+      !/^\d{6}$/.test(codigoVerificacion.value)) {
+    error.value = 'Solicita e ingresa el código de seis dígitos enviado a este correo.'
+    mostrarError(error.value, 'codigoVerificacion')
+    return
+  }
+  if (!servicios.value.some((s) => s.id === datos.servicio) ||
       !/^\d{4}-\d{2}-\d{2}$/.test(datos.fechaPreferida) ||
       diasHasta(datos.fechaPreferida) === null || diasHasta(datos.fechaPreferida) < 0 ||
       diasHasta(datos.fechaPreferida) > 365 || datos.mensajeAdicional.length > 2000) {
-    error.value = 'Revisa el contacto, el servicio activo y la fecha preferida entre hoy y los próximos 365 días.'
+    error.value = 'Revisa el servicio activo y la fecha preferida entre hoy y los próximos 365 días.'
     mostrarError(error.value, 'fechaPreferida')
     return
   }
   enviando.value = true
   try {
-    const respuesta = await solicitarApi('/api/solicitudes-cita', { method: 'POST', body: datos })
+    const respuesta = await solicitarApi('/api/solicitudes-cita', { method: 'POST',
+      body: { ...datos, verificacionId: verificacionId.value,
+        codigoVerificacion: codigoVerificacion.value } })
     confirmacion.value = respuesta
     formulario.value = vacio()
+    verificacionId.value = ''
+    correoDelCodigo.value = ''
+    codigoVerificacion.value = ''
+    avisoCodigo.value = ''
   } catch (fallo) {
     error.value = fallo.message
   } finally {
@@ -81,15 +167,46 @@ useOpcionesVivas(() => cargar(false), ['servicios'])
     <section v-if="confirmacion" class="tarjeta" role="status">
       <h2>Solicitud recibida</h2>
       <p>{{ confirmacion.mensaje }}</p>
-      <p>Identificador para consulta con el centro: {{ confirmacion.solicitud.id }}</p>
+      <p>Identificador para consulta con el centro: {{ confirmacion.solicitud.codigo || 'Pendiente de actualización' }}</p>
       <p>Estado: {{ confirmacion.solicitud.estado }}</p>
+      <button type="button" class="secundario" @click="otraSolicitud">Crear otra solicitud</button>
     </section>
-    <section v-if="!cargando" class="tarjeta">
+    <section v-if="!cargando && !confirmacion" class="tarjeta">
       <p v-if="!servicios.length">No hay servicios activos disponibles para solicitar.</p>
-      <form v-else @submit.prevent="enviar">
-        <label>Nombre del solicitante <span class="requisito-campo">Obligatorio</span><input v-model="formulario.nombreSolicitante" required maxlength="120" autocomplete="name" /></label>
-        <label>Correo electrónico <span class="requisito-campo">Obligatorio</span><input v-model="formulario.correo" type="email" required maxlength="254" autocomplete="email" /></label>
-        <label>Teléfono <span class="requisito-campo">Obligatorio</span><input v-model="formulario.telefono" type="tel" required maxlength="30" pattern="[+0-9][0-9 ()+.-]{6,29}" autocomplete="tel" /></label>
+      <form v-else novalidate @submit.prevent="enviar">
+        <label>Nombre del solicitante <span class="requisito-campo">Obligatorio</span><input v-model="formulario.nombreSolicitante" data-campo="nombreSolicitante" required maxlength="120" autocomplete="name" /></label>
+        <label>Correo electrónico <span class="requisito-campo">Obligatorio</span>
+          <input v-model="formulario.correo" data-campo="correo" type="email" required maxlength="254"
+            autocomplete="email" placeholder="nombre@dominio.com" aria-describedby="requisitos-correo-solicitud" />
+        </label>
+        <ul id="requisitos-correo-solicitud" class="lista-requisitos-contacto" aria-label="Estructura esperada del correo" aria-live="polite">
+          <li v-for="requisito in requisitosCorreo" :key="requisito.texto" :class="{ cumplido: requisito.cumplido }">
+            <span aria-hidden="true">{{ requisito.cumplido ? '✓' : '○' }}</span>
+            <span class="solo-lectores">{{ requisito.cumplido ? 'Cumplido: ' : 'Falta: ' }}</span>{{ requisito.texto }}
+          </li>
+        </ul>
+        <p>Antes de registrar la solicitud, enviaremos un código a este correo para comprobar que puedes recibir mensajes.</p>
+        <button type="button" class="secundario" :disabled="enviandoCodigo || enviando" @click="enviarCodigo">
+          {{ enviandoCodigo ? 'Enviando código…' : 'Enviar código al correo' }}
+        </button>
+        <p v-if="avisoCodigo" class="mensaje-exito" role="status">{{ avisoCodigo }}</p>
+        <label v-if="verificacionId">Código recibido <span class="requisito-campo">Obligatorio</span>
+          <input :value="codigoVerificacion" data-campo="codigoVerificacion" type="text" inputmode="numeric"
+            autocomplete="one-time-code" required minlength="6" maxlength="6" pattern="[0-9]{6}"
+            placeholder="6 dígitos" @input="capturarCodigo" />
+          <small>El código vence en 10 minutos y se puede usar una sola vez.</small>
+        </label>
+        <label>Teléfono <span class="requisito-campo">Obligatorio</span>
+          <input :value="formulario.telefono" data-campo="telefono" type="tel" inputmode="numeric"
+            autocomplete="tel-national" required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}"
+            placeholder="Ej. 79223344" aria-describedby="requisitos-telefono-solicitud" @input="capturarTelefono" />
+        </label>
+        <ul id="requisitos-telefono-solicitud" class="lista-requisitos-contacto" aria-label="Requisitos del teléfono" aria-live="polite">
+          <li v-for="requisito in requisitosTelefono" :key="requisito.texto" :class="{ cumplido: requisito.cumplido }">
+            <span aria-hidden="true">{{ requisito.cumplido ? '✓' : '○' }}</span>
+            <span class="solo-lectores">{{ requisito.cumplido ? 'Cumplido: ' : 'Falta: ' }}</span>{{ requisito.texto }}
+          </li>
+        </ul>
         <label>Servicio solicitado <span class="requisito-campo">Obligatorio</span><select v-model="formulario.servicio" data-campo="servicio" required>
           <option disabled value="">Selecciona un servicio activo</option>
           <option v-for="servicio in servicios" :key="servicio.id" :value="servicio.id">{{ servicio.nombre }}</option>
@@ -99,6 +216,8 @@ useOpcionesVivas(() => cargar(false), ['servicios'])
             :min="hoyGuatemala()" :max="fechaMaximaGuatemala()" required />
           <small v-if="formulario.fechaPreferida" role="status">{{ avisoEspera(formulario.fechaPreferida) }}</small></label>
         <label>Mensaje adicional <span class="requisito-campo">Opcional</span><textarea v-model="formulario.mensajeAdicional" maxlength="2000" /></label>
+        <label><input v-model="formulario.recibirPublicaciones" type="checkbox" /> Deseo recibir publicaciones del portal cuando mi correo esté vinculado y verificado como paciente o responsable (opcional).</label>
+        <small>El personal confirmará esta preferencia al registrar el contacto. Los avisos de la solicitud se enviarán al correo verificado de este formulario.</small>
         <button type="submit" :disabled="enviando">{{ enviando ? 'Enviando…' : 'Enviar solicitud' }}</button>
       </form>
     </section>

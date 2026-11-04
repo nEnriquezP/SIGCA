@@ -11,6 +11,7 @@ import { siguienteCodigoResponsable } from '../src/services/codigosResponsable.j
 import { siguienteCodigoServicio } from '../src/services/codigosServicio.js'
 import { siguienteCodigoMaterial } from '../src/services/codigosMaterial.js'
 import { siguienteCodigoCaja } from '../src/services/codigosCaja.js'
+import { crearSolicitudConCodigo } from '../src/services/codigosSolicitud.js'
 import { siguienteComprobantePago } from '../src/services/comprobantesPago.js'
 import Usuario from '../src/models/Usuario.js'
 import Paciente from '../src/models/Paciente.js'
@@ -162,12 +163,12 @@ export async function cargarDatosFicticios(nombreEsperado, { aplicar = false,
       for (let i = 0; i < 5; i += 1) {
         await crearUno(AsignacionMaterial, { material: materiales[i]._id,
           paciente: pacientes[i]._id, asignadoPor: citas[i].profesional }, session)
-        await crearUno(SolicitudCita, {
+        await crearSolicitudConCodigo({
           nombreSolicitante: `${nombres[i]} Demostracion`,
           correo: `sigca.solicitud.${i + 1}@example.test`, telefono: `55553${String(i).padStart(3, '0')}`,
           servicio: servicios[i]._id, fechaPreferida: fechas[3 + (i % 2)],
           mensajeAdicional: 'Solicitud ficticia de demostración.',
-        }, session)
+        }, undefined, session)
       }
 
       const cajas = []

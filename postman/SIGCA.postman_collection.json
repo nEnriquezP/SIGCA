@@ -86,6 +86,21 @@
       "type": "string"
     },
     {
+      "key": "verificacionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "codigoVerificacion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "correoSolicitante",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "fechaFutura",
       "value": "2026-12-01",
       "type": "string"
@@ -246,7 +261,44 @@
           "response": []
         },
         {
-          "name": "Solicitar cita",
+          "name": "Enviar código al correo para solicitar cita",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/solicitudes-cita/enviar-codigo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "solicitudes-cita",
+                "enviar-codigo"
+              ]
+            },
+            "description": "Use un correo propio de prueba en correoSolicitante. Requiere un proveedor de correo configurado. Copie verificacionId de la respuesta al entorno privado; el código de seis dígitos llega solo al buzón. No exporte ese valor.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correoSolicitante}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Solicitar cita con correo verificado",
           "request": {
             "method": "POST",
             "header": [
@@ -265,13 +317,13 @@
                 "solicitudes-cita"
               ]
             },
-            "description": "",
+            "description": "Primero envíe el código. Complete verificacionId y codigoVerificacion solo en un entorno privado. La solicitud no se registra si el código es inválido o venció.",
             "auth": {
               "type": "noauth"
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombreSolicitante\": \"Persona Ficticia\",\n  \"correo\": \"solicitud@example.test\",\n  \"telefono\": \"55550000\",\n  \"servicio\": \"{{servicioId}}\",\n  \"fechaPreferida\": \"{{fechaFutura}}\",\n  \"mensajeAdicional\": \"Solicitud de prueba\"\n}",
+              "raw": "{\n  \"nombreSolicitante\": \"Persona Ficticia\",\n  \"correo\": \"{{correoSolicitante}}\",\n  \"telefono\": \"55550000\",\n  \"servicio\": \"{{servicioId}}\",\n  \"fechaPreferida\": \"{{fechaFutura}}\",\n  \"mensajeAdicional\": \"Solicitud de prueba\",\n  \"recibirPublicaciones\": false,\n  \"verificacionId\": \"{{verificacionId}}\",\n  \"codigoVerificacion\": \"{{codigoVerificacion}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

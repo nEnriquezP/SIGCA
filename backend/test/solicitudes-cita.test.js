@@ -9,18 +9,24 @@ import Servicio from '../src/models/Servicio.js'
 import Horario from '../src/models/Horario.js'
 import SolicitudCita from '../src/models/SolicitudCita.js'
 import Cita from '../src/models/Cita.js'
+import CodigoCorreoSolicitud from '../src/models/CodigoCorreoSolicitud.js'
 import { ahoraGuatemala, fechaMaximaGuatemala } from '../src/services/prepararCita.js'
 
 process.env.JWT_SECRET = randomBytes(32).toString('hex')
 const { default: app } = await import('../src/app.js')
 const { crearToken } = await import('../src/middleware/autenticacion.js')
+const { validarSolicitud } = await import('../src/routes/solicitudesCita.js')
+const { codigoSolicitud } = await import('../src/services/codigosSolicitud.js')
+const { hashCodigoSolicitudCorreo } = await import('../src/services/verificacionSolicitud.js')
 
 const ids = { admin: 'aaaaaaaaaaaaaaaaaaaaaaaa', recepcion: 'bbbbbbbbbbbbbbbbbbbbbbbb',
   profesional: 'cccccccccccccccccccccccc', paciente: 'dddddddddddddddddddddddd',
-  servicio: 'eeeeeeeeeeeeeeeeeeeeeeee', responsable: 'ffffffffffffffffffffffff' }
+  servicio: 'eeeeeeeeeeeeeeeeeeeeeeee', responsable: 'ffffffffffffffffffffffff',
+  desafio: '999999999999999999999999' }
 const cuentas = new Map()
 const solicitudes = new Map()
 const citas = new Map()
+const desafios = new Map()
 const servicio = { id: ids.servicio, estado: 'ACTIVO', duracionMinutos: 60,
   precioCentavos: 25000 }
 const paciente = { id: ids.paciente, codigo: 'PAC-000001', estado: 'ACTIVO', fechaNacimiento: '2000-01-01',
@@ -42,10 +48,13 @@ function token(id, rol) {
   return crearToken(usuario)
 }
 
-function nuevaSolicitud() {
-  const id = (100 + ++contador).toString(16).padStart(24, '0')
-  const item = { id, _id: id, nombreSolicitante: 'Persona ficticia',
-    correo: 'persona@example.test', telefono: '+502 1234 5678', servicio: ids.servicio,
+function nuevaSolicitud(datos = {}) {
+  const id = datos._id ? String(datos._id) : (100 + ++contador).toString(16).padStart(24, '0')
+  const item = { id, _id: id, codigo: datos.codigo ?? codigoSolicitud(id),
+    nombreSolicitante: 'Persona ficticia',
+    correo: 'persona@example.test', telefono: '79223344', servicio: ids.servicio,
+    correoVerificado: datos.correoVerificado ?? false,
+    recibirPublicaciones: datos.recibirPublicaciones ?? false,
     fechaPreferida: fechaFutura, mensajeAdicional: '', estado: 'PENDIENTE',
     cita: null, createdAt: new Date() }
   solicitudes.set(id, item)
@@ -80,7 +89,13 @@ before(async () => {
   ] } : null
   Responsable.findOne = async ({ _id }) => paciente.responsables.some((id) =>
     _id.$in.includes(id) && id === ids.responsable) ? { id: ids.responsable } : null
-  SolicitudCita.create = async () => nuevaSolicitud()
+  SolicitudCita.init = async () => SolicitudCita
+  SolicitudCita.exists = async ({ codigo }) =>
+    [...solicitudes.values()].some((item) => item.codigo === codigo)
+  SolicitudCita.findOne = async ({ codigo }) =>
+    [...solicitudes.values()].find((item) => item.codigo === codigo) ?? null
+  SolicitudCita.create = async (datos) => Array.isArray(datos) ?
+    [nuevaSolicitud(datos[0])] : nuevaSolicitud(datos)
   SolicitudCita.find = (filtro) => lista(solicitudes, filtro)
   SolicitudCita.findById = async (id) => solicitudes.get(String(id)) ?? null
   SolicitudCita.findOneAndUpdate = async (filtro, cambio) => {
@@ -93,6 +108,21 @@ before(async () => {
     const item = solicitudes.get(String(filtro._id))
     if (!item || item.estado !== filtro.estado) return { matchedCount: 0 }
     Object.assign(item, cambio.$set)
+    return { matchedCount: 1 }
+  }
+  CodigoCorreoSolicitud.findOneAndUpdate = async (filtro) => {
+    const item = desafios.get(String(filtro._id))
+    if (!item || item.correo !== filtro.correo || item.usado || item.vence <= new Date() ||
+        item.intentos >= 5) return null
+    item.intentos += 1
+    return item
+  }
+  CodigoCorreoSolicitud.updateOne = async (filtro) => {
+    const item = desafios.get(String(filtro._id))
+    if (!item || item.correo !== filtro.correo || item.usado || item.vence <= new Date()) {
+      return { matchedCount: 0 }
+    }
+    item.usado = true
     return { matchedCount: 1 }
   }
   Cita.init = async () => Cita
@@ -115,9 +145,12 @@ before(async () => {
       const antesSolicitudes = new Map([...solicitudes].map(([id, item]) =>
         [id, structuredClone(item)]))
       const antesCitas = new Map([...citas].map(([id, item]) => [id, structuredClone(item)]))
+      const antesDesafios = new Map([...desafios].map(([id, item]) =>
+        [id, structuredClone(item)]))
       try { return await trabajo() } catch (error) {
         solicitudes.clear(); for (const [id, item] of antesSolicitudes) solicitudes.set(id, item)
         citas.clear(); for (const [id, item] of antesCitas) citas.set(id, item)
+        desafios.clear(); for (const [id, item] of antesDesafios) desafios.set(id, item)
         throw error
       }
     },
@@ -129,6 +162,9 @@ before(async () => {
     servidor.once('error', rechazar)
   })
   base = `http://127.0.0.1:${servidor.address().port}`
+  desafios.set(ids.desafio, { id: ids.desafio, correo: 'persona@example.test',
+    hash: hashCodigoSolicitudCorreo(ids.desafio, 'persona@example.test', '123456'),
+    vence: new Date(Date.now() + 600000), intentos: 0, usado: false })
 })
 
 after(() => servidor?.close())
@@ -144,8 +180,9 @@ async function pedir(ruta, { metodo = 'GET', token: credencial, datos } = {}) {
 }
 
 const envio = { nombreSolicitante: 'Persona ficticia', correo: 'persona@example.test',
-  telefono: '+502 1234 5678', servicio: ids.servicio,
-  fechaPreferida: fechaFutura, mensajeAdicional: '' }
+  telefono: '79223344', servicio: ids.servicio,
+  fechaPreferida: fechaFutura, mensajeAdicional: '',
+  verificacionId: ids.desafio, codigoVerificacion: '123456', recibirPublicaciones: false }
 const conversion = { paciente: ids.paciente, profesional: ids.profesional,
   fecha: fechaFutura, horaInicio: '10:00' }
 
@@ -153,6 +190,16 @@ test('solicitud pública valida servicio y contacto sin crear ni reservar cita',
   token(ids.profesional, 'PROFESIONAL')
   assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST',
     datos: { ...envio, correo: 'invalido' } })).status, 400)
+  for (const correo of ['persona@dominio', 'persona@-dominio.com',
+    'persona..dos@dominio.com']) {
+    assert.ok(validarSolicitud({ ...envio, correo }), correo)
+  }
+  for (const telefono of ['09223344', '7922334', '792233449', '+50279223344',
+    '7922-3344', '7922abcd']) {
+    assert.ok(validarSolicitud({ ...envio, telefono }), telefono)
+  }
+  assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST',
+    datos: { ...envio, telefono: '09223344' } })).status, 400)
   assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST',
     datos: { ...envio, fechaPreferida: '2020-01-01' } })).status, 400)
   const dia366 = new Date(`${fechaMaximaGuatemala()}T12:00:00Z`)
@@ -162,9 +209,17 @@ test('solicitud pública valida servicio y contacto sin crear ni reservar cita',
   servicio.estado = 'INACTIVO'
   assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST', datos: envio })).status, 409)
   servicio.estado = 'ACTIVO'
+  assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST',
+    datos: { ...envio, codigoVerificacion: '000000' } })).status, 400)
+  assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST',
+    datos: { ...envio, verificacionId: '' } })).status, 400)
   const creado = await pedir('/api/solicitudes-cita', { metodo: 'POST', datos: envio })
   assert.equal(creado.status, 201)
   assert.equal(creado.body.solicitud.estado, 'PENDIENTE')
+  assert.match(creado.body.solicitud.codigo, /^CONS-CITA-[0-9A-F]{5}$/)
+  assert.equal(desafios.get(ids.desafio).usado, true)
+  assert.equal(solicitudes.get(creado.body.solicitud.id).correoVerificado, true)
+  assert.equal((await pedir('/api/solicitudes-cita', { metodo: 'POST', datos: envio })).status, 400)
   assert.equal('correo' in creado.body, false)
   assert.equal(citas.size, 0)
   assert.equal(solicitudes.get(creado.body.solicitud.id).cita, null)

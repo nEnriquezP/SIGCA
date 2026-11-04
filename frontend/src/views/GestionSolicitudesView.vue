@@ -181,7 +181,7 @@ useOpcionesVivas(cargar, ['servicios'])
     <section class="tarjeta">
       <h2>Buscar solicitudes</h2>
       <form class="formulario-grid" @submit.prevent="buscarListado">
-        <label>Nombre, correo o identificador <span class="requisito-campo">Opcional</span><input v-model="filtro.buscar" maxlength="80" /></label>
+        <label>Nombre, correo o código de solicitud <span class="requisito-campo">Opcional</span><input v-model="filtro.buscar" maxlength="80" /></label>
         <label>Estado <span class="requisito-campo">Opcional</span><select v-model="filtro.estado"><option value="">Todos</option>
           <option value="PENDIENTE">Pendiente</option><option value="ATENDIDA">Atendida</option>
           <option value="RECHAZADA">Rechazada</option></select></label>
@@ -207,9 +207,10 @@ useOpcionesVivas(cargar, ['servicios'])
     <p v-if="cargandoDetalle" role="status">Cargando detalle…</p>
     <section v-if="detalle && !cargandoDetalle" class="tarjeta">
       <h2>Detalle de la solicitud</h2>
-      <p>Identificador: {{ detalle.id }} · Estado: {{ detalle.estado }}</p>
+      <p>Código de solicitud: {{ detalle.codigo || 'Pendiente de actualización' }} · Estado: {{ detalle.estado }}</p>
       <p>Solicitante: {{ detalle.nombreSolicitante }}</p>
-      <p>Correo: {{ detalle.correo }} · Teléfono: {{ detalle.telefono }}</p>
+      <p>Correo: {{ detalle.correo }} ({{ detalle.correoVerificado ? 'verificado' : 'sin verificar' }}) · Teléfono: {{ detalle.telefono }}</p>
+      <p>Publicaciones del portal: {{ detalle.recibirPublicaciones ? 'El solicitante expresó interés; confirmar al registrar su contacto' : 'No solicitadas' }}</p>
       <p>Servicio: {{ nombreServicio(detalle.servicio) }}</p>
       <p>Fecha preferida: {{ detalle.fechaPreferida }}. Esta fecha no es una cita confirmada.</p>
       <p class="texto-preservado">Mensaje: {{ detalle.mensajeAdicional || 'Sin mensaje adicional' }}</p>
@@ -218,6 +219,8 @@ useOpcionesVivas(cargar, ['servicios'])
           :to="{ name: 'citas', query: { id: detalle.cita } }">Ver detalle de la cita</RouterLink>
         <span v-else> Registrada</span></p>
       <template v-if="detalle.estado === 'PENDIENTE' && sesion.tienePermiso('SOLICITUDES_GESTIONAR')">
+        <p>Para tramitarla, contacta al solicitante y confirma quién recibirá la atención. Si todavía no existe un paciente, regístralo con su fecha de nacimiento. Si es menor de edad, asocia primero un responsable. Luego selecciona paciente, profesional, fecha y hora para crear la cita pendiente; confírmala desde el módulo Citas.</p>
+        <p v-if="sesion.tienePermiso('PACIENTES_GESTIONAR')"><RouterLink :to="{ name: 'pacientes' }">Ir a Pacientes para registrar o revisar datos</RouterLink></p>
         <button type="button" class="secundario" :disabled="operando" @click="rechazar">Rechazar solicitud</button>
         <h3>Convertir en cita</h3>
         <p>Selecciona un paciente ya registrado y un profesional activo. La fecha y hora efectiva pueden diferir de la fecha preferida.</p>

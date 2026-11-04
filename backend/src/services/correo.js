@@ -6,6 +6,7 @@ import Responsable from '../models/Responsable.js'
 import Usuario from '../models/Usuario.js'
 import Cita from '../models/Cita.js'
 import Publicacion from '../models/Publicacion.js'
+import SolicitudCita from '../models/SolicitudCita.js'
 
 const modelos = { PACIENTE: Paciente, RESPONSABLE: Responsable, USUARIO: Usuario }
 const horasToken = { VERIFICAR: 6, RECUPERAR: 1 }
@@ -81,6 +82,36 @@ async function encolar(clave, destinatario, asunto, texto, programado = new Date
   })
 }
 
+export async function avisarSolicitud(solicitud, evento) {
+  if (!correoConfigurado() || !solicitud?.correoVerificado || !solicitud.correo ||
+      !solicitud.codigo) return false
+  const asuntos = { RECIBIDA: 'Recibimos tu solicitud de cita',
+    ATENDIDA: 'Tu solicitud de cita fue atendida',
+    RECHAZADA: 'Actualización de tu solicitud de cita' }
+  if (!asuntos[evento]) return false
+  const textos = {
+    RECIBIDA: 'Recibimos tu solicitud. La fecha indicada es preferida; todavía no hay cita confirmada ni horario reservado.',
+    ATENDIDA: 'El centro atendió tu solicitud y registró una cita pendiente de confirmación. El personal te comunicará los siguientes pasos.',
+    RECHAZADA: 'El centro no pudo tramitar esta solicitud. Comunícate con el personal si necesitas orientación.',
+  }
+  const destinatario = solicitud.correo.toLowerCase()
+  const clave = `solicitud:${solicitud.id}:${evento}:${destinatario}`
+  const asunto = asuntos[evento]
+  const texto = `${textos[evento]}\nCódigo de consulta: ${solicitud.codigo}.`
+  try {
+    await enviarCorreo({ destinatario, asunto, texto, clave })
+    return true
+  } catch (error) {
+    console.error('No se pudo enviar un aviso de solicitud:', error.message)
+    try {
+      await encolar(clave, destinatario, asunto, texto)
+    } catch (fallo) {
+      console.error('No se pudo preparar el reintento de un aviso de solicitud:', fallo.message)
+    }
+    return false
+  }
+}
+
 function fechaHora(cita) {
   const [anio, mes, dia] = cita.fecha.split('-')
   return `${dia}/${mes}/${anio} a las ${cita.horaInicio} (Guatemala)`
@@ -143,6 +174,14 @@ async function destinatarioVigente(correo, cita) {
 }
 
 async function avisoVigente(aviso) {
+  if (aviso.clave.startsWith('solicitud:')) {
+    const [, id, evento] = aviso.clave.split(':')
+    const solicitud = await SolicitudCita.findById(id)
+    return Boolean(solicitud?.correoVerificado &&
+      solicitud.correo?.toLowerCase() === aviso.destinatario &&
+      (evento === 'RECIBIDA' || (evento === 'ATENDIDA' && solicitud.estado === 'ATENDIDA') ||
+        (evento === 'RECHAZADA' && solicitud.estado === 'RECHAZADA')))
+  }
   if (aviso.clave.startsWith('publicacion:')) {
     const [, id] = aviso.clave.split(':')
     if (!await Publicacion.exists({ _id: id, activo: true })) return false

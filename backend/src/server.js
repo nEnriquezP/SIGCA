@@ -4,6 +4,7 @@ import app from './app.js'
 import { conectarBaseDeDatos } from './config/db.js'
 import Paciente from './models/Paciente.js'
 import { asignarCodigosExistentes } from '../scripts/asignarCodigosMaterialesCajas.js'
+import { asignarCodigosSolicitudes } from '../scripts/asignarCodigosSolicitudes.js'
 
 const port = Number(process.env.PORT) || 3000
 
@@ -17,6 +18,9 @@ try {
     for (const resultado of resultados) {
       console.log(`Códigos ${resultado.entidad}: asignados ${resultado.asignados}; faltantes ${resultado.faltantes}`)
     }
+    const solicitudes = await asignarCodigosSolicitudes('sigca_prod', { aplicar: true })
+    if (solicitudes.faltantes !== 0) throw new Error('Quedan solicitudes sin código')
+    console.log(`Códigos solicitudes: asignados ${solicitudes.asignados}; faltantes ${solicitudes.faltantes}`)
   }
   await Paciente.init()
   app.listen(port, '0.0.0.0', () => {

@@ -101,6 +101,7 @@ test('la carga ficticia cumple mínimos, conserva relaciones y nunca acepta prod
   assert.equal(await Paciente.countDocuments({ responsables: { $ne: [] } }), 5)
   assert.equal(await Material.countDocuments({ codigo: /^MAT-/ }), 5)
   assert.equal(await Caja.countDocuments({ codigo: /^CAJ-/ }), 3)
+  assert.equal(await SolicitudCita.countDocuments({ codigo: /^CONS-CITA-/ }), 5)
   const cajasCerradas = await Caja.find({ estado: 'CERRADA' })
   for (const caja of cajasCerradas) {
     const totales = await totalesCaja(caja.id)
