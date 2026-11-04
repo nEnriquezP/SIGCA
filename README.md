@@ -4,7 +4,7 @@ Sistema Integral de Gestión de Citas y Atención. Proyecto individual del curso
 
 ## Estado del proyecto
 
-La Etapa 2 contiene la estructura ejecutable de Vue y Express. El backend de producción ya está activo en Render; los módulos funcionales se implementan por etapas.
+El repositorio contiene los módulos de portal público, usuarios, pacientes, responsables, servicios, solicitudes, citas, materiales, pagos y caja diaria. La publicación de cada cambio se verifica por separado en Render y Vercel; una compilación local o un `200` en salud no demuestran por sí solos que la versión nueva esté activa. La [lista de entrega final](docs/ENTREGA_FINAL.md) separa código, pruebas y evidencias pendientes.
 
 ## Tecnologías
 
@@ -81,7 +81,7 @@ La pantalla `/ingresar` y la administración `/usuarios` están publicadas en Vu
 
 ## Pacientes y responsables — RF-03 y RF-04
 
-El backend incorpora modelos y rutas para registrar, consultar, buscar y modificar responsables y pacientes. `PATCH /api/pacientes/:id/estado` cambia entre `ACTIVO` e `INACTIVO` sin borrar el registro. Los roles `ADMINISTRADOR` y `RECEPCIONISTA` pueden usar estas rutas; el backend comprueba la sesión y el rol. Los profesionales todavía no reciben acceso a estos datos, porque la regla de pacientes asignados depende del módulo de citas.
+El backend incorpora modelos y rutas para registrar, consultar, buscar y modificar responsables y pacientes. `PATCH /api/pacientes/:id/estado` cambia entre `ACTIVO` e `INACTIVO` sin borrar el registro. Los roles `ADMINISTRADOR` y `RECEPCIONISTA` pueden usar estas rutas; el backend comprueba la sesión y el rol. Los profesionales consultan únicamente información autorizada por su vínculo con citas y asignaciones de materiales.
 
 | Recurso | Operaciones |
 | --- | --- |
@@ -115,7 +115,7 @@ Los recursos públicos (servicio, logotipo, carrusel, publicación y actividad) 
 
 Reemplazar o quitar una imagen en un formulario solo cambia el valor que se guardará; no borra el recurso anterior de Cloudinary. Las cargas aún no asociadas quedan registradas y **no se eliminan automáticamente**, para evitar borrar un archivo usado por otro registro o por un formulario abierto sin guardar. Su limpieza queda para una revisión manual posterior de referencias y antigüedad, con aprobación antes de borrar. Esto puede consumir almacenamiento mientras no se haga esa revisión.
 
-**Integración pendiente de fases posteriores:** al construir citas, guardar `Cita.paciente` y `Cita.profesional` como referencias. Antes de programar, consultar el paciente activo y calcular si tendrá menos de 18 años en la fecha de la cita; en ese caso exigir al menos una referencia válida en `Paciente.responsables`. Para el profesional, filtrar citas por su propio identificador y permitir consultar solo información básica de pacientes asociados a esas citas; no exponer observaciones administrativas generales. Al construir materiales, autorizar la consulta y asignación del profesional según sus pacientes asignados y comprobar que el paciente esté activo. Al construir pagos, vincular cada pago a su cita y paciente, y consultar citas y pagos del paciente mediante rutas protegidas con filtros por ese identificador. La interfaz de detalle del paciente indica que estas consultas aún no están disponibles; no devuelve datos simulados.
+**Integración actual:** Cita conserva referencias a paciente y profesional y valida entidad activa, responsables para menores y ausencia de traslape. Las consultas del profesional se limitan a sus citas y pacientes vinculados. Materiales comprueba paciente activo y vínculo profesional; pagos se relacionan con cita, paciente y caja mediante rutas protegidas. Los identificadores legibles `PAC`, `RESPO`, `SERV-INT`, `MAT` y `CAJ` no sustituyen las referencias ObjectId internas.
 
 ## Verificación local de los puntos 2 y 3
 
@@ -148,7 +148,7 @@ Los horarios se guardan en MongoDB por día de la semana, con estado abierto o c
 
 Las pantallas son `/horarios` para visitantes y `/gestion-horarios` para administración y recepción; solo el administrador ve el formulario de cambios.
 
-**Integración pendiente:** al construir las citas, el backend deberá comprobar que el servicio siga `ACTIVO`, copiar `precioCentavos` y `duracionMinutos` a cada cita para conservar sus valores históricos y validar `fecha`, `horaInicio` y `horaFin` contra los intervalos del día en `America/Guatemala`. Esta fase no crea citas ni reservas.
+**Integración con citas:** el backend comprueba que el servicio siga `ACTIVO`, copia `precioCentavos` y `duracionMinutos` a la cita y valida `fecha`, `horaInicio` y `horaFin` contra los intervalos del día en `America/Guatemala`.
 
 Desde `backend/`, `npm test` comprueba reglas y permisos mediante HTTP con modelos simulados. `npm run test:atlas:modulo4` está preparado para `sigca_test`: cambia únicamente el nombre de base en la URI local, crea datos ficticios, elige un día todavía libre y limpia solo los identificadores creados. Este segundo comando escribe y elimina datos de prueba; ejecútalo únicamente cuando esté permitido el acceso a Atlas. Desde `frontend/`, `npm run build` comprueba la compilación. El estudiante indicó que la fase 4 fue probada y revisada en producción.
 
@@ -195,7 +195,7 @@ Antes de crear, `prepararCita` valida fecha y hora futuras en `America/Guatemala
 
 La conversión usa una transacción de MongoDB y un índice único en `Cita.solicitudCita`: si falla la creación o dos intentos procesan la misma solicitud, no debe quedar una solicitud atendida sin cita ni dos citas del mismo origen. Atlas proporciona las transacciones de un conjunto de réplicas. Además de consultar citas traslapadas antes de crear, la cita guarda internamente los minutos ocupados y un índice único condicionado a los estados `PENDIENTE` y `CONFIRMADA` impide que dos citas de un mismo profesional y fecha ocupen el mismo minuto, incluso en intentos simultáneos. Las citas `CANCELADA` y `COMPLETADA` no bloquean ese índice. No se introducen locks, colas ni servicios adicionales.
 
-**Pendiente para fase 7:** programación general, confirmación, reprogramación, cancelación, finalización, historial, filtros de citas y calendario mensual. Esta fase tampoco incorpora pagos ni caja. El modelo deja opcional `solicitudCita` para que una futura cita creada directamente no dependa de una solicitud pública.
+La programación general, confirmación, reprogramación, cancelación, finalización, historial y calendario se incorporaron en la fase 7. El modelo mantiene opcional `solicitudCita` para permitir citas creadas directamente.
 
 **Verificación local:** `npm test` en `backend/` usa modelos simulados y prueba permisos, validación, rechazo, conversión, duplicados, reglas de agenda y reversión ante un fallo simulado. `npm run build` en `frontend/` compila la interfaz. Se ejecutó además una integración HTTP en una instancia temporal de MongoDB 8 local con réplica de un nodo: se crearon allí administrador, profesional, paciente, servicio, horario, solicitudes y citas ficticias; se verificaron envío sin reserva, cita real persistida, valores históricos, rechazo de conversión duplicada, reversión de una conversión fallida e índice único de traslape. Al terminar se eliminó esa base temporal, se detuvo la instancia y se borró su carpeta. Ninguna de estas pruebas escribió en Atlas. No se ejecutó una integración con `sigca_test` ni se publicaron cambios en producción; queda pendiente la revisión del flujo en el entorno de despliegue autorizado.
 
@@ -217,7 +217,7 @@ Administrador y recepcionista pueden programar, consultar, confirmar, reprograma
 
 La programación y reprogramación reutilizan las comprobaciones de paciente, servicio y profesional activos, responsable para menores, horario de atención, fecha y hora futuras, finalización el mismo día y ausencia de traslapes. El índice único de minutos ocupados protege frente a solicitudes simultáneas; si se produce un conflicto, la API responde 409. Al crear se copian duración y precio del servicio, y al reprogramar se conservan los valores de la cita aunque el servicio haya cambiado.
 
-**Pendiente de la fase de pagos:** antes de permitir `CANCELADA`, se deberá consultar si la cita tiene pagos válidos y rechazar la cancelación cuando existan. El punto de integración está identificado junto al cambio de estado; esta fase no implementa ni verifica pagos o caja. No ejecutar pruebas con datos reales de Atlas. `npm test` en `backend/` incluye una instancia temporal local de MongoDB para la fase 7; `npm run build` en `frontend/` comprueba la compilación.
+**Integración financiera actual:** la cancelación de una cita con pagos válidos se rechaza según RN-27. Pagos y caja conservan historial y excluyen pagos anulados de saldos e ingresos. `npm test` en `backend/` usa MongoDB temporal local para estas reglas; nunca debe apuntarse a una base real de Atlas durante esas pruebas.
 
 ## Mejoras de búsqueda, agenda y detalle de citas
 
@@ -244,3 +244,30 @@ El **correo del paciente es opcional**: un menor o una persona sin correo propio
 El formulario de imagen indica formatos JPG/JPEG, PNG y WebP y límite de 5 MB por archivo; el backend conserva la validación del tipo real y del tamaño. El login permite 10 intentos fallidos por combinación de dirección IP y correo durante 15 minutos, de modo que distintas cuentas en una red compartida no consumen el mismo cupo. Los mensajes de límite indican la espera restante calculada al momento del bloqueo.
 
 **Antes de publicar:** configurar el remitente y las variables en Render y GitHub, comprobar que el servicio de correo funciona con una dirección ficticia propia, y confirmar que los despliegues de backend y frontend corresponden al mismo commit. Sin esas variables, el sistema conserva los registros de pacientes y responsables, pero informa que el enlace no se pudo enviar; la creación de nuevos usuarios se detiene para evitar cuentas inaccesibles. La publicación de código o un `HTTP 200` en `/api/health` no comprueba el envío de correo. No introducir direcciones o fotografías de personas reales en pruebas.
+
+## Datos ficticios y colección Postman para la entrega final
+
+`postman/SIGCA.postman_collection.json` reúne solicitudes de los módulos principales. Su `baseUrl` inicial es `http://localhost:3000`; `token`, correo, contraseña e identificadores están vacíos. Importar la colección en Postman y completar esas variables en un **entorno privado**, sin exportarlo con valores sensibles. Los cuerpos de ejemplo usan datos ficticios y deben ajustarse a registros de la base de pruebas. No ejecutar las solicitudes de escritura sobre información real de producción.
+
+El script `backend/scripts/cargarDatosFicticios.js` crea el conjunto mínimo académico en `sigca_dev` o `sigca_test`. **Rechaza `sigca_prod`**, comprueba el nombre real de la base conectada y no borra datos. Si ya se ejecutó correctamente, no duplica los registros. La simulación predeterminada no escribe; `--aplicar` crea los datos dentro de una transacción. Si la base contiene materiales, cajas, pacientes, responsables o servicios anteriores sin código, primero se les deben asignar los códigos correspondientes. Las direcciones `example.test`, fotografías de marcador y enlaces a recursos ficticios son solo para demostrar el sistema.
+
+En la Terminal integrada de VS Code, carpeta exacta `backend/`, ejecutar primero la simulación:
+
+```sh
+cd "/Users/nelsonenriquez/Documents/Ingenieria 2026/Ciclo VIII/Desarrollo Web/Proyecto SIGCA/backend"
+npm run datos:demo -- --db=sigca_test
+```
+
+Se espera `estado: "simulación"` y los conteos previstos. Antes de aplicar, confirmar **privadamente** que `MONGO_URI` apunta a esa misma base de pruebas y configurar `SIGCA_DEMO_PASSWORD` sin pegar la contraseña en el comando, en Git, capturas ni documentos. Debe cumplir la política de 8–30 caracteres, mayúscula, minúscula, número y uno de `@ # $ _`. Después, desde la misma carpeta:
+
+```sh
+npm run datos:demo -- --db=sigca_test --aplicar
+```
+
+Se espera `estado: "cargado"` con los conteos creados, o `estado: "ya cargado"` si se repite. Una ejecución de prueba automatizada usa MongoDB temporal local y no accede a Atlas. Para repetir la prueba aislada, desde `backend/`:
+
+```sh
+env -u MONGO_URI DOTENV_CONFIG_PATH=/dev/null node --test test/datos-ficticios.test.js
+```
+
+La [lista de entrega final](docs/ENTREGA_FINAL.md) indica capturas, comprobaciones manuales, ZIP y pendientes académicos. No confundir una carga ficticia de `sigca_test` con resultados verificados en producción.

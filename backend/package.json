@@ -14,6 +14,7 @@
     "codigos:pacientes": "node scripts/asignarCodigosPacientes.js",
     "codigos:responsables": "node scripts/asignarCodigosResponsables.js",
     "codigos:servicios": "node scripts/asignarCodigosServicios.js",
+    "datos:demo": "node scripts/cargarDatosFicticios.js",
     "crear-admin": "node scripts/crearAdministrador.js"
   },
   "engines": {
