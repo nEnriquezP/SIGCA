@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSesionStore } from './stores/sesion.js'
 import { solicitarApi } from './services/api.js'
 import AvatarUsuario from './components/AvatarUsuario.vue'
+import PiePagina from './components/PiePagina.vue'
 import CuadroError from './components/CuadroError.vue'
 import { mostrarError } from './services/avisos.js'
 import { limpiarMarcaSiValido, marcarCampoInvalido } from './utils/estadoFormulario.js'
@@ -217,6 +218,7 @@ async function salir() {
         <RouterView @contenido-actualizado="cargarIdentidad" />
       </div>
     </div>
+    <PiePagina :nombre="nombrePublico" :subtitulo="subtituloPublico" />
   </div>
   <div v-else class="aplicacion-publica">
     <header class="cabecera-publica">
@@ -263,18 +265,7 @@ async function salir() {
       </RouterLink>
     </header>
     <RouterView @contenido-actualizado="cargarIdentidad" />
-    <footer class="pie-pagina">
-      <p>{{ nombreCentro }}</p>
-      <nav aria-label="Navegación del pie de página">
-        <RouterLink to="/">Inicio</RouterLink>
-        <RouterLink to="/servicios">Servicios</RouterLink>
-        <RouterLink to="/solicitar-cita">Solicitar cita</RouterLink>
-        <RouterLink to="/educacion">Educación</RouterLink>
-        <RouterLink to="/corporativo">Corporativo</RouterLink>
-        <RouterLink to="/horarios">Horarios</RouterLink>
-        <RouterLink to="/contacto">Contacto</RouterLink>
-      </nav>
-    </footer>
+    <PiePagina :nombre="nombrePublico" :subtitulo="subtituloPublico" />
   </div>
   <CuadroError />
 </template>

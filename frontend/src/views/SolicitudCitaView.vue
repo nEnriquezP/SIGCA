@@ -157,69 +157,94 @@ useOpcionesVivas(() => cargar(false), ['servicios'])
 </script>
 
 <template>
-  <main class="contenedor estrecho">
-    <h1>Solicitar cita</h1>
-    <p>Indica una <strong>fecha preferida</strong>. Enviar este formulario no confirma una cita ni reserva horario. El centro revisará tu solicitud.</p>
+  <main class="contenedor portal-pagina portal-solicitud">
+    <header class="portal-pagina-encabezado">
+      <span class="portal-etiqueta">Primer paso para acompañarte</span>
+      <h1>Solicita tu cita</h1>
+      <p>Cuéntanos cómo podemos ayudarte. El centro revisará tu solicitud y se comunicará contigo por el correo verificado.</p>
+    </header>
     <p v-if="cargando" role="status">Cargando servicios activos…</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="avisoOpciones" class="mensaje-error" role="status">{{ avisoOpciones }}</p>
     <button v-if="error && !servicios.length" type="button" class="secundario" @click="cargar">Reintentar</button>
-    <section v-if="confirmacion" class="tarjeta" role="status">
+    <section v-if="confirmacion" class="portal-solicitud-confirmacion" role="status">
+      <span class="portal-confirmacion-icono" aria-hidden="true">✓</span>
       <h2>Solicitud recibida</h2>
       <p>{{ confirmacion.mensaje }}</p>
-      <p>Identificador para consulta con el centro: {{ confirmacion.solicitud.codigo || 'Pendiente de actualización' }}</p>
-      <p>Estado: {{ confirmacion.solicitud.estado }}</p>
+      <div class="portal-solicitud-codigo"><small>Identificador para consultar con el centro</small><strong>{{ confirmacion.solicitud.codigo || 'Pendiente de actualización' }}</strong></div>
+      <p>Estado: <strong>{{ confirmacion.solicitud.estado }}</strong></p>
       <button type="button" class="secundario" @click="otraSolicitud">Crear otra solicitud</button>
     </section>
-    <section v-if="!cargando && !confirmacion" class="tarjeta">
-      <p v-if="!servicios.length">No hay servicios activos disponibles para solicitar.</p>
-      <form v-else novalidate @submit.prevent="enviar">
-        <label>Nombre del solicitante <span class="requisito-campo">Obligatorio</span><input v-model="formulario.nombreSolicitante" data-campo="nombreSolicitante" required maxlength="120" autocomplete="name" /></label>
-        <label>Correo electrónico <span class="requisito-campo">Obligatorio</span>
-          <input v-model="formulario.correo" data-campo="correo" type="email" required maxlength="254"
-            autocomplete="email" placeholder="nombre@dominio.com" aria-describedby="requisitos-correo-solicitud" />
-        </label>
-        <ul id="requisitos-correo-solicitud" class="lista-requisitos-contacto" aria-label="Estructura esperada del correo" aria-live="polite">
-          <li v-for="requisito in requisitosCorreo" :key="requisito.texto" :class="{ cumplido: requisito.cumplido }">
-            <span aria-hidden="true">{{ requisito.cumplido ? '✓' : '○' }}</span>
-            <span class="solo-lectores">{{ requisito.cumplido ? 'Cumplido: ' : 'Falta: ' }}</span>{{ requisito.texto }}
-          </li>
-        </ul>
-        <p>Antes de registrar la solicitud, enviaremos un código a este correo para comprobar que puedes recibir mensajes.</p>
-        <button type="button" class="secundario" :disabled="enviandoCodigo || enviando" @click="enviarCodigo">
-          {{ enviandoCodigo ? 'Enviando código…' : 'Enviar código al correo' }}
-        </button>
-        <p v-if="avisoCodigo" class="mensaje-exito" role="status">{{ avisoCodigo }}</p>
-        <label v-if="verificacionId">Código recibido <span class="requisito-campo">Obligatorio</span>
-          <input :value="codigoVerificacion" data-campo="codigoVerificacion" type="text" inputmode="numeric"
-            autocomplete="one-time-code" required minlength="6" maxlength="6" pattern="[0-9]{6}"
-            placeholder="6 dígitos" @input="capturarCodigo" />
-          <small>El código vence en 10 minutos y se puede usar una sola vez.</small>
-        </label>
-        <label>Teléfono <span class="requisito-campo">Obligatorio</span>
-          <input :value="formulario.telefono" data-campo="telefono" type="tel" inputmode="numeric"
-            autocomplete="tel-national" required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}"
-            placeholder="Ej. 79223344" aria-describedby="requisitos-telefono-solicitud" @input="capturarTelefono" />
-        </label>
-        <ul id="requisitos-telefono-solicitud" class="lista-requisitos-contacto" aria-label="Requisitos del teléfono" aria-live="polite">
-          <li v-for="requisito in requisitosTelefono" :key="requisito.texto" :class="{ cumplido: requisito.cumplido }">
-            <span aria-hidden="true">{{ requisito.cumplido ? '✓' : '○' }}</span>
-            <span class="solo-lectores">{{ requisito.cumplido ? 'Cumplido: ' : 'Falta: ' }}</span>{{ requisito.texto }}
-          </li>
-        </ul>
-        <label>Servicio solicitado <span class="requisito-campo">Obligatorio</span><select v-model="formulario.servicio" data-campo="servicio" required>
-          <option disabled value="">Selecciona un servicio activo</option>
-          <option v-for="servicio in servicios" :key="servicio.id" :value="servicio.id">{{ servicio.nombre }}</option>
-        </select></label>
-        <label>Fecha preferida <span class="requisito-campo">Obligatorio</span>
-          <input v-model="formulario.fechaPreferida" data-campo="fechaPreferida" type="date"
-            :min="hoyGuatemala()" :max="fechaMaximaGuatemala()" required />
-          <small v-if="formulario.fechaPreferida" role="status">{{ avisoEspera(formulario.fechaPreferida) }}</small></label>
-        <label>Mensaje adicional <span class="requisito-campo">Opcional</span><textarea v-model="formulario.mensajeAdicional" maxlength="2000" /></label>
-        <label><input v-model="formulario.recibirPublicaciones" type="checkbox" /> Deseo recibir publicaciones del portal cuando mi correo esté vinculado y verificado como paciente o responsable (opcional).</label>
-        <small>El personal confirmará esta preferencia al registrar el contacto. Los avisos de la solicitud se enviarán al correo verificado de este formulario.</small>
-        <button type="submit" :disabled="enviando">{{ enviando ? 'Enviando…' : 'Enviar solicitud' }}</button>
-      </form>
-    </section>
+    <div v-if="!cargando && !confirmacion" class="portal-solicitud-layout">
+      <aside class="portal-solicitud-guia">
+        <span class="portal-etiqueta">Así funciona</span>
+        <h2>Un proceso sencillo y seguro</h2>
+        <ol>
+          <li><span>01</span><div><strong>Comparte tus datos</strong><p>Indica cómo podemos comunicarnos contigo.</p></div></li>
+          <li><span>02</span><div><strong>Verifica tu correo</strong><p>Te enviaremos un código para confirmar que puedes recibir avisos.</p></div></li>
+          <li><span>03</span><div><strong>Elige tu preferencia</strong><p>Selecciona servicio y fecha para que el centro revise tu solicitud.</p></div></li>
+        </ol>
+        <div class="portal-solicitud-aviso"><strong>Ten en cuenta</strong><p>La fecha solicitada es una preferencia. Enviar el formulario no confirma una cita ni reserva un horario.</p></div>
+      </aside>
+      <section class="portal-solicitud-formulario">
+        <p v-if="!servicios.length">No hay servicios activos disponibles para solicitar.</p>
+        <form v-else novalidate @submit.prevent="enviar">
+          <div class="solicitud-grupo">
+            <div class="solicitud-grupo-titulo"><span>01</span><div><h2>Tus datos de contacto</h2><p>Necesitamos saber cómo comunicarnos contigo.</p></div></div>
+            <label>Nombre del solicitante <span class="requisito-campo">Obligatorio</span><input v-model="formulario.nombreSolicitante" data-campo="nombreSolicitante" required maxlength="120" autocomplete="name" placeholder="Escribe tu nombre completo" /></label>
+            <label>Teléfono <span class="requisito-campo">Obligatorio</span>
+              <input :value="formulario.telefono" data-campo="telefono" type="tel" inputmode="numeric"
+                autocomplete="tel-national" required minlength="8" maxlength="8" pattern="[1-9][0-9]{7}"
+                placeholder="Ej. 79223344" aria-describedby="requisitos-telefono-solicitud" @input="capturarTelefono" />
+            </label>
+            <ul id="requisitos-telefono-solicitud" class="lista-requisitos-contacto" aria-label="Requisitos del teléfono" aria-live="polite">
+              <li v-for="requisito in requisitosTelefono" :key="requisito.texto" :class="{ cumplido: requisito.cumplido }">
+                <span aria-hidden="true">{{ requisito.cumplido ? '✓' : '○' }}</span>
+                <span class="solo-lectores">{{ requisito.cumplido ? 'Cumplido: ' : 'Falta: ' }}</span>{{ requisito.texto }}
+              </li>
+            </ul>
+          </div>
+          <div class="solicitud-grupo">
+            <div class="solicitud-grupo-titulo"><span>02</span><div><h2>Verifica tu correo</h2><p>Aquí recibirás los avisos sobre tu solicitud.</p></div></div>
+            <label>Correo electrónico <span class="requisito-campo">Obligatorio</span>
+              <input v-model="formulario.correo" data-campo="correo" type="email" required maxlength="254"
+                autocomplete="email" placeholder="nombre@dominio.com" aria-describedby="requisitos-correo-solicitud" />
+            </label>
+            <ul id="requisitos-correo-solicitud" class="lista-requisitos-contacto" aria-label="Estructura esperada del correo" aria-live="polite">
+              <li v-for="requisito in requisitosCorreo" :key="requisito.texto" :class="{ cumplido: requisito.cumplido }">
+                <span aria-hidden="true">{{ requisito.cumplido ? '✓' : '○' }}</span>
+                <span class="solo-lectores">{{ requisito.cumplido ? 'Cumplido: ' : 'Falta: ' }}</span>{{ requisito.texto }}
+              </li>
+            </ul>
+            <p class="solicitud-ayuda">Antes de registrar la solicitud, enviaremos un código a este correo para comprobar que puedes recibir mensajes.</p>
+            <button type="button" class="secundario solicitud-codigo-boton" :disabled="enviandoCodigo || enviando" @click="enviarCodigo">
+              {{ enviandoCodigo ? 'Enviando código…' : 'Enviar código al correo' }}
+            </button>
+            <p v-if="avisoCodigo" class="mensaje-exito" role="status">{{ avisoCodigo }}</p>
+            <label v-if="verificacionId">Código recibido <span class="requisito-campo">Obligatorio</span>
+              <input :value="codigoVerificacion" data-campo="codigoVerificacion" type="text" inputmode="numeric"
+                autocomplete="one-time-code" required minlength="6" maxlength="6" pattern="[0-9]{6}"
+                placeholder="6 dígitos" @input="capturarCodigo" />
+              <small>El código vence en 10 minutos y se puede usar una sola vez.</small>
+            </label>
+          </div>
+          <div class="solicitud-grupo">
+            <div class="solicitud-grupo-titulo"><span>03</span><div><h2>Tu cita preferida</h2><p>El centro confirmará la disponibilidad después de revisar tu solicitud.</p></div></div>
+            <label>Servicio solicitado <span class="requisito-campo">Obligatorio</span><select v-model="formulario.servicio" data-campo="servicio" required>
+              <option disabled value="">Selecciona un servicio activo</option>
+              <option v-for="servicio in servicios" :key="servicio.id" :value="servicio.id">{{ servicio.nombre }}</option>
+            </select></label>
+            <label>Fecha preferida <span class="requisito-campo">Obligatorio</span>
+              <input v-model="formulario.fechaPreferida" data-campo="fechaPreferida" type="date"
+                :min="hoyGuatemala()" :max="fechaMaximaGuatemala()" required />
+              <small v-if="formulario.fechaPreferida" role="status">{{ avisoEspera(formulario.fechaPreferida) }}</small></label>
+            <label>Mensaje adicional <span class="requisito-campo">Opcional</span><textarea v-model="formulario.mensajeAdicional" maxlength="2000" placeholder="¿Hay algo más que debamos saber?" /></label>
+            <label class="solicitud-opcional"><input v-model="formulario.recibirPublicaciones" type="checkbox" /> <span>Deseo recibir publicaciones del portal cuando mi correo esté vinculado y verificado como paciente o responsable (opcional).</span></label>
+            <small>El personal confirmará esta preferencia al registrar el contacto. Los avisos de la solicitud se enviarán al correo verificado de este formulario.</small>
+          </div>
+          <div class="solicitud-envio"><button type="submit" :disabled="enviando">{{ enviando ? 'Enviando…' : 'Enviar solicitud' }} <span aria-hidden="true">↗</span></button><small>Revisa tus datos antes de enviar.</small></div>
+        </form>
+      </section>
+    </div>
   </main>
 </template>

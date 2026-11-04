@@ -273,10 +273,14 @@ watch(() => props.administracion, () => {
 </script>
 
 <template>
-  <main class="contenedor">
-    <h1>{{ administracion ? 'Servicios internos' : 'Servicios' }}</h1>
+  <main class="contenedor" :class="{ 'portal-pagina portal-servicios': !administracion }">
+    <header v-if="!administracion" class="portal-pagina-encabezado">
+      <span class="portal-etiqueta">Atención pensada para ti</span>
+      <h1>Encuentra el servicio adecuado</h1>
+      <p>Conoce nuestras atenciones, su duración y precio. Solicitar una fecha preferida no reserva todavía un horario.</p>
+    </header>
+    <h1 v-else>Servicios internos</h1>
     <p v-if="administracion">Administración y recepción consultan todos los servicios. Solo el administrador puede cambiarlos.</p>
-    <p v-else>Servicios activos disponibles. Los precios se muestran en quetzales. Una solicitud expresa una fecha preferida y no reserva horario.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
@@ -316,9 +320,9 @@ watch(() => props.administracion, () => {
       </form>
     </section>
 
-    <section ref="listadoSeccion" class="tarjeta">
-      <h2>Consultar y buscar</h2>
-      <form class="formulario-grid" @submit.prevent="buscarListado">
+    <section ref="listadoSeccion" class="tarjeta" :class="{ 'portal-servicios-listado': !administracion }">
+      <h2>{{ administracion ? 'Consultar y buscar' : 'Explora los servicios' }}</h2>
+      <form class="formulario-grid" :class="{ 'portal-servicios-busqueda': !administracion }" @submit.prevent="buscarListado">
         <label>Código, nombre o descripción <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" placeholder="Ej. SERV-INT-0001" /></label>
         <label v-if="administracion">Estado <span class="requisito-campo">Opcional</span>
           <select v-model="estadoFiltro">
@@ -326,18 +330,25 @@ watch(() => props.administracion, () => {
             <option value="INACTIVO">Inactivo</option>
           </select>
         </label>
-        <button type="submit">Buscar</button>
+        <button type="submit" :class="{ 'portal-buscar-boton': !administracion }"><span v-if="!administracion" aria-hidden="true">⌕</span> Buscar servicios</button>
       </form>
       <p v-if="cargando">Cargando servicios…</p>
       <div v-else-if="!administracion && !error" class="portal-grid">
-        <article v-for="servicio in servicios" :key="servicio.id" class="tarjeta">
+        <article v-for="servicio in servicios" :key="servicio.id" class="portal-servicio-card">
           <img class="portal-imagen" :src="servicio.imagen" :alt="`Imagen de ${servicio.nombre}`" />
-          <h3>{{ servicio.nombre }}</h3>
-          <p class="texto-preservado">{{ servicio.descripcion }}</p>
-          <p>Duración estimada: {{ servicio.duracionMinutos }} minutos</p>
-          <p>Precio: {{ mostrarPrecio(servicio.precioCentavos) }}</p>
-          <button type="button" @click="router.push({ name: 'solicitar-cita', query: { servicio: servicio.id } })">Solicitar cita</button>
-          <p>La fecha preferida no es una cita confirmada.</p>
+          <div class="portal-servicio-cuerpo">
+            <span class="portal-etiqueta">Servicio activo</span>
+            <h3>{{ servicio.nombre }}</h3>
+            <p class="portal-servicio-descripcion">{{ servicio.descripcion }}</p>
+            <div class="portal-servicio-meta">
+              <span><small>Duración</small><strong>{{ servicio.duracionMinutos }} minutos</strong></span>
+              <span><small>Precio</small><strong>{{ mostrarPrecio(servicio.precioCentavos) }}</strong></span>
+            </div>
+            <div class="portal-servicio-acciones">
+              <button type="button" class="secundario" :disabled="consultando" @click="consultar(servicio)">Ver detalles</button>
+              <button type="button" @click="router.push({ name: 'solicitar-cita', query: { servicio: servicio.id } })">Solicitar cita</button>
+            </div>
+          </div>
         </article>
         <p v-if="!servicios.length">No hay servicios activos en esta búsqueda.</p>
       </div>
@@ -378,7 +389,7 @@ watch(() => props.administracion, () => {
       <button type="button" class="secundario" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente</button>
     </nav>
 
-    <section v-if="detalle && administracion" ref="detalleSeccion" class="tarjeta servicio-detalle">
+    <section v-if="detalle" ref="detalleSeccion" class="tarjeta servicio-detalle" :class="{ 'portal-servicio-detalle': !administracion }">
       <button type="button" class="servicio-detalle-cerrar" aria-label="Cerrar detalle del servicio" title="Cerrar detalle" @click="cerrarDetalle">×</button>
       <div class="servicio-detalle-imagen"><img :src="detalle.imagen" :alt="`Imagen de ${detalle.nombre}`" /></div>
       <div class="servicio-detalle-contenido">
@@ -391,6 +402,10 @@ watch(() => props.administracion, () => {
         </div>
         <h3>Descripción</h3>
         <p class="texto-preservado">{{ detalle.descripcion }}</p>
+        <div v-if="!administracion" class="portal-servicio-detalle-accion">
+          <p>La fecha que indiques será una preferencia hasta que el centro confirme tu cita.</p>
+          <button type="button" @click="router.push({ name: 'solicitar-cita', query: { servicio: detalle.id } })">Solicitar este servicio <span aria-hidden="true">↗</span></button>
+        </div>
         <div v-if="detalle.estado === 'ACTIVO' && indiceDetalle >= 0" class="servicio-detalle-navegacion" aria-label="Navegar entre servicios activos">
           <p>Servicio activo {{ indiceDetalle + 1 }} de {{ navegacionActivos.length }}</p>
           <div class="acciones">

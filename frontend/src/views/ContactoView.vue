@@ -57,30 +57,52 @@ onMounted(cargar)
 </script>
 
 <template>
-  <main class="contenedor">
-    <h1>Contacto</h1>
+  <main class="contenedor portal-pagina portal-contacto">
+    <header class="portal-pagina-encabezado">
+      <span class="portal-etiqueta">Hablemos</span>
+      <h1>Estamos aquí para escucharte</h1>
+      <p>Si tienes alguna consulta, escríbenos. Completa el formulario y el centro recibirá tu mensaje.</p>
+    </header>
     <p v-if="cargando" role="status">Cargando información de contacto…</p>
     <p v-if="errorContenido" class="mensaje-error" role="alert">{{ errorContenido }}</p>
     <button v-if="errorContenido" type="button" class="secundario" @click="cargar">Reintentar</button>
-    <section v-if="contenido?.contacto" class="tarjeta">
-      <h2>Información del centro</h2>
-      <p>Correo: {{ contenido.contacto.correo }}</p>
-      <p>Teléfono: {{ contenido.contacto.telefono }}</p>
-      <p>Dirección: {{ contenido.contacto.direccion }}</p>
-    </section>
-    <p v-else-if="!cargando && !errorContenido">La información de contacto aún no está publicada.</p>
-    <section class="tarjeta">
-      <h2>Envíanos un mensaje</h2>
-      <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
-      <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
-      <form class="formulario-grid" @submit.prevent="enviar">
-        <label>Nombre <span class="requisito-campo">Obligatorio</span><input v-model="formulario.nombre" required maxlength="120" autocomplete="name" /></label>
-        <label>Correo electrónico <span class="requisito-campo">Obligatorio</span><input v-model="formulario.correo" type="email" required maxlength="254" autocomplete="email" /></label>
-        <label>Teléfono <span class="requisito-campo">Obligatorio</span><input v-model="formulario.telefono" type="tel" required maxlength="30" autocomplete="tel" pattern="[+0-9][0-9 ()+.-]{6,29}" /></label>
-        <label>Asunto <span class="requisito-campo">Obligatorio</span><input v-model="formulario.asunto" required maxlength="160" /></label>
-        <label>Mensaje <span class="requisito-campo">Obligatorio</span><textarea v-model="formulario.mensaje" required maxlength="4000" /></label>
-        <button type="submit" :disabled="enviando">{{ enviando ? 'Enviando…' : 'Enviar mensaje' }}</button>
-      </form>
-    </section>
+    <div class="portal-contacto-layout">
+      <section class="portal-contacto-datos">
+        <span class="portal-etiqueta">Centro Armonía</span>
+        <h2>Conversemos</h2>
+        <p>Elige la forma de contacto que prefieras o déjanos un mensaje desde esta página.</p>
+        <div v-if="contenido?.contacto" class="portal-contacto-lista">
+          <div class="portal-contacto-dato">
+            <span class="portal-contacto-icono" aria-hidden="true">✉</span>
+            <div><strong>Correo electrónico</strong><a :href="`mailto:${contenido.contacto.correo}`">{{ contenido.contacto.correo }}</a></div>
+          </div>
+          <div class="portal-contacto-dato">
+            <span class="portal-contacto-icono" aria-hidden="true">☎</span>
+            <div><strong>Teléfono</strong><a :href="`tel:${contenido.contacto.telefono.replace(/\s/g, '')}`">{{ contenido.contacto.telefono }}</a></div>
+          </div>
+          <div class="portal-contacto-dato">
+            <span class="portal-contacto-icono" aria-hidden="true">⌖</span>
+            <div><strong>Dirección</strong><span>{{ contenido.contacto.direccion }}</span></div>
+          </div>
+        </div>
+        <p v-else-if="!cargando && !errorContenido">La información de contacto aún no está publicada.</p>
+        <RouterLink class="portal-contacto-cita" to="/solicitar-cita">¿Necesitas una cita? Solicítala aquí <span aria-hidden="true">↗</span></RouterLink>
+      </section>
+      <section class="portal-contacto-formulario">
+        <span class="portal-etiqueta">Escríbenos</span>
+        <h2>Envíanos un mensaje</h2>
+        <p>Los campos marcados como obligatorios nos ayudan a responderte.</p>
+        <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
+        <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
+        <form class="formulario-grid" @submit.prevent="enviar">
+          <label>Nombre <span class="requisito-campo">Obligatorio</span><input v-model="formulario.nombre" required maxlength="120" autocomplete="name" placeholder="Tu nombre completo" /></label>
+          <label>Correo electrónico <span class="requisito-campo">Obligatorio</span><input v-model="formulario.correo" type="email" required maxlength="254" autocomplete="email" placeholder="nombre@dominio.com" /></label>
+          <label>Teléfono <span class="requisito-campo">Obligatorio</span><input v-model="formulario.telefono" type="tel" required maxlength="30" autocomplete="tel" pattern="[+0-9][0-9 ()+.-]{6,29}" placeholder="Tu número de contacto" /></label>
+          <label>Asunto <span class="requisito-campo">Obligatorio</span><input v-model="formulario.asunto" required maxlength="160" placeholder="¿Sobre qué deseas consultarnos?" /></label>
+          <label class="portal-form-ancho">Mensaje <span class="requisito-campo">Obligatorio</span><textarea v-model="formulario.mensaje" required maxlength="4000" placeholder="Cuéntanos cómo podemos ayudarte" /></label>
+          <div class="portal-form-acciones"><button type="submit" :disabled="enviando">{{ enviando ? 'Enviando…' : 'Enviar mensaje' }} <span aria-hidden="true">↗</span></button></div>
+        </form>
+      </section>
+    </div>
   </main>
 </template>

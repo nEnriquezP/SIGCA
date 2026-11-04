@@ -108,14 +108,42 @@ watch(() => props.administracion, () => cargar())
 </script>
 
 <template>
-  <main class="contenedor">
-    <h1>{{ administracion ? 'Horarios internos' : 'Horarios de atención' }}</h1>
-    <p>Las horas corresponden a America/Guatemala.</p>
+  <main class="contenedor" :class="{ 'portal-pagina portal-horarios': !administracion }">
+    <header v-if="!administracion" class="portal-pagina-encabezado">
+      <span class="portal-etiqueta">Planifica tu visita</span>
+      <h1>Horarios de atención</h1>
+      <p>Consulta los intervalos publicados para cada día. Todas las horas corresponden a Guatemala.</p>
+    </header>
+    <template v-else><h1>Horarios internos</h1><p>Las horas corresponden a America/Guatemala.</p></template>
     <p v-if="administracion">Administración y recepción consultan la configuración completa. Solo el administrador puede modificarla.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
-    <section class="tarjeta">
+    <section v-if="!administracion && !error" class="portal-horarios-seccion">
+      <div class="portal-horarios-cabecera">
+        <div><span class="portal-etiqueta">Semana de atención</span><h2>Encuentra el momento adecuado</h2></div>
+        <span class="portal-horarios-zona">Zona horaria: America/Guatemala</span>
+      </div>
+      <p v-if="cargando" role="status">Cargando horarios…</p>
+      <div v-else class="portal-horarios-grid">
+        <article v-for="[dia, nombre] in dias" :key="dia" class="portal-horario-dia"
+          :class="{ 'sin-horario': !horarioDe(dia) }">
+          <div class="portal-horario-dia-cabecera">
+            <span class="portal-horario-icono" aria-hidden="true">◷</span>
+            <span class="portal-horario-estado">{{ horarioDe(dia) ? 'Atención publicada' : 'Sin horario publicado' }}</span>
+          </div>
+          <h3>{{ nombre }}</h3>
+          <p v-if="horarioDe(dia)?.intervalos.length" class="portal-horario-horas">{{ textoIntervalos(horarioDe(dia).intervalos) }}</p>
+          <p v-else class="portal-horario-horas">Consulta otro día</p>
+        </article>
+      </div>
+      <div class="portal-horarios-nota">
+        <p>El horario de atención no confirma disponibilidad para una cita. Indica tu fecha preferida y el centro revisará tu solicitud.</p>
+        <RouterLink to="/solicitar-cita">Solicitar cita <span aria-hidden="true">↗</span></RouterLink>
+      </div>
+    </section>
+
+    <section v-if="administracion" class="tarjeta">
       <h2>{{ administracion ? 'Días configurados' : 'Días disponibles' }}</h2>
       <p v-if="cargando">Cargando horarios…</p>
       <div v-else-if="administracion" class="tabla-contenedor">

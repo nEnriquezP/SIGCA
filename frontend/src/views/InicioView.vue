@@ -3,6 +3,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { solicitarApi } from '../services/api.js'
 
 const contenido = ref(null)
+const publicacionReciente = ref(null)
+const actividadReciente = ref(null)
+const horariosPublicados = ref([])
 const indice = ref(0)
 const cargando = ref(true)
 const error = ref('')
@@ -62,14 +65,31 @@ function cambioMovimiento(evento) {
 async function cargar() {
   cargando.value = true
   error.value = ''
-  try {
-    contenido.value = (await solicitarApi('/api/contenido')).contenido
+  const [principal, publicaciones, actividades, horarios] = await Promise.allSettled([
+    solicitarApi('/api/contenido'), solicitarApi('/api/publicaciones'),
+    solicitarApi('/api/actividades'), solicitarApi('/api/horarios'),
+  ])
+  if (principal.status === 'fulfilled') {
+    contenido.value = principal.value.contenido
     indice.value = 0
-  } catch (fallo) {
-    error.value = fallo.message
-  } finally {
-    cargando.value = false
-  }
+  } else error.value = principal.reason.message
+  publicacionReciente.value = publicaciones.status === 'fulfilled'
+    ? publicaciones.value.publicaciones?.[0] || null : null
+  actividadReciente.value = actividades.status === 'fulfilled'
+    ? actividades.value.actividades?.[0] || null : null
+  horariosPublicados.value = horarios.status === 'fulfilled' ? horarios.value.horarios || [] : []
+  cargando.value = false
+}
+
+function nombreActividad(tipo) {
+  return { CAPACITACION: 'Capacitación', ESCUELA_PADRES: 'Escuela para padres',
+    OTRA: 'Actividad del centro' }[tipo] || 'Actividad del centro'
+}
+
+function fechaPublicacion(fecha) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) return ''
+  return new Intl.DateTimeFormat('es-GT', { dateStyle: 'long', timeZone: 'UTC' })
+    .format(new Date(`${fecha}T12:00:00Z`))
 }
 
 watch([reproduciendo, intervalo], programar)
@@ -173,20 +193,89 @@ onUnmounted(() => {
       </section>
 
       <section v-if="contenido" class="portal-identidad" aria-label="Identidad institucional">
-        <article class="tarjeta"><h2>Misión</h2><p class="texto-preservado">{{ contenido.mision }}</p></article>
-        <article class="tarjeta"><h2>Visión</h2><p class="texto-preservado">{{ contenido.vision }}</p></article>
+        <article class="tarjeta">
+          <div class="portal-identidad-titulo">
+            <span class="portal-identidad-icono" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="16" cy="16" r="12" /><circle cx="16" cy="16" r="7" /><circle cx="16" cy="16" r="2" />
+                <path d="m16 16 8-8" />
+              </svg>
+            </span>
+            <h2>Misión</h2>
+          </div>
+          <p class="texto-preservado">{{ contenido.mision }}</p>
+        </article>
+        <article class="tarjeta">
+          <div class="portal-identidad-titulo">
+            <span class="portal-identidad-icono" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 16s5-8 13-8 13 8 13 8-5 8-13 8S3 16 3 16Z" /><circle cx="16" cy="16" r="4" />
+                <path d="M16 2v3m0 22v3M2 8l2 2m24 12 2 2" />
+              </svg>
+            </span>
+            <h2>Visión</h2>
+          </div>
+          <p class="texto-preservado">{{ contenido.vision }}</p>
+        </article>
       </section>
       <section v-if="parrafos.length > 1" class="portal-enfoque">
-        <h2>Conoce nuestro enfoque</h2>
-        <p v-for="(parrafo, posicion) in parrafos.slice(1)" :key="posicion">{{ parrafo }}</p>
+        <div class="portal-enfoque-visual">
+          <img v-if="contenido?.carrusel?.[0]" :src="contenido.carrusel[0]" alt="Imagen del centro que acompaña su enfoque de atención" loading="lazy" />
+          <div v-else class="portal-enfoque-decoracion" aria-hidden="true">✦</div>
+        </div>
+        <div class="portal-enfoque-texto">
+          <span class="portal-etiqueta">Nuestra manera de acompañarte</span>
+          <h2>Conoce nuestro enfoque</h2>
+          <p v-for="(parrafo, posicion) in parrafos.slice(1)" :key="posicion">{{ parrafo }}</p>
+          <RouterLink to="/servicios" class="portal-enlace-flecha">Explorar nuestros servicios <span aria-hidden="true">↗</span></RouterLink>
+        </div>
       </section>
       <section class="portal-mas" aria-label="Más información">
-        <h2>Conoce el centro</h2>
-        <div class="portal-mas-enlaces">
-          <RouterLink to="/educacion">Publicaciones educativas</RouterLink>
-          <RouterLink to="/corporativo">Capacitaciones y actividades</RouterLink>
-          <RouterLink to="/horarios">Horarios de atención</RouterLink>
-          <RouterLink to="/contacto">Contacto</RouterLink>
+        <div class="portal-seccion-titulo">
+          <span class="portal-etiqueta">Más para descubrir</span>
+          <h2>Conoce el centro</h2>
+          <p>Información, actividades y formas de acercarte a Centro Armonía.</p>
+        </div>
+        <div class="portal-vitrina">
+          <article class="portal-vitrina-articulo">
+            <img v-if="publicacionReciente?.imagen" :src="publicacionReciente.imagen" :alt="`Imagen de ${publicacionReciente.titulo}`" loading="lazy" />
+            <div v-else class="portal-vitrina-sin-imagen" aria-hidden="true">✦</div>
+            <div class="portal-vitrina-cuerpo">
+              <span class="portal-etiqueta">Publicaciones educativas</span>
+              <small v-if="publicacionReciente?.fechaPublicacion">{{ fechaPublicacion(publicacionReciente.fechaPublicacion) }}</small>
+              <h3>{{ publicacionReciente?.titulo || 'Ideas para aprender y cuidarnos' }}</h3>
+              <p>{{ publicacionReciente?.descripcion || 'Explora las publicaciones que comparte el centro.' }}</p>
+              <RouterLink to="/educacion" class="portal-enlace-flecha">Ver publicaciones <span aria-hidden="true">↗</span></RouterLink>
+            </div>
+          </article>
+          <article class="portal-vitrina-articulo">
+            <img v-if="actividadReciente?.imagenes?.[0]" :src="actividadReciente.imagenes[0]" :alt="`Imagen de ${actividadReciente.titulo}`" loading="lazy" />
+            <div v-else class="portal-vitrina-sin-imagen" aria-hidden="true">✦</div>
+            <div class="portal-vitrina-cuerpo">
+              <span class="portal-etiqueta">{{ actividadReciente ? nombreActividad(actividadReciente.tipo) : 'Capacitaciones y actividades' }}</span>
+              <h3>{{ actividadReciente?.titulo || 'Actividades para crecer juntos' }}</h3>
+              <p>{{ actividadReciente?.descripcion || 'Conoce las actividades y capacitaciones del centro.' }}</p>
+              <RouterLink to="/corporativo" class="portal-enlace-flecha">Ver actividades <span aria-hidden="true">↗</span></RouterLink>
+            </div>
+          </article>
+          <article class="portal-vitrina-breve">
+            <span class="portal-vitrina-breve-icono" aria-hidden="true">◷</span>
+            <div>
+              <span class="portal-etiqueta">Planifica tu visita</span>
+              <h3>Horarios de atención</h3>
+              <p>{{ horariosPublicados.length ? `${horariosPublicados.length} días con horarios publicados. Revisa los intervalos de cada día.` : 'Revisa los días y horarios de atención disponibles.' }}</p>
+              <RouterLink to="/horarios" class="portal-enlace-flecha">Consultar horarios <span aria-hidden="true">↗</span></RouterLink>
+            </div>
+          </article>
+          <article class="portal-vitrina-breve">
+            <span class="portal-vitrina-breve-icono" aria-hidden="true">✉</span>
+            <div>
+              <span class="portal-etiqueta">Estamos para escucharte</span>
+              <h3>Contacto</h3>
+              <p>{{ contenido?.contacto?.direccion || 'Escríbenos para resolver tus consultas.' }}</p>
+              <RouterLink to="/contacto" class="portal-enlace-flecha">Ir a contacto <span aria-hidden="true">↗</span></RouterLink>
+            </div>
+          </article>
         </div>
       </section>
     </div>

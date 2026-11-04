@@ -648,3 +648,234 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
   .carrusel-deslizar-enter-active, .carrusel-deslizar-leave-active { transition: none; }
   .portal-acceso:hover { transform: none; }
 }
+
+/* Portal público: páginas y elementos compartidos */
+.aplicacion-publica { display: flex; flex-direction: column; min-height: 100vh; }
+.aplicacion-publica > main { flex: 1; }
+.pie-pagina { margin-top: auto; padding: 30px 24px; background: linear-gradient(110deg, #0e2d4c, #113f63); }
+.pie-contenido { display: flex; align-items: center; justify-content: space-between; gap: 25px; width: min(100%, 1510px); margin: auto; }
+.pie-institucion { display: grid; gap: 5px; min-width: 0; }
+.pie-institucion strong { font-size: 1.12rem; }
+.pie-institucion span { color: #d0e4ed; }
+.pie-institucion small { margin-top: 7px; color: #bad0dd; }
+.pie-autoria { display: flex; align-items: center; gap: 13px; padding: 8px 16px 8px 8px; border: 1px solid #ffffff30; border-radius: 16px; background: #ffffff12; }
+.pie-autoria img { display: block; width: 66px; height: 66px; object-fit: cover; object-position: center 18%; border: 2px solid #91d4d1; border-radius: 12px; background: #15283b; }
+.pie-autoria p { display: grid; gap: 3px; margin: 0; }
+.pie-autoria span { color: #b9dce3; font-size: .8rem; }
+.pie-autoria strong { font-size: .92rem; line-height: 1.3; }
+.portal-etiqueta { display: inline-block; color: #087681; font-size: .76rem; font-weight: 800; letter-spacing: .1em; line-height: 1.35; text-transform: uppercase; }
+.portal-enlace-flecha { display: inline-flex; align-items: center; gap: 10px; width: max-content; max-width: 100%; color: #087681; font-weight: 750; text-decoration: none; }
+.portal-enlace-flecha:hover { color: #064f5a; text-decoration: underline; }
+.portal-enlace-flecha span { font-size: 1.2rem; }
+.portal-pagina { width: min(1280px, 100%); margin: 42px auto 60px; }
+.portal-pagina-encabezado { position: relative; overflow: hidden; margin: 0 0 28px; padding: clamp(30px, 4vw, 52px); border: 1px solid #d6e9ed; border-radius: 23px; background: linear-gradient(115deg, #e8f5f8, #f7fbfc 72%); }
+.portal-pagina-encabezado::after { content: ''; position: absolute; top: -80px; right: -80px; width: 280px; height: 280px; border: 36px solid #bce5e65c; border-radius: 50%; pointer-events: none; }
+.portal-pagina-encabezado > * { position: relative; z-index: 1; }
+.portal-pagina-encabezado h1 { max-width: 22ch; margin: 10px 0 14px; color: #10365b; font-size: clamp(2.05rem, 3.5vw, 3.55rem); line-height: 1.08; letter-spacing: -.035em; }
+.portal-pagina-encabezado p { max-width: 68ch; margin: 0; color: #36566c; font-size: 1.06rem; line-height: 1.55; }
+.portal-pagina input, .portal-pagina select, .portal-pagina textarea { min-height: 48px; border-color: #b8cbd8; border-radius: 10px; background: #fff; }
+.portal-pagina input:focus, .portal-pagina select:focus, .portal-pagina textarea:focus { border-color: #087e88; outline: 3px solid #bce8e8; outline-offset: 1px; }
+.portal-pagina textarea { min-height: 130px; }
+.portal-pagina button:not(.secundario) { background: #087d85; }
+.portal-pagina button:not(.secundario):hover:not(:disabled) { background: #08636c; }
+.portal-pagina .mensaje-error, .portal-pagina .mensaje-exito { padding: 12px 15px; border-radius: 9px; background: #fff; }
+
+/* Inicio: identidad, enfoque y contenido reciente */
+.portal-identidad .tarjeta { padding: clamp(24px, 2.8vw, 38px); }
+.portal-identidad-titulo { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.portal-identidad-titulo h2 { margin: 0; }
+.portal-identidad-icono { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border-radius: 14px; background: #dff2f1; color: #087681; }
+.portal-identidad-icono svg { width: 31px; height: 31px; }
+.portal-identidad p { margin: 0; }
+.portal-enfoque { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); align-items: center; gap: clamp(22px, 4vw, 60px); max-width: none; margin: 58px 0; padding: clamp(18px, 2.5vw, 30px); border: 1px solid #d8e9ee; border-radius: 22px; background: #fff; box-shadow: 0 8px 26px #123b560e; }
+.portal-enfoque-visual { min-width: 0; overflow: hidden; border-radius: 16px; background: #edf8f8; }
+.portal-enfoque-visual img, .portal-enfoque-decoracion { display: block; width: 100%; height: clamp(240px, 26vw, 380px); object-fit: contain; }
+.portal-enfoque-decoracion { display: grid; place-items: center; color: #74bbbd; font-size: 9rem; }
+.portal-enfoque-texto { padding: 12px clamp(4px, 1vw, 22px) 12px 0; }
+.portal-enfoque-texto h2 { margin: 10px 0 18px; font-size: clamp(1.8rem, 2.6vw, 2.6rem); line-height: 1.15; }
+.portal-enfoque-texto p { color: #3f5a70; }
+.portal-enfoque-texto .portal-enlace-flecha { margin-top: 12px; }
+.portal-mas { margin: 55px 0 15px; }
+.portal-seccion-titulo { margin-bottom: 22px; }
+.portal-seccion-titulo h2 { margin: 8px 0 7px; font-size: clamp(1.9rem, 2.6vw, 2.65rem); }
+.portal-seccion-titulo p { margin: 0; color: #526a7c; }
+.portal-vitrina { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.portal-vitrina-articulo, .portal-vitrina-breve { min-width: 0; overflow: hidden; border: 1px solid #dbe8ef; border-radius: 17px; background: #fff; box-shadow: 0 7px 23px #123b560c; }
+.portal-vitrina-articulo { display: flex; flex-direction: column; }
+.portal-vitrina-articulo > img, .portal-vitrina-sin-imagen { display: block; width: 100%; height: 250px; object-fit: cover; background: #e7f4f5; }
+.portal-vitrina-sin-imagen { display: grid; place-items: center; color: #84c6c5; font-size: 6rem; }
+.portal-vitrina-cuerpo { display: flex; flex: 1; flex-direction: column; align-items: flex-start; padding: 26px; }
+.portal-vitrina-cuerpo small { margin-top: 5px; color: #6b7f8e; }
+.portal-vitrina h3 { margin: 9px 0; color: #153b5c; font-size: 1.35rem; line-height: 1.25; }
+.portal-vitrina-cuerpo p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; margin: 0 0 20px; color: #4b6478; line-height: 1.55; }
+.portal-vitrina-cuerpo .portal-enlace-flecha { margin-top: auto; }
+.portal-vitrina-breve { display: flex; align-items: flex-start; gap: 18px; padding: 24px; }
+.portal-vitrina-breve-icono { display: grid; place-items: center; flex: none; width: 49px; height: 49px; border-radius: 12px; background: #e1f2f0; color: #087681; font-size: 1.8rem; }
+.portal-vitrina-breve p { margin: 0 0 15px; color: #4b6478; line-height: 1.5; }
+
+/* Contacto */
+.portal-contacto-layout { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: 22px; align-items: start; }
+.portal-contacto-datos, .portal-contacto-formulario { border-radius: 19px; padding: clamp(24px, 3vw, 38px); }
+.portal-contacto-datos { color: #fff; background: linear-gradient(145deg, #103a5e, #0b6270); box-shadow: 0 12px 25px #123b5621; }
+.portal-contacto-datos .portal-etiqueta { color: #9de4dd; }
+.portal-contacto-datos h2, .portal-contacto-formulario h2 { margin: 9px 0 10px; font-size: 1.8rem; }
+.portal-contacto-datos > p { color: #e1f3f4; line-height: 1.55; }
+.portal-contacto-lista { display: grid; gap: 13px; margin: 28px 0; }
+.portal-contacto-dato { display: flex; align-items: flex-start; gap: 13px; padding: 15px; border: 1px solid #ffffff29; border-radius: 11px; background: #ffffff12; }
+.portal-contacto-icono { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 10px; background: #ffffff20; font-size: 1.3rem; }
+.portal-contacto-dato div { display: grid; gap: 5px; min-width: 0; }
+.portal-contacto-dato strong { font-size: .82rem; color: #c3e8e9; }
+.portal-contacto-dato a, .portal-contacto-dato div > span { overflow-wrap: anywhere; color: #fff; line-height: 1.45; }
+.portal-contacto-cita { display: inline-flex; gap: 8px; color: #fff; font-weight: 700; text-underline-offset: 4px; }
+.portal-contacto-formulario { border: 1px solid #d9e8ee; background: #fff; box-shadow: 0 8px 26px #123b560e; }
+.portal-contacto-formulario > p { color: #536a7c; }
+.portal-contacto-formulario form { margin-top: 22px; gap: 18px; }
+.portal-form-ancho, .portal-form-acciones { grid-column: 1 / -1; }
+.portal-contacto-formulario textarea { min-height: 145px; }
+.portal-form-acciones { display: flex; justify-content: flex-end; }
+.portal-form-acciones button { min-height: 48px; padding: 11px 22px; font-weight: 700; }
+
+/* Horarios */
+.portal-horarios-seccion { padding: clamp(22px, 3vw, 38px); border: 1px solid #d9e8ee; border-radius: 20px; background: #fff; }
+.portal-horarios-cabecera { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 22px; }
+.portal-horarios-cabecera h2 { margin: 8px 0 0; color: #143e60; font-size: 1.8rem; }
+.portal-horarios-zona { color: #667b8c; font-size: .85rem; }
+.portal-horarios-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.portal-horario-dia { min-width: 0; padding: 20px; border: 1px solid #d7e8ec; border-radius: 13px; background: #f6fbfb; }
+.portal-horario-dia.sin-horario { background: #f8fafc; }
+.portal-horario-dia-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.portal-horario-icono { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 9px; background: #ddf1f0; color: #087681; font-size: 1.35rem; }
+.portal-horario-estado { color: #0e6f68; font-size: .69rem; font-weight: 700; text-align: right; }
+.sin-horario .portal-horario-estado { color: #6c7c89; }
+.portal-horario-dia h3 { margin: 20px 0 8px; color: #163d5e; font-size: 1.15rem; }
+.portal-horario-horas { margin: 0; color: #31566f; font-weight: 650; line-height: 1.5; }
+.portal-horarios-nota { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 23px; padding: 19px 22px; border-radius: 12px; background: #e8f5f6; }
+.portal-horarios-nota p { max-width: 72ch; margin: 0; color: #2c5268; line-height: 1.5; }
+.portal-horarios-nota a { flex: none; padding: 11px 17px; border-radius: 9px; background: #087d85; color: #fff; font-weight: 700; text-decoration: none; }
+.portal-horarios-nota a:hover { background: #08636c; }
+
+/* Publicaciones y actividades */
+.portal-estado-vacio { padding: 45px; border: 1px solid #d9e8ee; border-radius: 16px; background: #fff; text-align: center; }
+.portal-estado-vacio > span { color: #73babc; font-size: 3rem; }
+.portal-estado-vacio h2 { margin: 7px 0; }
+.portal-estado-vacio p { color: #536a7c; }
+.portal-editorial-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 22px; }
+.portal-articulo { min-width: 0; overflow: hidden; border: 1px solid #d9e8ee; border-radius: 18px; background: #fff; box-shadow: 0 8px 25px #123b560e; }
+.portal-articulo.destacado { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); }
+.portal-articulo-visual { display: grid; place-items: center; min-height: 260px; background: #eaf5f6; }
+.portal-articulo-visual img { display: block; width: 100%; height: 300px; object-fit: contain; }
+.portal-articulo.destacado .portal-articulo-visual { align-self: start; }
+.portal-articulo.destacado .portal-articulo-visual img { height: 380px; max-height: none; object-fit: cover; }
+.portal-articulo-sin-imagen { color: #80c5c5; font-size: 6rem; }
+.portal-articulo-cuerpo { min-width: 0; padding: clamp(22px, 2.8vw, 38px); }
+.portal-articulo-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
+.portal-articulo-meta time { color: #667b8c; font-size: .85rem; }
+.portal-articulo h2 { margin: 15px 0; color: #133b5c; font-size: clamp(1.4rem, 2vw, 2rem); line-height: 1.22; }
+.portal-articulo p { color: #425d70; line-height: 1.7; overflow-wrap: anywhere; }
+.portal-articulo-galeria { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin: 20px 0; }
+.portal-articulo-galeria img { width: 100%; height: 135px; border-radius: 9px; object-fit: contain; background: #edf6f7; }
+.portal-articulo .portal-enlace-flecha { margin-top: 8px; }
+
+/* Solicitar cita */
+.portal-solicitud-layout { display: grid; grid-template-columns: minmax(280px, .73fr) minmax(0, 1.27fr); gap: 22px; align-items: start; }
+.portal-solicitud-guia, .portal-solicitud-formulario, .portal-solicitud-confirmacion { border: 1px solid #d9e8ee; border-radius: 19px; background: #fff; box-shadow: 0 8px 26px #123b560d; }
+.portal-solicitud-guia { padding: clamp(24px, 3vw, 38px); background: linear-gradient(160deg, #123d5c, #0b6270); color: #fff; }
+.portal-solicitud-guia .portal-etiqueta { color: #a3e3df; }
+.portal-solicitud-guia h2 { margin: 10px 0 25px; font-size: 1.85rem; line-height: 1.2; }
+.portal-solicitud-guia ol { display: grid; gap: 22px; margin: 0; padding: 0; list-style: none; }
+.portal-solicitud-guia li { display: flex; gap: 13px; }
+.portal-solicitud-guia li > span, .solicitud-grupo-titulo > span { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 11px; background: #ffffff22; color: #d9fffa; font-weight: 800; font-size: .8rem; }
+.portal-solicitud-guia li strong { display: block; margin: 1px 0 5px; }
+.portal-solicitud-guia li p { margin: 0; color: #d1e9ed; line-height: 1.45; }
+.portal-solicitud-aviso { margin-top: 33px; padding: 18px; border: 1px solid #ffffff36; border-radius: 12px; background: #ffffff16; }
+.portal-solicitud-aviso p { margin: 8px 0 0; color: #e5f2f4; line-height: 1.5; }
+.portal-solicitud-formulario { padding: clamp(24px, 3vw, 40px); }
+.portal-solicitud-formulario form { gap: 0; }
+.solicitud-grupo { display: grid; gap: 15px; padding: 0 0 30px; margin-bottom: 30px; border-bottom: 1px solid #e0e9ef; }
+.solicitud-grupo:last-of-type { margin-bottom: 0; }
+.solicitud-grupo-titulo { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 5px; }
+.solicitud-grupo-titulo > span { background: #e0f2f0; color: #087681; }
+.solicitud-grupo-titulo h2 { margin: 0 0 5px; color: #143d5d; font-size: 1.34rem; }
+.solicitud-grupo-titulo p { margin: 0; color: #61788a; font-size: .88rem; line-height: 1.4; }
+.portal-solicitud .lista-requisitos-contacto { margin: -8px 0 4px; padding: 12px 15px; border-radius: 10px; background: #f1f8f9; }
+.solicitud-ayuda { margin: 0; color: #49677a; line-height: 1.5; }
+.portal-solicitud .solicitud-codigo-boton { padding: 11px 17px; border: 1px solid #afd4d7; border-radius: 9px; background: #e7f4f4; color: #0c5f69; font-weight: 700; }
+.portal-solicitud .solicitud-codigo-boton:hover:not(:disabled) { background: #d6eded; }
+.solicitud-opcional { display: flex; align-items: flex-start; gap: 11px; padding: 15px; border-radius: 10px; background: #f1f8f9; font-weight: 500; line-height: 1.5; }
+.solicitud-opcional input { width: auto; min-height: auto; margin-top: 4px; }
+.solicitud-envio { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.solicitud-envio button { min-height: 50px; padding: 12px 22px; font-weight: 700; }
+.solicitud-envio small { color: #61788a; }
+.portal-solicitud-confirmacion { max-width: 650px; margin: 0 auto; padding: 40px; text-align: center; }
+.portal-confirmacion-icono { display: grid; place-items: center; width: 60px; height: 60px; margin: 0 auto 15px; border-radius: 50%; background: #def4eb; color: #117457; font-size: 2rem; }
+.portal-solicitud-codigo { display: grid; gap: 5px; margin: 24px 0; padding: 16px; border-radius: 10px; background: #edf7f7; overflow-wrap: anywhere; }
+.portal-solicitud-codigo small { color: #557487; }
+.portal-solicitud-codigo strong { color: #0e5660; font-size: 1.2rem; }
+
+/* Servicios públicos */
+.portal-servicios-listado { border-radius: 20px; padding: clamp(23px, 3vw, 38px); box-shadow: 0 8px 26px #123b560d; }
+.portal-servicios-listado > h2 { color: #153c5d; font-size: 1.7rem; }
+.portal-servicios-busqueda { display: flex; align-items: end; gap: 12px; max-width: 720px; margin: 18px 0 28px; }
+.portal-servicios-busqueda label { flex: 1; min-width: 0; }
+.portal-buscar-boton { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 48px; padding: 10px 18px; white-space: nowrap; font-weight: 700; }
+.portal-buscar-boton span { font-size: 1.4rem; line-height: 1; }
+.portal-servicios-listado .portal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }
+.portal-servicio-card { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid #d8e7ed; border-radius: 15px; background: #fff; box-shadow: 0 6px 20px #123b560d; }
+.portal-servicio-card .portal-imagen { width: 100%; height: 215px; max-height: none; object-fit: contain; background: #eff7f8; border-radius: 0; }
+.portal-servicio-cuerpo { display: flex; flex: 1; flex-direction: column; align-items: stretch; padding: 21px; }
+.portal-servicio-cuerpo h3 { margin: 8px 0 10px; color: #153c5d; font-size: 1.22rem; line-height: 1.27; }
+.portal-servicio-descripcion { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 4; margin: 0 0 19px; color: #4a6376; line-height: 1.5; }
+.portal-servicio-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
+.portal-servicio-meta span { display: grid; gap: 4px; flex: 1 1 110px; padding: 10px; border-radius: 9px; background: #f1f7f9; }
+.portal-servicio-meta small { color: #647b8b; font-size: .74rem; }
+.portal-servicio-meta strong { color: #143d5d; font-size: .87rem; }
+.portal-servicio-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.portal-servicio-acciones button { flex: 1 1 120px; min-height: 43px; padding: 9px; font-size: .88rem; font-weight: 700; }
+.portal-servicio-acciones .secundario { border: 1px solid #c7dfe4; color: #0d6571; background: #f3fafa; }
+.portal-servicio-detalle { margin-top: 28px; border-radius: 19px; box-shadow: 0 10px 30px #123b5614; }
+.portal-servicio-detalle .servicio-detalle-imagen img { object-fit: contain; background: #f1f8f9; }
+.portal-servicio-detalle .servicio-detalle-contenido { padding-right: 20px; }
+.portal-servicio-detalle .servicio-detalle-contenido h2 { font-size: clamp(1.7rem, 2.4vw, 2.3rem); }
+.portal-servicio-detalle-accion { display: grid; gap: 14px; margin-top: 26px; padding-top: 20px; border-top: 1px solid #dfebef; }
+.portal-servicio-detalle-accion button { padding: 12px 19px; font-weight: 700; }
+
+@media (max-width: 1000px) {
+  .portal-horarios-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .portal-servicios-listado .portal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portal-solicitud-layout { grid-template-columns: minmax(0, 1fr); }
+  .portal-solicitud-guia ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+}
+@media (max-width: 760px) {
+  .pie-contenido { align-items: flex-start; flex-direction: column; }
+  .portal-enfoque { grid-template-columns: 1fr; }
+  .portal-enfoque-texto { padding: 6px; }
+  .portal-vitrina, .portal-editorial-grid { grid-template-columns: 1fr; }
+  .portal-articulo.destacado { grid-column: auto; display: block; }
+  .portal-contacto-layout { grid-template-columns: 1fr; }
+  .portal-horarios-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portal-solicitud-guia ol { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .portal-pagina { margin-top: 22px; padding-inline: 16px; }
+  .portal-pagina-encabezado { padding: 27px 23px; }
+  .portal-pagina-encabezado::after { width: 180px; height: 180px; right: -100px; }
+  .portal-horarios-grid, .portal-servicios-listado .portal-grid { grid-template-columns: 1fr; }
+  .portal-horarios-cabecera, .portal-horarios-nota { align-items: flex-start; flex-direction: column; }
+  .portal-horarios-nota a { width: 100%; text-align: center; }
+  .portal-servicios-busqueda { align-items: stretch; flex-direction: column; }
+  .portal-buscar-boton { width: 100%; }
+  .portal-servicio-acciones button { flex: 1 1 100%; }
+  .portal-contacto-formulario .formulario-grid { grid-template-columns: 1fr; }
+  .portal-form-acciones button { width: 100%; }
+  .portal-solicitud-guia, .portal-solicitud-formulario { padding: 24px 20px; }
+  .portal-solicitud-guia h2 { margin-bottom: 16px; font-size: 1.4rem; }
+  .portal-solicitud-guia ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .portal-solicitud-guia li { display: block; }
+  .portal-solicitud-guia li > span { width: 32px; height: 32px; margin-bottom: 8px; }
+  .portal-solicitud-guia li strong { font-size: .77rem; line-height: 1.25; }
+  .portal-solicitud-guia li p { display: none; }
+  .portal-solicitud-aviso { margin-top: 17px; padding: 13px; }
+  .portal-solicitud-confirmacion { padding: 28px 20px; }
+  .portal-enfoque-visual img, .portal-enfoque-decoracion { height: 230px; }
+  .pie-autoria { width: 100%; }
+}
