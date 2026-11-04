@@ -18,7 +18,7 @@ La carga utiliza direcciones `example.test`, fotos de marcador y enlaces de recu
 
 ## Verificaciones y evidencias
 
-- [ ] Confirmar en Render y Vercel el commit desplegado antes de atribuir resultados a producción.
+- [x] Confirmar el commit `bb9fc21` en ambos despliegues: GitHub marcó completado Vercel y Render devolvió `version: "bb9fc21d3454"` el 4 de noviembre de 2026.
 - [ ] Recorrido manual local y en producción con roles administrador, recepcionista y profesional. No crear pagos ficticios sobre información real de `sigca_prod`.
 - [ ] Capturas reales, sin secretos ni datos personales, del portal público, administración, pacientes, calendario, materiales, pagos y caja diaria. Describir qué verifica cada captura.
 - [ ] Revisar responsive en escritorio y móvil y registrar resultados observados.
@@ -28,4 +28,4 @@ La carga utiliza direcciones `example.test`, fotos de marcador y enlaces de recu
 
 ## Estado de publicación de códigos MAT/CAJ
 
-El código visible de materiales (`MAT-0001`…) y cajas (`CAJ-0001`…) es adicional al ObjectId interno. Antes de publicar la versión que genera estos códigos, asignar códigos a los registros anteriores de la base de destino mediante `backend/scripts/asignarCodigosMaterialesCajas.js`. Su simulación es de solo lectura; la aplicación exige `--aplicar` y, en producción, también `--confirmar-produccion`. El script comprueba el nombre exacto de la base y no muestra credenciales. Si existen registros anteriores sin código, las nuevas altas de materiales o cajas responden `503` para preservar el orden histórico.
+El código visible de materiales (`MAT-0001`…) y cajas (`CAJ-0001`…) es adicional al ObjectId interno. La simulación previa sobre `sigca_prod` informó tres materiales y una caja sin código. En Render, si la conexión apunta exactamente a `sigca_prod`, el servidor ejecuta la asignación idempotente antes de atender solicitudes y se niega a iniciar si quedan faltantes. Render ya respondió con la versión nueva y estado `ok`; aún falta observar los códigos concretos en la interfaz con sesión. Para otros entornos, `backend/scripts/asignarCodigosMaterialesCajas.js` mantiene la simulación de solo lectura y la aplicación explícita; comprueba el nombre de la base y no muestra credenciales. Si existen registros anteriores sin código, las nuevas altas de materiales o cajas responden `503` para preservar el orden histórico.

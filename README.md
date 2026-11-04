@@ -23,7 +23,7 @@ Usar Node.js 24.17.0. En la Terminal integrada de VS Code, situada en la raíz d
 5. Ejecutar `npm start` en una terminal dentro de `backend/`.
 6. Ejecutar `npm run dev` en otra terminal dentro de `frontend/`.
 
-El frontend se abrirá en `http://localhost:5173`. La API usará `http://localhost:3000`. La ruta `http://localhost:5173/estado` comprueba la comunicación entre el navegador, la API y Atlas. `GET /api/health` responde 200 cuando MongoDB está conectado y 503 cuando no está disponible.
+El frontend se abrirá en `http://localhost:5173`. La API usará `http://localhost:3000`. La ruta `http://localhost:5173/estado` comprueba la comunicación entre el navegador, la API y Atlas. `GET /api/health` responde 200 cuando MongoDB está conectado y 503 cuando no está disponible. En Render, la respuesta 200 incluye `version` con los primeros 12 caracteres del commit desplegado; no entrega credenciales ni detalles de la conexión.
 
 En esta Mac, `npm run dev` del backend (que usa `node --watch`) produjo `EMFILE`, por exceso de archivos abiertos. `npm start` ejecuta `node src/server.js` sin watch y sí permitió iniciar el backend. Si cambias código del backend con ese comando, detén el proceso con `Ctrl+C` y vuelve a ejecutarlo para aplicar los cambios.
 
@@ -63,7 +63,7 @@ El backend está publicado en Render y conectado a `sigca_prod`. El frontend est
 
 El backend escucha en `0.0.0.0` y solo devuelve HTTP 200 en `/api/health` cuando Mongoose está conectado. `MONGO_URI` se configura únicamente en Render. La autenticación requiere `JWT_SECRET`: un valor aleatorio de al menos 32 caracteres que se guarda solo en las variables de entorno de Render. La salud de la API permanece disponible aunque aún no se haya configurado ese secreto.
 
-La API usa `https://sigca-api-nelson.onrender.com` y el frontend `https://sigca-theta.vercel.app`. En Vercel, `VITE_API_URL` contiene la URL de la API; en Render, `CORS_ORIGIN` contiene el origen del frontend sin barra final. Se verificaron HTTP 200 en ambas URL públicas, HTTP 204 con el encabezado CORS esperado y `API: Conectada` en `/estado`. Vercel publicó el último push de `main`. Render no inició automáticamente el despliegue de pacientes y responsables; se publicó el commit `1d0867f` con **Manual Deploy → Deploy latest commit**. Confirmar siempre qué commit está activo antes de probar una función nueva.
+La API usa `https://sigca-api-nelson.onrender.com` y el frontend `https://sigca-theta.vercel.app`. En Vercel, `VITE_API_URL` contiene la URL de la API; en Render, `CORS_ORIGIN` contiene el origen del frontend sin barra final. El 4 de noviembre de 2026, GitHub marcó completado el despliegue de Vercel para `bb9fc21`; la API pública de Render respondió `version: "bb9fc21d3454"`. Las rutas `/materiales` y `/caja` respondieron 200, y las consultas financieras sin sesión, 401. Esas comprobaciones no sustituyen las pruebas con usuarios autenticados. Confirmar siempre qué commit está activo antes de probar una función nueva.
 
 ## Autenticación — primera pieza de Avance 1
 
@@ -250,6 +250,8 @@ El formulario de imagen indica formatos JPG/JPEG, PNG y WebP y límite de 5 MB p
 `postman/SIGCA.postman_collection.json` reúne solicitudes de los módulos principales. Su `baseUrl` inicial es `http://localhost:3000`; `token`, correo, contraseña e identificadores están vacíos. Importar la colección en Postman y completar esas variables en un **entorno privado**, sin exportarlo con valores sensibles. Los cuerpos de ejemplo usan datos ficticios y deben ajustarse a registros de la base de pruebas. No ejecutar las solicitudes de escritura sobre información real de producción.
 
 El script `backend/scripts/cargarDatosFicticios.js` crea el conjunto mínimo académico en `sigca_dev` o `sigca_test`. **Rechaza `sigca_prod`**, comprueba el nombre real de la base conectada y no borra datos. Si ya se ejecutó correctamente, no duplica los registros. La simulación predeterminada no escribe; `--aplicar` crea los datos dentro de una transacción. Si la base contiene materiales, cajas, pacientes, responsables o servicios anteriores sin código, primero se les deben asignar los códigos correspondientes. Las direcciones `example.test`, fotografías de marcador y enlaces a recursos ficticios son solo para demostrar el sistema.
+
+Para la publicación de códigos `MAT-` y `CAJ-`, el arranque de Render sobre una base llamada exactamente `sigca_prod` ejecuta la asignación idempotente de códigos anteriores antes de abrir la API. Si quedan registros sin código, el arranque falla. En local u otra base, esta asignación automática no se ejecuta; el script `backend/scripts/asignarCodigosMaterialesCajas.js` conserva los modos de simulación y aplicación explícita.
 
 En la Terminal integrada de VS Code, carpeta exacta `backend/`, ejecutar primero la simulación:
 
