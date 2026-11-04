@@ -69,7 +69,12 @@ const opcionActual = computed(() => grupos
 const ubicacion = computed(() => opcionActual.value
   ? [opcionActual.value.grupo, opcionActual.value.texto]
   : ['Cuenta', route.path === '/mi-cuenta' ? 'Mi cuenta' : 'Mi contraseña'])
-const nombreCentro = computed(() => identidad.value?.nombreCentro || 'Centro Médico Jalapa')
+const nombreCentro = computed(() => identidad.value?.nombreCentro || 'Centro Armonía')
+const nombrePublico = computed(() => identidad.value?.nombreCorto ||
+  (nombreCentro.value.startsWith('Centro Armonía ') ? 'Centro Armonía' : nombreCentro.value))
+const subtituloPublico = computed(() => identidad.value?.subtitulo ||
+  (nombreCentro.value.startsWith('Centro Armonía ')
+    ? nombreCentro.value.slice('Centro Armonía'.length).trim() : ''))
 const nombreCuenta = computed(() => {
   const usuario = sesion.usuario
   return usuario?.nombre || usuario?.correo || usuario?.rol || 'Mi cuenta'
@@ -221,7 +226,10 @@ async function salir() {
           <path d="M24 4 43 12v12c0 11-7 17-19 20C12 41 5 35 5 24V12L24 4Z" stroke="currentColor" stroke-width="3" />
           <path d="M24 14v20M14 24h20" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
         </svg>
-        <span>{{ nombreCentro }}</span>
+        <span class="marca-textos">
+          <strong>{{ nombrePublico }}</strong>
+          <small v-if="subtituloPublico">{{ subtituloPublico }}</small>
+        </span>
       </RouterLink>
       <button ref="botonPublico" class="boton-menu boton-publico" type="button"
         :aria-label="publicoAbierto ? 'Cerrar navegación pública' : 'Abrir navegación pública'"
@@ -246,7 +254,13 @@ async function salir() {
         </details>
       </nav>
       <RouterLink class="acceso-panel" :to="sesion.autenticado ? destinoPanel : '/ingresar'"
-        @click="cerrarMenus">{{ sesion.autenticado ? 'Volver al panel' : 'Ingresar' }}</RouterLink>
+        @click="cerrarMenus">
+        <svg v-if="!sesion.autenticado" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" />
+        </svg>
+        {{ sesion.autenticado ? 'Volver al panel' : 'Ingresar' }}
+      </RouterLink>
     </header>
     <RouterView @contenido-actualizado="cargarIdentidad" />
     <footer class="pie-pagina">

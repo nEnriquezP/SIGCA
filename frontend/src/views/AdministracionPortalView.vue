@@ -23,8 +23,11 @@ const error = ref('')
 const aviso = ref('')
 
 function contenidoVacio() {
-  return { nombreCentro: '', logo: '', informacionPrincipal: '', mision: '', vision: '',
-    carrusel: [], contacto: { correo: '', telefono: '', direccion: '' } }
+  return { nombreCentro: '', nombreCorto: 'Centro Armonía',
+    subtitulo: 'Atención Psicológica y Estimulación Auditiva Verbal',
+    logo: '', informacionPrincipal: '', mision: '', vision: '',
+    carrusel: [], carruselTransicion: 'DESVANECER', carruselIntervalo: 6,
+    contacto: { correo: '', telefono: '', direccion: '' } }
 }
 function publicacionVacia() {
   return { titulo: '', descripcion: '', fechaPublicacion: '', imagen: '', enlace: '' }
@@ -52,7 +55,9 @@ async function cargar() {
       solicitarApi('/api/actividades/administracion', { token: sesion.token }),
       solicitarApi('/api/mensajes-contacto', { token: sesion.token }),
     ])
-    contenido.value = datosContenido.contenido || contenidoVacio()
+    contenido.value = datosContenido.contenido
+      ? { ...contenidoVacio(), ...datosContenido.contenido }
+      : contenidoVacio()
     publicaciones.value = datosPublicaciones.publicaciones
     actividades.value = datosActividades.actividades
     mensajes.value = datosMensajes.mensajes
@@ -93,7 +98,9 @@ function limpiarImagenes(lista) {
 async function guardarContenido() {
   const datos = {
     ...contenido.value,
-    nombreCentro: contenido.value.nombreCentro.trim(), logo: contenido.value.logo.trim(),
+    nombreCentro: contenido.value.nombreCentro.trim(),
+    nombreCorto: contenido.value.nombreCorto.trim(),
+    subtitulo: contenido.value.subtitulo.trim(), logo: contenido.value.logo.trim(),
     informacionPrincipal: contenido.value.informacionPrincipal.trim(),
     mision: contenido.value.mision.trim(), vision: contenido.value.vision.trim(),
     carrusel: limpiarImagenes(contenido.value.carrusel),
@@ -200,8 +207,10 @@ onMounted(cargar)
     <template v-if="!cargando">
       <section class="tarjeta">
         <h2>Identidad e información institucional</h2>
-        <form class="formulario-grid" @submit.prevent="guardarContenido">
-          <label>Nombre del centro <span class="requisito-campo">Obligatorio</span><input v-model="contenido.nombreCentro" required maxlength="120" /></label>
+        <form class="formulario-grid formulario-contenido" @submit.prevent="guardarContenido">
+          <label>Nombre institucional completo <span class="requisito-campo">Obligatorio</span><input v-model="contenido.nombreCentro" required maxlength="120" /></label>
+          <label>Nombre corto del encabezado <span class="requisito-campo">Obligatorio</span><input v-model="contenido.nombreCorto" required maxlength="60" /></label>
+          <label>Subtítulo del encabezado <span class="requisito-campo">Obligatorio</span><input v-model="contenido.subtitulo" required maxlength="120" /></label>
           <ImagenCampo v-model="contenido.logo" categoria="logo" etiqueta="Logotipo institucional" proporcion="1:1" />
           <label>Información principal <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.informacionPrincipal" required maxlength="2000" /></label>
           <label>Misión <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.mision" required maxlength="2000" /></label>
@@ -209,9 +218,22 @@ onMounted(cargar)
           <label>Correo de contacto <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.correo" type="email" required maxlength="254" /></label>
           <label>Teléfono de contacto <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.telefono" type="tel" required maxlength="30" /></label>
           <label>Dirección <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.direccion" required maxlength="300" /></label>
-          <fieldset>
+          <fieldset class="campo-ancho configuracion-carrusel">
+            <legend>Movimiento del carrusel</legend>
+            <label>Transición <span class="requisito-campo">Obligatorio</span>
+              <select v-model="contenido.carruselTransicion">
+                <option value="DESVANECER">Desvanecer</option>
+                <option value="DESLIZAR">Deslizar</option>
+              </select>
+            </label>
+            <label>Segundos entre imágenes <span class="requisito-campo">Obligatorio</span>
+              <input v-model.number="contenido.carruselIntervalo" type="number" min="4" max="10" step="1" required />
+            </label>
+            <small>El carrusel se inicia automáticamente; quien visite el portal puede pausarlo o detenerlo.</small>
+          </fieldset>
+          <fieldset class="campo-ancho bloque-carrusel">
             <legend>Imágenes del carrusel <span class="requisito-campo">Opcional; si se usa, 5 a 10 imágenes obligatorias</span></legend>
-            <p>Guarda ninguna imagen o entre 5 y 10. No se muestran imágenes de ejemplo.</p>
+            <p>Elige entre 5 y 10 imágenes. Puedes recortarlas antes de guardarlas.</p>
             <div class="lista-imagenes">
               <ImagenCampo v-for="(_, indice) in contenido.carrusel" :key="indice"
                 :model-value="contenido.carrusel[indice]" categoria="carrusel"
@@ -221,7 +243,9 @@ onMounted(cargar)
             <button type="button" class="secundario" :disabled="contenido.carrusel.length >= 10"
               @click="contenido.carrusel.push('')">Agregar imagen</button>
           </fieldset>
-          <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Guardar contenido' }}</button>
+          <div class="acciones campo-ancho acciones-guardar">
+            <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Guardar contenido' }}</button>
+          </div>
         </form>
       </section>
 

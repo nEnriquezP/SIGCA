@@ -116,7 +116,26 @@ test('contenido: estado vacío, validación, permisos y carrusel real', async ()
   assert.equal((await pedir('/api/contenido', { metodo: 'PUT', token: admin,
     datos: { ...datos, clave: 'otra' } })).status, 400)
   assert.equal((await pedir('/api/contenido', { metodo: 'PUT', token: admin, datos })).status, 200)
-  assert.equal((await pedir('/api/contenido')).body.contenido.carrusel.length, 5)
+  const anterior = (await pedir('/api/contenido')).body.contenido
+  assert.equal(anterior.carrusel.length, 5)
+  assert.equal(anterior.nombreCorto, 'Centro ficticio')
+  assert.equal(anterior.carruselIntervalo, 6)
+  const nuevo = { ...datos, nombreCorto: 'Centro de prueba', subtitulo: 'Atención integral',
+    carruselTransicion: 'DESLIZAR', carruselIntervalo: 7 }
+  for (const cambio of [
+    { nombreCorto: '' }, { subtitulo: ' ' }, { carruselTransicion: 'GIRO' },
+    { carruselIntervalo: 2 }, { carruselIntervalo: '7' },
+  ]) {
+    assert.equal((await pedir('/api/contenido', { metodo: 'PUT', token: admin,
+      datos: { ...nuevo, ...cambio } })).status, 400)
+  }
+  assert.equal((await pedir('/api/contenido', { metodo: 'PUT', token: admin,
+    datos: nuevo })).status, 200)
+  const actualizado = (await pedir('/api/contenido')).body.contenido
+  assert.equal(actualizado.nombreCorto, 'Centro de prueba')
+  assert.equal(actualizado.subtitulo, 'Atención integral')
+  assert.equal(actualizado.carruselTransicion, 'DESLIZAR')
+  assert.equal(actualizado.carruselIntervalo, 7)
 })
 
 test('publicaciones y actividades: fechas, imágenes, permisos y visibilidad', async () => {

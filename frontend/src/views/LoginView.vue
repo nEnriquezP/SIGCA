@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSesionStore } from '../stores/sesion.js'
 import { mostrarError } from '../services/avisos.js'
+import { solicitarApi } from '../services/api.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -11,6 +12,14 @@ const correo = ref('')
 const password = ref('')
 const mensaje = ref('')
 const enviando = ref(false)
+const nombrePortal = ref('Centro Armonía')
+
+onMounted(async () => {
+  try {
+    const contenido = (await solicitarApi('/api/contenido')).contenido
+    nombrePortal.value = contenido?.nombreCorto || nombrePortal.value
+  } catch { /* El formulario de acceso sigue disponible si falla el contenido público. */ }
+})
 
 async function ingresar() {
   mensaje.value = ''
@@ -47,7 +56,7 @@ async function ingresar() {
     <section class="tarjeta">
       <h1>Ingresar a SIGCA</h1>
       <p v-if="$route.query.password === 'actualizada'" class="mensaje-exito" role="status">Contraseña actualizada. Inicia sesión de nuevo.</p>
-      <p>Accede con el correo y la contraseña asignados por el administrador.</p>
+      <p>Acceso exclusivo para el personal autorizado de {{ nombrePortal }}. Ingresa con las credenciales de tu cuenta.</p>
       <form @submit.prevent="ingresar">
         <label for="correo">Correo electrónico <span class="requisito-campo">Obligatorio</span></label>
         <input id="correo" v-model.trim="correo" type="email" autocomplete="username" required />
