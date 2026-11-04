@@ -2,6 +2,7 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import { autenticar, permitirRoles } from '../middleware/autenticacion.js'
 import Material, { enlaceMaterialValido } from '../models/Material.js'
+import { siguienteCodigoMaterial } from '../services/codigosMaterial.js'
 
 const router = Router()
 const campos = ['titulo', 'descripcion', 'tipo', 'enlace']
@@ -28,7 +29,8 @@ function limpiar(datos) {
 
 function respuesta(material) {
   return {
-    id: material.id, titulo: material.titulo, descripcion: material.descripcion,
+    id: material.id, codigo: material.codigo ?? null,
+    titulo: material.titulo, descripcion: material.descripcion,
     tipo: material.tipo, enlace: material.enlace, estado: material.estado,
     fechaRegistro: material.fechaRegistro,
     fechaActualizacion: material.fechaActualizacion,
@@ -61,7 +63,7 @@ function filtroLista(req) {
   if (tipo) filtro.tipo = { $regex: `^${escapar(tipo)}$`, $options: 'i' }
   if (buscar) {
     const patron = escapar(buscar)
-    filtro.$or = ['titulo', 'descripcion'].map((campo) =>
+    filtro.$or = ['codigo', 'titulo', 'descripcion'].map((campo) =>
       ({ [campo]: { $regex: patron, $options: 'i' } }))
     if (mongoose.isValidObjectId(buscar)) filtro.$or.push({ _id: buscar })
   }
@@ -93,7 +95,11 @@ router.get('/:id', permitirRoles('ADMINISTRADOR', 'PROFESIONAL'), async (req, re
 router.post('/', permitirRoles('ADMINISTRADOR'), async (req, res) => {
   const error = validar(req.body)
   if (error) return res.status(400).json({ mensaje: error })
-  const material = await Material.create(limpiar(req.body))
+  if (await Material.exists({ codigo: null })) {
+    return res.status(503).json({ mensaje: 'Primero asigna códigos a los materiales existentes' })
+  }
+  const codigo = await siguienteCodigoMaterial()
+  const material = await Material.create({ ...limpiar(req.body), codigo })
   res.status(201).json({ material: respuesta(material) })
 })
 

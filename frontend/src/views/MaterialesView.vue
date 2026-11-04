@@ -344,8 +344,8 @@ onMounted(cargarMateriales)
     <section class="tarjeta" aria-labelledby="titulo-catalogo">
       <h2 id="titulo-catalogo">Catálogo de materiales</h2>
       <form class="formulario-grid filtros-materiales" @submit.prevent="buscarMateriales">
-        <label>Buscar por título o descripción
-          <input v-model="buscar" type="search" maxlength="80" placeholder="Palabra o identificador" />
+        <label>Buscar por código, título o descripción
+          <input v-model="buscar" type="search" maxlength="80" placeholder="MAT-0001 o palabra" />
         </label>
         <label>Tipo exacto
           <input v-model="tipoFiltro" maxlength="80" placeholder="Ej. Guía" />
@@ -365,7 +365,7 @@ onMounted(cargarMateriales)
         <p v-if="!materiales.length">No hay materiales para esta búsqueda.</p>
         <article v-for="material in materiales" :key="material.id" class="material-resumen">
           <div class="material-cabecera">
-            <div><h3>{{ material.titulo }}</h3><small>{{ material.tipo }} · {{ material.id }}</small></div>
+            <div><h3>{{ material.titulo }}</h3><small>{{ material.tipo }} · {{ material.codigo || 'Código pendiente' }}</small></div>
             <span class="material-estado" :class="material.estado === 'ACTIVO' ? 'activo' : 'inactivo'">
               Material {{ material.estado === 'ACTIVO' ? 'activo' : 'inactivo' }}
             </span>
@@ -399,6 +399,7 @@ onMounted(cargarMateriales)
     <section v-if="detalle" class="tarjeta" aria-labelledby="titulo-detalle-material">
       <h2 id="titulo-detalle-material">Detalle del material</h2>
       <h3>{{ detalle.titulo }}</h3>
+      <p><strong>Código:</strong> {{ detalle.codigo || 'Código pendiente' }}</p>
       <p class="texto-preservado">{{ detalle.descripcion }}</p>
       <p><strong>Tipo:</strong> {{ detalle.tipo }} · <strong>Estado:</strong> {{ detalle.estado }}</p>
       <p><strong>Registro:</strong> {{ fechaGuatemala(detalle.fechaRegistro) }}</p>
@@ -412,7 +413,8 @@ onMounted(cargarMateriales)
 
     <section v-if="puedeAsignar" class="tarjeta" aria-labelledby="titulo-asignar-material">
       <h2 id="titulo-asignar-material">Asignar material</h2>
-      <p>Material seleccionado: <strong>{{ materialElegido?.titulo || 'Ninguno' }}</strong></p>
+      <p>Material seleccionado: <strong>{{ materialElegido?.titulo || 'Ninguno' }}</strong>
+        <span v-if="materialElegido"> · {{ materialElegido.codigo || 'Código pendiente' }}</span></p>
       <PacientesActivosSelector v-model="pacienteId" endpoint="/api/asignaciones-materiales/opciones"
         @seleccion="pacienteSeleccionado = $event" @invalido="pacienteInvalido" />
       <p v-if="pacienteSeleccionado">Paciente: {{ pacienteSeleccionado.codigo || 'Sin código' }} · {{ pacienteSeleccionado.nombre }}</p>

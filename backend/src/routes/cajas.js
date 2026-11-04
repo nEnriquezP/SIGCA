@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import { autenticar } from '../middleware/autenticacion.js'
 import Caja from '../models/Caja.js'
 import Pago from '../models/Pago.js'
+import { siguienteCodigoCaja } from '../services/codigosCaja.js'
 import { centavosSeguros, errorFinanciero, esConflictoFinanciero,
   sumarCentavos, totalesCaja } from '../services/finanzas.js'
 
@@ -26,7 +27,8 @@ function fechaGuatemala(fecha) {
 }
 
 function resumen(caja) {
-  return { id: caja.id, usuarioResponsable: String(caja.usuarioResponsable),
+  return { id: caja.id, codigo: caja.codigo ?? null,
+    usuarioResponsable: String(caja.usuarioResponsable),
     fechaOperativa: caja.fechaOperativa, estado: caja.estado,
     abiertaEn: caja.abiertaEn, montoInicialCentavos: caja.montoInicialCentavos,
     revisionMovimientos: caja.revisionMovimientos,
@@ -90,9 +92,14 @@ router.post('/abrir', autorizar('CAJA_ABRIR'), async (req, res) => {
   if (await Caja.exists({ usuarioResponsable: req.usuario._id, estado: 'ABIERTA' })) {
     return res.status(409).json({ mensaje: 'Ya tienes una caja abierta' })
   }
+  if (await Caja.exists({ codigo: null })) {
+    return res.status(503).json({ mensaje: 'Primero asigna códigos a las cajas existentes' })
+  }
   try {
     const apertura = new Date()
+    const codigo = await siguienteCodigoCaja()
     const caja = await Caja.create({ usuarioResponsable: req.usuario._id,
+      codigo,
       fechaOperativa: fechaGuatemala(apertura), abiertaEn: apertura,
       montoInicialCentavos: datos.montoInicialCentavos })
     res.status(201).json({ caja: resumen(caja) })

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 
 const schema = new mongoose.Schema({
+  codigo: { type: String, immutable: true, match: /^CAJ-\d{4,}$/ },
   usuarioResponsable: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario',
     required: true, immutable: true },
   fechaOperativa: { type: String, required: true, immutable: true,
@@ -24,5 +25,7 @@ const schema = new mongoose.Schema({
 
 schema.index({ usuarioResponsable: 1 }, { unique: true,
   partialFilterExpression: { estado: 'ABIERTA' }, name: 'una_caja_abierta_por_usuario' })
+schema.index({ codigo: 1 }, { unique: true,
+  partialFilterExpression: { codigo: { $type: 'string' } } })
 
 export default mongoose.model('Caja', schema, 'cajas')

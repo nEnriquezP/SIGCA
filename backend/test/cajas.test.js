@@ -151,6 +151,7 @@ test('caja mínima protege apertura y consulta propia con MongoDB temporal local
     assert.equal(respuesta.status, 201)
     const caja = respuesta.body.caja
     assert.ok(mongoose.isValidObjectId(caja.id))
+    assert.equal(caja.codigo, 'CAJ-0001')
     assert.equal(caja.usuarioResponsable, admin.id)
     assert.equal(caja.estado, 'ABIERTA')
     assert.equal(caja.montoInicialCentavos, 12550)
@@ -176,6 +177,7 @@ test('caja mínima protege apertura y consulta propia con MongoDB temporal local
     const recepcionAbre = await pedir(base, '/api/cajas/abrir', tokens.recepcion, 'POST',
       { montoInicialCentavos: 0 })
     assert.equal(recepcionAbre.status, 201)
+    assert.equal(recepcionAbre.body.caja.codigo, 'CAJ-0002')
     assert.equal(recepcionAbre.body.caja.montoInicialCentavos, 0)
     const vistaAdmin = await pedir(base, '/api/cajas/actual', tokens.admin)
     const vistaRecepcion = await pedir(base, '/api/cajas/actual', tokens.recepcion)
@@ -192,6 +194,8 @@ test('caja mínima protege apertura y consulta propia con MongoDB temporal local
       pedir(base, '/api/cajas/abrir', tokens.otraRecepcion, 'POST', { montoInicialCentavos: 500 }),
     ])
     assert.deepEqual(respuestas.map((respuesta) => respuesta.status).sort(), [201, 409])
+    assert.match(respuestas.find((respuesta) => respuesta.status === 201).body.caja.codigo,
+      /^CAJ-\d{4,}$/)
     assert.equal(await Caja.countDocuments({ usuarioResponsable: otraRecepcion.id,
       estado: 'ABIERTA' }), 1)
     const actual = await pedir(base, '/api/cajas/actual', tokens.otraRecepcion)

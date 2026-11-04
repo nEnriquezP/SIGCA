@@ -85,7 +85,7 @@ async function cargarUsuarios() {
     usuariosPorId.value = Object.fromEntries(datos.usuarios.map((usuario) =>
       [usuario.id, usuario.nombre]))
   } catch (fallo) {
-    errorUsuarios.value = 'No se pudieron cargar los nombres de responsables; se muestran sus identificadores.'
+    errorUsuarios.value = 'No se pudieron cargar los nombres de responsables.'
     if (fallo.status === 401) mensajeError(fallo)
   } finally { cargandoUsuarios.value = false }
 }
@@ -234,7 +234,8 @@ onMounted(() => {
       <p v-else-if="cargandoActual && !actual">Cargando caja actual…</p>
       <p v-else-if="!actual">No tienes una caja propia abierta.</p>
       <template v-else>
-        <p>Fecha operativa: <strong>{{ fechaCorta(actual.fechaOperativa) }}</strong>.
+        <p>Caja <strong>{{ actual.codigo || 'Código pendiente' }}</strong> ·
+          Fecha operativa: <strong>{{ fechaCorta(actual.fechaOperativa) }}</strong>.
           Apertura: {{ fechaHoraGuatemala(actual.abiertaEn) }} (Guatemala).
           <button type="button" class="secundario caja-enlace" @click="verCaja(actual.id)">Ver movimientos</button></p>
         <dl class="caja-totales">
@@ -271,16 +272,16 @@ onMounted(() => {
       <p v-else-if="!cajas.length">No hay cajas para estos filtros.</p>
       <div v-if="cajas.length" class="tabla-contenedor">
         <table>
-          <thead><tr><th>Fecha operativa</th><th>Apertura</th><th>Estado</th>
+          <thead><tr><th>Código de caja</th><th>Fecha operativa</th><th>Apertura</th><th>Estado</th>
             <th v-if="esAdministrador">Responsable</th><th>Ingresos al cierre</th><th>Acción</th></tr></thead>
           <tbody>
             <tr v-for="caja in cajas" :key="caja.id">
+              <td>{{ caja.codigo || 'Código pendiente' }}</td>
               <td>{{ fechaCorta(caja.fechaOperativa) }}</td>
               <td>{{ fechaHoraGuatemala(caja.abiertaEn) }}</td>
               <td>{{ caja.estado === 'ABIERTA' ? 'Abierta' : 'Cerrada' }}</td>
               <td v-if="esAdministrador" class="caja-id">
-                <strong>{{ nombreResponsable(caja.usuarioResponsable) }}</strong><br />
-                ID: {{ caja.usuarioResponsable }}
+                <strong>{{ nombreResponsable(caja.usuarioResponsable) }}</strong>
               </td>
               <td>{{ caja.estado === 'CERRADA' ? quetzales(caja.totalIngresosCentavos) : 'En curso' }}</td>
               <td><button type="button" class="secundario" @click="verCaja(caja.id)">Ver detalle</button></td>
@@ -305,12 +306,12 @@ onMounted(() => {
       <p v-if="errorDetalle" class="mensaje-error" role="alert">{{ errorDetalle }}</p>
       <p v-else-if="cargandoDetalle && !detalle">Cargando detalle…</p>
       <template v-if="detalle">
-        <p><strong>{{ detalle.estado === 'ABIERTA' ? 'Abierta' : 'Cerrada' }}</strong> ·
+        <p>Caja <strong>{{ detalle.codigo || 'Código pendiente' }}</strong> ·
+          <strong>{{ detalle.estado === 'ABIERTA' ? 'Abierta' : 'Cerrada' }}</strong> ·
           Fecha operativa {{ fechaCorta(detalle.fechaOperativa) }} ·
           Abierta {{ fechaHoraGuatemala(detalle.abiertaEn) }} (Guatemala).</p>
         <p v-if="esAdministrador" class="caja-id">Responsable:
-          <strong>{{ nombreResponsable(detalle.usuarioResponsable) }}</strong>
-          · ID: {{ detalle.usuarioResponsable }}</p>
+          <strong>{{ nombreResponsable(detalle.usuarioResponsable) }}</strong></p>
         <p v-if="detalle.estado === 'CERRADA'">Cerrada {{ fechaHoraGuatemala(detalle.cerradaEn) }} (Guatemala).
           Los importes mostrados son los guardados al cierre.</p>
         <p v-if="conciliacion?.coincide === false" class="mensaje-error caja-advertencia" role="alert">

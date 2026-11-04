@@ -2,6 +2,7 @@ import test, { after, before, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import Material, { enlaceMaterialValido } from '../src/models/Material.js'
+import Contador from '../src/models/Contador.js'
 import Usuario from '../src/models/Usuario.js'
 import Rol from '../src/models/Rol.js'
 import { permisosValidos, PERMISOS_PREDEFINIDOS } from '../src/services/permisos.js'
@@ -19,6 +20,7 @@ const datosBase = { titulo: 'Guía de hábitos', descripcion: 'Lectura para fami
   tipo: 'Documento', enlace: 'https://example.test/guia' }
 let servidor
 let base
+let secuencia = 0
 
 function token(id, rol) {
   const usuario = { id, rol, activo: true, tokenVersion: 0 }
@@ -51,6 +53,9 @@ before(async () => {
     const material = materiales.get(String(filtro._id))
     return material && (!filtro.estado || material.estado === filtro.estado) ? material : null
   }
+  Material.exists = async (filtro) =>
+    filtro.codigo === null && [...materiales.values()].some((material) => !material.codigo)
+  Contador.findOneAndUpdate = async () => ({ secuencia: ++secuencia })
   Material.create = async (datos) => {
     const material = new Material(datos)
     await material.validate()
@@ -75,7 +80,7 @@ before(async () => {
   base = `http://127.0.0.1:${servidor.address().port}`
 })
 
-beforeEach(() => { cuentas.clear(); materiales.clear() })
+beforeEach(() => { cuentas.clear(); materiales.clear(); secuencia = 0 })
 after(() => servidor?.close())
 
 async function pedir(ruta, { metodo = 'GET', credencial, datos } = {}) {
@@ -115,6 +120,7 @@ test('alta, edición, desactivación y reactivación conservan el registro', asy
   assert.equal(alta.status, 201)
   const id = alta.body.material.id
   assert.match(id, /^[a-f\d]{24}$/i)
+  assert.equal(alta.body.material.codigo, 'MAT-0001')
   assert.equal(alta.body.material.titulo, 'Guía de hábitos')
   assert.equal(alta.body.material.estado, 'ACTIVO')
   assert.ok(Date.parse(alta.body.material.fechaRegistro))
@@ -125,6 +131,7 @@ test('alta, edición, desactivación y reactivación conservan el registro', asy
     datos: { ...datosBase, titulo: 'Nueva guía', tipo: 'Video', enlace: '/materiales/video' } })
   assert.equal(edicion.status, 200)
   assert.equal(edicion.body.material.titulo, 'Nueva guía')
+  assert.equal(edicion.body.material.codigo, 'MAT-0001')
   assert.equal(edicion.body.material.estado, 'ACTIVO')
   assert.equal(edicion.body.material.fechaRegistro, alta.body.material.fechaRegistro)
   assert.equal((await pedir(`/api/materiales/${id}`, { metodo: 'PUT', credencial: profesional,
@@ -162,7 +169,8 @@ test('valida datos, URL, identificadores y filtros sin alterar el catálogo', as
     assert.equal((await pedir('/api/materiales', { metodo: 'POST', credencial: admin,
       datos: { ...datosBase, ...cambio } })).status, 400)
   }
-  for (const extra of [{ estado: 'INACTIVO' }, { fechaRegistro: '2020-01-01' },
+  for (const extra of [{ estado: 'INACTIVO' }, { codigo: 'MAT-9999' },
+    { fechaRegistro: '2020-01-01' },
     { id: ids.admin }, { desconocido: true }]) {
     assert.equal((await pedir('/api/materiales', { metodo: 'POST', credencial: admin,
       datos: { ...datosBase, ...extra } })).status, 400)
@@ -205,6 +213,12 @@ test('filtra por texto, tipo y estado con paginación de cien registros', async 
   assert.equal(primera.body.hayMas, true)
   assert.equal(segunda.body.materiales.length, 1)
   assert.equal(segunda.body.hayMas, false)
+  const codigoBuscado = primera.body.materiales[0].codigo
+  assert.match(codigoBuscado, /^MAT-\d{4,}$/)
+  const busquedaCodigo = await pedir(`/api/materiales?buscar=${codigoBuscado}`,
+    { credencial: profesional })
+  assert.equal(busquedaCodigo.body.materiales.length, 1)
+  assert.equal(busquedaCodigo.body.materiales[0].codigo, codigoBuscado)
   assert.equal((await pedir('/api/materiales?tipo=v%C3%ADdeo', { credencial: admin })).body.materiales.length, 1)
   assert.equal((await pedir('/api/materiales?buscar=Gu%C3%ADa%20100',
     { credencial: profesional })).body.materiales.length, 1)
@@ -215,6 +229,16 @@ test('filtra por texto, tipo y estado con paginación de cien registros', async 
   assert.equal((await pedir('/api/materiales?estado=ACTIVO', { credencial: admin })).body.materiales.length, 100)
   assert.equal((await pedir('/api/materiales?estado=INACTIVO', { credencial: admin })).body.materiales.length, 1)
   assert.equal((await pedir('/api/materiales', { credencial: profesional })).body.materiales.length, 100)
+})
+
+test('evita altas hasta asignar código a materiales existentes', async () => {
+  const admin = token(ids.admin, 'ADMINISTRADOR')
+  const anterior = new Material(datosBase)
+  materiales.set(anterior.id, anterior)
+  const respuesta = await pedir('/api/materiales', { metodo: 'POST', credencial: admin,
+    datos: datosBase })
+  assert.equal(respuesta.status, 503)
+  assert.equal(materiales.size, 1)
 })
 
 test('el esquema guarda campos y fechas previstos y rechaza enlaces inseguros', async () => {

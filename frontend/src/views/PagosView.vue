@@ -281,7 +281,7 @@ onMounted(async () => {
       <p><RouterLink :to="{ name: 'caja', query: caja?.id || cierre?.id ?
         { id: caja?.id || cierre?.id } : {} }">
         Consultar resumen, movimientos y cierres de caja</RouterLink></p>
-      <p v-if="caja">Caja abierta desde {{ fechaHoraGuatemala(caja.abiertaEn) }} (Guatemala).
+      <p v-if="caja">Caja {{ caja.codigo || 'Código pendiente' }} abierta desde {{ fechaHoraGuatemala(caja.abiertaEn) }} (Guatemala).
         Monto inicial: <strong>{{ quetzales(caja.montoInicialCentavos) }}</strong>.</p>
       <template v-if="!caja">
         <p>Necesitas una caja propia abierta para registrar pagos.</p>
@@ -297,6 +297,7 @@ onMounted(async () => {
         <button type="submit" class="secundario" :disabled="ocupado">Cerrar mi caja</button>
       </form>
       <dl v-if="cierre" class="pagos-resumen">
+        <div><dt>Código de caja</dt><dd>{{ cierre.codigo || 'Código pendiente' }}</dd></div>
         <div><dt>Ingresos válidos</dt><dd>{{ quetzales(cierre.totalIngresosCentavos) }}</dd></div>
         <div><dt>Efectivo esperado</dt><dd>{{ quetzales(cierre.efectivoEsperadoCentavos) }}</dd></div>
         <div><dt>Diferencia</dt><dd>{{ quetzales(cierre.diferenciaCentavos) }}</dd></div>
