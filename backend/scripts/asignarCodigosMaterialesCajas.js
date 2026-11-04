@@ -99,6 +99,8 @@ async function ejecutar() {
       (aplicar && nombreEsperado === 'sigca_prod' && !confirmarProduccion)) {
     throw new Error('Indica --db=sigca_dev|sigca_test|sigca_prod; para escribir agrega --aplicar y confirma producción')
   }
+  // La simulación no debe crear índices automáticamente al conectar.
+  if (!aplicar) mongoose.set('autoIndex', false)
   await conectarBaseDeDatos()
   try {
     const resultados = await asignarCodigosExistentes(nombreEsperado, { aplicar })
