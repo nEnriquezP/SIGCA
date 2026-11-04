@@ -1,6 +1,21 @@
 # SIGCA
 
-Sistema Integral de Gestión de Citas y Atención. Proyecto individual del curso de Desarrollo Web de Ingeniería en Sistemas.
+Sistema Integral de Gestión de Citas y Atención. Proyecto final **individual** del curso de Desarrollo Web de Ingeniería en Sistemas, desarrollado por Nelson Enríquez. El autor asumió frontend, backend, base de datos, integración, pruebas y documentación; el ingeniero autorizó la modalidad individual.
+
+## Guía rápida para evaluar
+
+| Necesitas | Dónde está |
+| --- | --- |
+| Código Vue 3 y API Express | `frontend/` y `backend/` |
+| Modelos, rutas y configuración | `backend/src/models/`, `backend/src/routes/`, `backend/src/config/` |
+| Plantillas de variables sin secretos | `frontend/.env.example` y `backend/.env.example` |
+| Script de datos de demostración | `backend/scripts/cargarDatosFicticios.js` |
+| Peticiones para probar la API | `postman/SIGCA.postman_collection.json` |
+| Lista de evidencias y entrega | [`docs/ENTREGA_FINAL.md`](docs/ENTREGA_FINAL.md) |
+
+Los controladores HTTP están implementados como funciones dentro de los archivos de `backend/src/routes/`; la lógica compartida se encuentra en `backend/src/services/`. No existe una carpeta `controllers/` separada. Los archivos `.env.example` indican **qué variables configurar**, mientras que los `.env` reales contienen valores privados y no se incluyen en el repositorio ni en el ZIP de entrega.
+
+**Ruta de lectura:** primero «Tecnologías» y «Preparación local» para ejecutar SIGCA; después los apartados por módulo para revisar sus reglas; al final «Datos ficticios y colección Postman» para la demostración. Las credenciales de demostración se entregan por un canal privado aprobado para el curso, nunca por GitHub, el README, Postman o capturas.
 
 ## Estado del proyecto
 
@@ -12,7 +27,13 @@ El repositorio contiene los módulos de portal público, usuarios, pacientes, re
 - Backend: Node.js, Express, Mongoose y JavaScript.
 - Base de datos: MongoDB Atlas, accesible únicamente desde el backend.
 
-## Preparación local
+## Portal público e identidad
+
+El nombre institucional completo, el nombre corto del encabezado y su subtítulo son datos distintos y editables en **Administrar portal**. El nombre completo sigue usándose donde corresponde, incluidos los correos institucionales; el encabezado muestra el nombre corto junto al logotipo y el subtítulo. El contenido anterior en MongoDB recibe valores de presentación de respaldo al consultarse, sin migración destructiva.
+
+El inicio muestra el carrusel con las imágenes configuradas, sin recortar sus bordes en la vista pública. Avanza automáticamente y permite anterior, siguiente, selección de imagen, pausa, reproducción y detención. Detener vuelve a la primera imagen y espera que el visitante pulse Reproducir. El administrador elige transición entre desvanecer y deslizar y un intervalo de 4 a 10 segundos. La reproducción se suspende mientras el puntero o el foco están dentro del carrusel, o la pestaña no está visible; respeta la preferencia de movimiento reducido al abrir la página. El editor conserva el recorte de imágenes y presenta miniaturas compactas.
+
+## Requisitos de instalación y preparación local
 
 Usar Node.js 24.17.0. En la Terminal integrada de VS Code, situada en la raíz del repositorio, ejecutar `nvm use`: NVM leerá `.nvmrc` y seleccionará esa versión. El mismo comando también funciona desde `backend/` y `frontend/`. Repetirlo en cada terminal nueva antes de usar `npm`. Comprobar con `node -v`, `npm -v` y `which node`; Node debe indicar `v24.17.0` y su ruta debe estar dentro de `~/.nvm/versions/node/v24.17.0/`.
 
