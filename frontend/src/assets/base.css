@@ -681,6 +681,10 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .administracion-portal th, .panel-citas th, .panel-solicitudes th { background: #f1f7f9; color: #35546a; }
 .administracion-portal td, .panel-citas td, .panel-solicitudes td { vertical-align: middle; }
 .panel-citas form, .panel-solicitudes form { gap: 16px 20px; align-items: end; }
+.panel-citas .seccion-plegable-cabecera h2 { margin: 0; }
+.panel-citas .seccion-plegable-cabecera button { min-width: 96px; border: 1px solid #c6dfe5; border-radius: 9px; background: #eaf6f6; color: #0c626c; font-weight: 700; }
+.panel-citas .seccion-plegable-cabecera button:hover { background: #d9eeee; }
+.panel-citas .contenido-seccion-citas { margin-top: 24px; }
 .panel-citas button, .panel-solicitudes button, .administracion-portal button { border-radius: 8px; }
 .panel-citas .selector-cita, .panel-solicitudes .selector-pacientes { width: min(100%, 650px); }
 .selector-pacientes { background: #f8fbfc; }

@@ -18,6 +18,8 @@ const route = useRoute()
 const router = useRouter()
 const sesion = useSesionStore()
 const gestiona = computed(() => sesion.tienePermiso('CITAS_GESTIONAR'))
+const programacionAbierta = ref(false)
+const consultaAbierta = ref(Boolean((route.query.paciente || route.query.fecha) && !route.query.id))
 const citas = ref([])
 const total = ref(0)
 const pagina = ref(0)
@@ -200,6 +202,7 @@ async function cambiarEstado(estado) {
 watch(() => [route.query.paciente, route.query.fecha, route.query.id], async ([paciente, fecha, id]) => {
   filtro.value.paciente = String(paciente || '')
   filtro.value.fecha = String(fecha || '')
+  if ((paciente || fecha) && !id) consultaAbierta.value = true
   pagina.value = 0
   await cargar()
   if (id) await ver(String(id))
@@ -219,7 +222,12 @@ useOpcionesVivas(cargarOpciones, ['servicios', 'usuarios'])
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
     <section v-if="gestiona" class="tarjeta">
-      <h2>Programar cita</h2>
+      <header class="seccion-plegable-cabecera">
+        <h2>Programar cita</h2>
+        <button type="button" class="secundario" :aria-expanded="programacionAbierta"
+          aria-controls="contenido-programar-cita" @click="programacionAbierta = !programacionAbierta">{{ programacionAbierta ? 'Ocultar' : 'Mostrar' }}</button>
+      </header>
+      <div v-show="programacionAbierta" id="contenido-programar-cita" class="contenido-seccion-citas">
       <form class="formulario-grid" @submit.prevent="prepararConfirmacion('nueva')">
         <PacientesActivosSelector v-model="nueva.paciente" endpoint="/api/citas/opciones"
           class="campo-ancho selector-cita" @seleccion="pacienteElegido = $event" @invalido="aviso = $event" />
@@ -242,10 +250,16 @@ useOpcionesVivas(cargarOpciones, ['servicios', 'usuarios'])
         <button type="submit" :disabled="operando">Revisar y continuar</button>
       </form>
       <p v-if="!opciones.profesionales.length">No hay profesionales activos disponibles.</p>
+      </div>
     </section>
 
     <section class="tarjeta">
-      <h2>{{ filtro.paciente ? 'Historial de citas del paciente' : 'Consultar citas' }}</h2>
+      <header class="seccion-plegable-cabecera">
+        <h2>{{ filtro.paciente ? 'Historial de citas del paciente' : 'Consultar citas' }}</h2>
+        <button type="button" class="secundario" :aria-expanded="consultaAbierta"
+          aria-controls="contenido-consultar-citas" @click="consultaAbierta = !consultaAbierta">{{ consultaAbierta ? 'Ocultar' : 'Mostrar' }}</button>
+      </header>
+      <div v-show="consultaAbierta" id="contenido-consultar-citas" class="contenido-seccion-citas">
       <form class="formulario-grid" @submit.prevent="filtrar">
         <label>Fecha <span class="requisito-campo">Opcional</span><input v-model="filtro.fecha" type="date" /></label>
         <label>Estado <span class="requisito-campo">Opcional</span><select v-model="filtro.estado"><option value="">Todos</option>
@@ -276,6 +290,7 @@ useOpcionesVivas(cargarOpciones, ['servicios', 'usuarios'])
           <button type="button" class="secundario" :disabled="(pagina + 1) * 100 >= total" @click="moverPagina(1)">Siguiente</button>
         </div>
       </template>
+      </div>
     </section>
 
     <section v-if="detalle" class="tarjeta">
