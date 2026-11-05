@@ -304,9 +304,9 @@ useOpcionesVivas(cargarOpciones, ['servicios', 'usuarios'])
       <p v-if="detalle.solicitudCita && gestiona">Origen: solicitud convertida.
         <RouterLink :to="`/gestion-solicitudes`">Abrir solicitudes</RouterLink></p>
       <div class="acciones">
-        <RouterLink v-if="gestiona && sesion.tienePermiso('PAGOS_VER')"
+        <RouterLink v-if="gestiona && sesion.tienePermiso('PAGOS_VER')" class="boton-pagos-cita"
           :to="{ name: 'pagos', query: { cita: detalle.id, paciente: detalle.paciente.id } }">
-          Ver pagos y saldo
+          <span aria-hidden="true">▣</span> Ver pagos y saldo <span aria-hidden="true">→</span>
         </RouterLink>
         <button v-if="gestiona && detalle.estado === 'PENDIENTE'" type="button" :disabled="operando"
           @click="cambiarEstado('CONFIRMADA')">Confirmar</button>

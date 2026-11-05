@@ -48,7 +48,7 @@ const edicion = ref(null)
 const edicionOriginal = ref(null)
 const detalle = ref(null)
 const registroAbierto = ref(false)
-const busquedaAbierta = ref(true)
+const busquedaAbierta = ref(false)
 const reenviandoCorreo = ref(false)
 const historialCitas = ref([])
 const totalCitas = ref(0)
@@ -484,7 +484,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="contenedor">
+  <main class="contenedor panel-personas">
     <h1>Pacientes</h1>
     <p>Puedes seleccionar un responsable existente o agregarlo aquí sin perder los datos del paciente.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>

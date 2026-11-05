@@ -13,6 +13,8 @@ import { errorActual, mostrarError } from '../services/avisos.js'
 
 const router = useRouter()
 const sesion = useSesionStore()
+const registroAbierto = ref(false)
+const busquedaAbierta = ref(false)
 const responsables = ref([])
 const pagina = ref(0)
 const hayMas = ref(false)
@@ -163,22 +165,23 @@ useOpcionesVivas(cargar, ['responsables'])
 </script>
 
 <template>
-  <main class="contenedor">
+  <main class="contenedor panel-personas">
     <h1>Responsables</h1>
     <p>Registra y consulta responsables. La asociación con uno o varios pacientes se realiza en Pacientes.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
     <section v-if="sesion.tienePermiso('RESPONSABLES_GESTIONAR')" class="tarjeta">
-      <h2>Registrar responsable</h2>
-      <form class="formulario-responsable" @submit.prevent="crear">
+      <header class="seccion-plegable-cabecera"><h2>Registrar responsable</h2><button type="button" class="secundario" :aria-expanded="registroAbierto" aria-controls="registro-responsable" @click="registroAbierto = !registroAbierto">{{ registroAbierto ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <form v-show="registroAbierto" id="registro-responsable" class="formulario-responsable" @submit.prevent="crear">
         <DatosResponsable v-model="nuevo" />
         <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando…' : 'Registrar' }}</button>
       </form>
     </section>
 
     <section class="tarjeta">
-      <h2>Consultar y buscar</h2>
+      <header class="seccion-plegable-cabecera"><h2>Consultar y buscar</h2><button type="button" class="secundario" :aria-expanded="busquedaAbierta" aria-controls="listado-responsables" @click="busquedaAbierta = !busquedaAbierta">{{ busquedaAbierta ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <div v-show="busquedaAbierta" id="listado-responsables">
       <form @submit.prevent="buscarListado">
         <label>Código, identificador, nombre, apellido, correo o teléfono <span class="requisito-campo">Opcional</span><input v-model="buscar" maxlength="80" /></label>
         <button type="submit">Buscar</button>
@@ -202,9 +205,10 @@ useOpcionesVivas(cargar, ['responsables'])
           </tbody>
         </table>
       </div>
+      </div>
     </section>
 
-    <nav class="acciones" aria-label="Páginas de resultados">
+    <nav v-if="busquedaAbierta" class="acciones" aria-label="Páginas de resultados">
       <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(-1)">Anterior</button>
       <span>Página {{ pagina + 1 }}</span>
       <button type="button" class="secundario" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente</button>

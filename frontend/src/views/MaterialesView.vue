@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PacientesActivosSelector from '../components/PacientesActivosSelector.vue'
 import AdvertenciaCambios from '../components/AdvertenciaCambios.vue'
@@ -14,6 +14,9 @@ const puedeGestionar = computed(() => esAdministrador.value && sesion.tienePermi
 const puedeAsignar = computed(() => ['ADMINISTRADOR', 'PROFESIONAL'].includes(sesion.usuario?.rol) &&
   sesion.tienePermiso('MATERIALES_ASIGNAR'))
 
+const formularioAbierto = ref(false)
+const catalogoAbierto = ref(false)
+const asignacionAbierta = ref(false)
 const materiales = ref([])
 const pagina = ref(0)
 const hayMas = ref(false)
@@ -139,6 +142,13 @@ async function consultarMaterial(material) {
   }
 }
 
+async function seleccionarMaterial(material) {
+  materialElegido.value = material
+  asignacionAbierta.value = true
+  await nextTick()
+  document.getElementById('asignacion-material')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 function limpiarFormulario() {
   editandoId.value = ''
   formulario.value = formularioVacio()
@@ -153,10 +163,12 @@ async function editarMaterial(material) {
     const datos = await solicitarApi(`/api/materiales/${material.id}`,
       { token: sesion.token, silencioso: true })
     const actual = datos.material
+    formularioAbierto.value = true
     editandoId.value = actual.id
     formulario.value = { titulo: actual.titulo, descripcion: actual.descripcion,
       tipo: actual.tipo, enlace: actual.enlace }
     formularioOriginal.value = JSON.stringify(formulario.value)
+    await nextTick()
     document.getElementById('formulario-material')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch (fallo) {
     manejarError(fallo)
@@ -317,8 +329,8 @@ onMounted(cargarMateriales)
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
     <section v-if="puedeGestionar" id="formulario-material" class="tarjeta">
-      <h2>{{ editandoId ? 'Editar material' : 'Nuevo material' }}</h2>
-      <form class="formulario-grid" @submit.prevent="guardarMaterial">
+      <header class="seccion-plegable-cabecera"><h2>{{ editandoId ? 'Editar material' : 'Nuevo material' }}</h2><button type="button" class="secundario" :aria-expanded="formularioAbierto" aria-controls="contenido-formulario-material" @click="formularioAbierto = !formularioAbierto">{{ formularioAbierto ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <form v-show="formularioAbierto" id="contenido-formulario-material" class="formulario-grid" @submit.prevent="guardarMaterial">
         <label>Título <span class="requisito-campo">Obligatorio</span>
           <input v-model="formulario.titulo" required maxlength="160" autocomplete="off" />
         </label>
@@ -342,7 +354,8 @@ onMounted(cargarMateriales)
     </section>
 
     <section class="tarjeta" aria-labelledby="titulo-catalogo">
-      <h2 id="titulo-catalogo">Catálogo de materiales</h2>
+      <header class="seccion-plegable-cabecera"><h2 id="titulo-catalogo">Catálogo de materiales</h2><button type="button" class="secundario" :aria-expanded="catalogoAbierto" aria-controls="contenido-catalogo-material" @click="catalogoAbierto = !catalogoAbierto">{{ catalogoAbierto ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <div v-show="catalogoAbierto" id="contenido-catalogo-material">
       <form class="formulario-grid filtros-materiales" @submit.prevent="buscarMateriales">
         <label>Buscar por código, título o descripción
           <input v-model="buscar" type="search" maxlength="80" placeholder="MAT-0001 o palabra" />
@@ -379,7 +392,7 @@ onMounted(cargarMateriales)
             <button type="button" class="secundario" :disabled="consultando" @click="consultarMaterial(material)">Ver detalle</button>
             <button v-if="puedeAsignar && material.estado === 'ACTIVO'" type="button"
               :aria-pressed="materialElegido?.id === material.id"
-              @click="materialElegido = material">{{ materialElegido?.id === material.id ? 'Material seleccionado' : 'Seleccionar para asignar' }}</button>
+              @click="seleccionarMaterial(material)">{{ materialElegido?.id === material.id ? 'Material seleccionado' : 'Seleccionar para asignar' }}</button>
             <button v-if="puedeGestionar" type="button" class="secundario" :disabled="consultando"
               @click="editarMaterial(material)">Editar material</button>
             <button v-if="puedeGestionar" type="button" class="secundario"
@@ -394,6 +407,7 @@ onMounted(cargarMateriales)
         <span>Página {{ pagina + 1 }}</span>
         <button type="button" class="secundario" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente</button>
       </nav>
+      </div>
     </section>
 
     <section v-if="detalle" class="tarjeta" aria-labelledby="titulo-detalle-material">
@@ -411,8 +425,9 @@ onMounted(cargarMateriales)
       </div>
     </section>
 
-    <section v-if="puedeAsignar" class="tarjeta" aria-labelledby="titulo-asignar-material">
-      <h2 id="titulo-asignar-material">Asignar material</h2>
+    <section v-if="puedeAsignar" id="asignacion-material" class="tarjeta" aria-labelledby="titulo-asignar-material">
+      <header class="seccion-plegable-cabecera"><h2 id="titulo-asignar-material">Asignar materiales</h2><button type="button" class="secundario" :aria-expanded="asignacionAbierta" aria-controls="contenido-asignacion-material" @click="asignacionAbierta = !asignacionAbierta">{{ asignacionAbierta ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <div v-show="asignacionAbierta" id="contenido-asignacion-material">
       <p>Material seleccionado: <strong>{{ materialElegido?.titulo || 'Ninguno' }}</strong>
         <span v-if="materialElegido"> · {{ materialElegido.codigo || 'Código pendiente' }}</span></p>
       <PacientesActivosSelector v-model="pacienteId" endpoint="/api/asignaciones-materiales/opciones"
@@ -421,10 +436,8 @@ onMounted(cargarMateriales)
       <button type="button" :disabled="asignando || !pacienteId || !materialElegido || materialElegido.estado !== 'ACTIVO'"
         @click="asignarMaterial">{{ asignando ? 'Asignando…' : 'Asignar material' }}</button>
       <p class="material-ayuda">Se permite asignar el mismo material más de una vez. Cada asignación queda registrada en el historial.</p>
-    </section>
-
-    <section v-if="puedeAsignar" class="tarjeta" aria-labelledby="titulo-historial-materiales">
-      <h2 id="titulo-historial-materiales">Historial de asignaciones</h2>
+      <div class="historial-asignaciones" aria-labelledby="titulo-historial-materiales">
+      <h3 id="titulo-historial-materiales">Historial de asignaciones</h3>
       <p v-if="!pacienteId">Selecciona un paciente activo para consultar su historial.</p>
       <template v-else>
         <p v-if="cargandoHistorial" role="status">Cargando historial…</p>
@@ -452,6 +465,8 @@ onMounted(cargarMateriales)
             @click="moverPaginaHistorial(1)">Siguiente</button>
         </nav>
       </template>
+      </div>
+      </div>
     </section>
     <AdvertenciaCambios :abierto="advertenciaVisible" @seguir="seguirEditando" @salir="salirSinGuardar" />
   </main>

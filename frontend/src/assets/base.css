@@ -386,6 +386,20 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .calendario-vacio { margin: 18px 0 4px; font-weight: 600; color: #38506a; }
 .seccion-plegable-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .seccion-plegable-cabecera h2 { margin: 0; }
+.panel-personas > .tarjeta, .materiales-vista > .tarjeta { border-radius: 16px; box-shadow: 0 8px 26px #123b5610; }
+.panel-personas .seccion-plegable-cabecera, .materiales-vista .seccion-plegable-cabecera { gap: 16px; }
+.panel-personas .seccion-plegable-cabecera button, .materiales-vista .seccion-plegable-cabecera button { min-width: 96px; border: 1px solid #c6dfe5; border-radius: 9px; background: #eaf6f6; color: #0c626c; font-weight: 700; }
+.panel-personas .seccion-plegable-cabecera button:hover, .materiales-vista .seccion-plegable-cabecera button:hover { background: #d9eeee; }
+.panel-personas .seccion-plegable-cabecera + form, .panel-personas .seccion-plegable-cabecera + div, .materiales-vista .seccion-plegable-cabecera + form, .materiales-vista .seccion-plegable-cabecera + div { margin-top: 24px; }
+.panel-personas input, .panel-personas select, .panel-personas textarea, .materiales-vista input, .materiales-vista select, .materiales-vista textarea { border-radius: 9px; min-height: 44px; }
+.panel-personas button, .materiales-vista button { border-radius: 8px; }
+.panel-personas .tabla-contenedor { margin-top: 20px; }
+.panel-personas th { background: #f1f7f9; color: #35546a; }
+.historial-asignaciones { margin-top: 30px; padding-top: 24px; border-top: 1px solid #dce8ed; }
+.historial-asignaciones h3 { color: #123a5e; font-size: 1.25rem; }
+.boton-pagos-cita { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 10px 16px; border: 1px solid #9fcfd1; border-radius: 9px; background: #e7f5f4; color: #075c65; font-weight: 700; text-decoration: none; }
+.boton-pagos-cita:hover { background: #d5edec; }
+.boton-pagos-cita:focus-visible { outline: 3px solid #efb34c; outline-offset: 3px; }
 .calendario-mes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 18px; }
 .calendario-encabezado { text-align: center; padding: 7px 0; color: #36546e; }
 .calendario-casilla { min-height: 76px; border: 1px solid #d9e2ed; border-radius: 8px; }
