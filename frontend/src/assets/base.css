@@ -314,6 +314,19 @@ button.secundario { background: #e7edf4; color: #203047; }
 .pagos-vista button { border-radius: 9px; }
 .pagos-boton-icono { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .pagos-boton-icono svg { width: 19px; height: 19px; flex: none; }
+.pagos-acceso-caja { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; margin-bottom: 20px; }
+.pagos-acceso-caja small, .pagos-efectivo-esperado small { color: #536a7d; line-height: 1.4; }
+.pagos-acceso-boton { padding: 11px 16px; border-radius: 9px; background: #e5f3f3; color: #086970; font-weight: 700; text-decoration: none; }
+.pagos-acceso-boton:hover { background: #d3ebeb; color: #075b61; }
+.pagos-acceso-boton:focus-visible { outline: 3px solid #d8a53c; outline-offset: 3px; }
+.pagos-efectivo-esperado { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; max-width: 620px; padding: 16px 18px; margin: 16px 0; border: 1px solid #e9d5a7; border-radius: 12px; background: #fff9ea; }
+.pagos-efectivo-esperado span { color: #65502b; font-weight: 700; }
+.pagos-efectivo-esperado strong { color: #17365d; font-size: 1.35rem; }
+.pagos-efectivo-esperado small { flex-basis: 100%; }
+.pagos-vista .pagos-abrir-caja { background: #087f77; border-color: #087f77; color: #fff; }
+.pagos-vista .pagos-abrir-caja:hover { background: #066a63; }
+.pagos-vista .pagos-cerrar-caja { background: #a65a26; border-color: #a65a26; color: #fff; }
+.pagos-vista .pagos-cerrar-caja:hover { background: #85451d; }
 .pagos-filtros-linea { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; align-items: start; }
 .pagos-busqueda-paciente { gap: 10px; }
 .pagos-filtros-fecha { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }

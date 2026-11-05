@@ -82,6 +82,7 @@ async function abrirCaja() {
   try {
     caja.value = (await solicitarApi('/api/cajas/abrir', { method: 'POST',
       token: sesion.token, body: { montoInicialCentavos: centavos }, silencioso: true })).caja
+    await cargarCaja()
     cierre.value = null
     aviso.value = 'Caja propia abierta.'
   } catch (fallo) { explicarError(fallo); await cargarCaja() } finally { ocupado.value = false }
@@ -272,6 +273,7 @@ async function cargarPacienteRuta(id) {
   } catch (fallo) { explicarError(fallo) }
 }
 
+watch(cajaAbierta, (abierta) => { if (abierta) cargarCaja() })
 watch(() => route.query.cita, (id) => { if (id) { saldoAbierto.value = true; seleccionarCita(String(id)) } })
 watch(() => route.query.paciente, async (id) => {
   if (id && !route.query.cita) consultaAbierta.value = true
@@ -299,23 +301,31 @@ onMounted(async () => {
       <header class="seccion-plegable-cabecera"><h2>Mi caja</h2>
         <button type="button" class="secundario pagos-mostrar" :aria-expanded="cajaAbierta" aria-controls="pagos-caja" @click="cajaAbierta = !cajaAbierta">{{ cajaAbierta ? 'Ocultar' : 'Mostrar' }}</button></header>
       <div v-show="cajaAbierta" id="pagos-caja" class="pagos-contenido">
-      <p><RouterLink :to="{ name: 'caja', query: caja?.id || cierre?.id ?
+      <div class="pagos-acceso-caja"><RouterLink class="pagos-acceso-boton pagos-boton-icono" :to="{ name: 'caja', query: caja?.id || cierre?.id ?
         { id: caja?.id || cierre?.id } : {} }">
-        Consultar resumen, movimientos y cierres de caja</RouterLink></p>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Ver caja diaria</RouterLink>
+        <small>Consultar resumen, movimientos y cierre de caja.</small></div>
       <p v-if="caja">Caja {{ caja.codigo || 'Código pendiente' }} abierta desde {{ fechaHoraGuatemala(caja.abiertaEn) }} (Guatemala).
         Monto inicial: <strong>{{ quetzales(caja.montoInicialCentavos) }}</strong>.</p>
+      <div v-if="caja" class="pagos-efectivo-esperado">
+        <span>Efectivo esperado para el cierre</span>
+        <strong v-if="caja.efectivoEsperadoCentavos != null">{{ quetzales(caja.efectivoEsperadoCentavos) }}</strong>
+        <strong v-else>No disponible</strong>
+        <small>Monto inicial más pagos válidos en efectivo. Actualiza la consulta antes de cerrar.</small>
+        <button type="button" class="secundario" :disabled="ocupado" @click="cargarCaja">Actualizar importe</button>
+      </div>
       <template v-if="!caja">
         <p>Necesitas una caja propia abierta para registrar pagos.</p>
         <form v-if="puedeRegistrar" class="formulario-grid" @submit.prevent="abrirCaja">
           <label>Monto inicial en quetzales <span class="requisito-campo">Obligatorio</span>
             <input v-model="montoInicial" inputmode="decimal" required placeholder="0.00" /></label>
-          <button type="submit" :disabled="ocupado">Abrir mi caja</button>
+          <button type="submit" class="pagos-boton-icono pagos-abrir-caja" :disabled="ocupado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7-2m-3 9v3"/></svg>Abrir mi caja</button>
         </form>
       </template>
       <form v-else class="formulario-grid" @submit.prevent="cerrarCaja">
         <label>Efectivo contado al cierre <span class="requisito-campo">Obligatorio</span>
           <input v-model="efectivoContado" inputmode="decimal" required placeholder="0.00" /></label>
-        <button type="submit" class="secundario pagos-boton-icono" :disabled="ocupado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></svg>Cerrar mi caja</button>
+        <button type="submit" class="pagos-boton-icono pagos-cerrar-caja" :disabled="ocupado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></svg>Cerrar mi caja</button>
       </form>
       <dl v-if="cierre" class="pagos-resumen">
         <div><dt>Código de caja</dt><dd>{{ cierre.codigo || 'Código pendiente' }}</dd></div>
