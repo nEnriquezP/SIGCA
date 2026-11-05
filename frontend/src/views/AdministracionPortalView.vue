@@ -196,7 +196,7 @@ onMounted(cargar)
 </script>
 
 <template>
-  <main class="contenedor">
+  <main class="contenedor administracion-portal">
     <h1>Administrar portal</h1>
     <p>Edita la información que aparece en el sitio público. Elige y recorta las imágenes antes de guardar.</p>
     <p v-if="cargando" role="status">Cargando administración…</p>
@@ -208,13 +208,16 @@ onMounted(cargar)
       <section class="tarjeta">
         <h2>Identidad e información institucional</h2>
         <form class="formulario-grid formulario-contenido" @submit.prevent="guardarContenido">
+          <div class="portal-admin-intro campo-ancho"><strong>Identidad del centro</strong><p>El nombre completo identifica al centro. El nombre corto y el subtítulo aparecen juntos en el encabezado.</p></div>
           <label>Nombre institucional completo <span class="requisito-campo">Obligatorio</span><input v-model="contenido.nombreCentro" required maxlength="120" /></label>
           <label>Nombre corto del encabezado <span class="requisito-campo">Obligatorio</span><input v-model="contenido.nombreCorto" required maxlength="60" /></label>
           <label>Subtítulo del encabezado <span class="requisito-campo">Obligatorio</span><input v-model="contenido.subtitulo" required maxlength="120" /></label>
           <ImagenCampo v-model="contenido.logo" categoria="logo" etiqueta="Logotipo institucional" proporcion="1:1" />
-          <label>Información principal <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.informacionPrincipal" required maxlength="2000" /></label>
+          <div class="portal-admin-intro campo-ancho"><strong>Presentación e identidad</strong><p>Estos textos se muestran en el inicio del portal público.</p></div>
+          <label class="campo-ancho">Información principal <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.informacionPrincipal" required maxlength="2000" /></label>
           <label>Misión <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.mision" required maxlength="2000" /></label>
           <label>Visión <span class="requisito-campo">Obligatorio</span><textarea v-model="contenido.vision" required maxlength="2000" /></label>
+          <div class="portal-admin-intro campo-ancho"><strong>Datos de contacto</strong><p>Información visible para las personas que visitan el portal.</p></div>
           <label>Correo de contacto <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.correo" type="email" required maxlength="254" /></label>
           <label>Teléfono de contacto <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.telefono" type="tel" required maxlength="30" /></label>
           <label>Dirección <span class="requisito-campo">Obligatorio</span><input v-model="contenido.contacto.direccion" required maxlength="300" /></label>

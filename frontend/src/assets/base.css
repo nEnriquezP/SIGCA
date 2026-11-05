@@ -649,6 +649,42 @@ th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
   .portal-acceso:hover { transform: none; }
 }
 
+/* Organización visual del panel interno */
+.marca-panel .marca-textos { display: flex; flex-direction: column; overflow: visible; white-space: normal; }
+.marca-panel .marca-textos strong { font-size: 1.18rem; }
+.marca-panel .marca-textos small { margin-top: 3px; font-size: .72rem; font-weight: 400; }
+.titulo-panel { padding: 7px 12px; border: 1px solid #ffffff38; border-radius: 999px; color: #d3f3f2; font-size: .8rem; }
+.administracion-portal > .tarjeta, .panel-citas > .tarjeta, .panel-solicitudes > .tarjeta { margin: 28px 0; border-radius: 16px; box-shadow: 0 8px 26px #123b5610; }
+.administracion-portal > .tarjeta h2, .panel-citas > .tarjeta h2, .panel-solicitudes > .tarjeta h2 { margin-bottom: 20px; }
+.administracion-portal form { gap: 20px; align-items: start; }
+.administracion-portal textarea { min-height: 155px; line-height: 1.55; }
+.administracion-portal .formulario-contenido > label.campo-ancho textarea { min-height: 210px; }
+.administracion-portal .formulario-contenido > .campo-imagen { align-self: start; padding: 14px; }
+.administracion-portal .formulario-contenido > .campo-imagen img { max-height: 145px; }
+.portal-admin-intro { padding: 15px 18px; border-left: 4px solid #07808a; border-radius: 8px; background: #edf7f8; color: #173e5c; }
+.portal-admin-intro p { margin: 5px 0 0; color: #506c7e; font-size: .9rem; line-height: 1.5; }
+.administracion-portal .tabla-contenedor, .panel-citas .tabla-contenedor, .panel-solicitudes .tabla-contenedor { margin-top: 22px; }
+.administracion-portal th, .panel-citas th, .panel-solicitudes th { background: #f1f7f9; color: #35546a; }
+.administracion-portal td, .panel-citas td, .panel-solicitudes td { vertical-align: middle; }
+.panel-citas form, .panel-solicitudes form { gap: 16px 20px; align-items: end; }
+.panel-citas button, .panel-solicitudes button, .administracion-portal button { border-radius: 8px; }
+.panel-citas .selector-cita, .panel-solicitudes .selector-pacientes { width: min(100%, 650px); }
+.selector-pacientes { background: #f8fbfc; }
+.selector-pacientes .selector-opciones { max-height: 240px; overflow-y: auto; margin-top: 8px; }
+.selector-pacientes .selector-opcion { text-align: left; }
+.selector-pacientes .selector-seleccionado { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: #e3f3f0; }
+.solicitud-estado { display: inline-block; padding: 5px 10px; border-radius: 999px; background: #fff1d3; color: #79520a; font-size: .78rem; font-weight: 700; }
+.solicitud-estado.atendida { background: #dff4eb; color: #17644d; }
+.solicitud-estado.rechazada { background: #f9e7e7; color: #963838; }
+@media (max-width: 850px) {
+  .marca-panel .marca-textos strong { font-size: .95rem; }
+  .marca-panel .marca-textos small { font-size: .64rem; }
+}
+@media (max-width: 640px) {
+  .administracion-portal textarea { min-height: 140px; }
+  .panel-citas .selector-cita, .panel-solicitudes .selector-pacientes { width: 100%; }
+}
+
 /* Portal público: páginas y elementos compartidos */
 .aplicacion-publica { display: flex; flex-direction: column; min-height: 100vh; }
 .aplicacion-publica > main { flex: 1; }

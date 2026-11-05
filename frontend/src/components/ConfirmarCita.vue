@@ -24,7 +24,7 @@ watch(() => props.datos, async (datos) => {
       <p>{{ avisoEspera(datos.fecha) }}</p>
     </template>
     <div class="acciones">
-      <button type="button" :disabled="ocupada" @click="emit('confirmar')">{{ ocupada ? 'Guardando…' : 'Confirmar cita' }}</button>
+      <button type="button" :disabled="ocupada" @click="emit('confirmar')">{{ ocupada ? 'Guardando…' : datos?.tipo === 'reprogramacion' ? 'Guardar reprogramación' : 'Programar cita' }}</button>
       <button type="button" class="secundario" :disabled="ocupada" @click="emit('volver')">Volver a editar</button>
     </div>
   </dialog>

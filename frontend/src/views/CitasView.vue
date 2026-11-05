@@ -212,7 +212,7 @@ useOpcionesVivas(cargarOpciones, ['servicios', 'usuarios'])
 </script>
 
 <template>
-  <main class="contenedor">
+  <main class="contenedor panel-citas">
     <h1>Citas</h1>
     <p>Los horarios corresponden a Guatemala. La duración y el precio de cada cita quedan guardados al programarla.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
@@ -222,7 +222,7 @@ useOpcionesVivas(cargarOpciones, ['servicios', 'usuarios'])
       <h2>Programar cita</h2>
       <form class="formulario-grid" @submit.prevent="prepararConfirmacion('nueva')">
         <PacientesActivosSelector v-model="nueva.paciente" endpoint="/api/citas/opciones"
-          class="campo-ancho" @seleccion="pacienteElegido = $event" @invalido="aviso = $event" />
+          class="campo-ancho selector-cita" @seleccion="pacienteElegido = $event" @invalido="aviso = $event" />
         <label>Servicio activo <span class="requisito-campo">Obligatorio</span>
           <select v-model="nueva.servicio" data-campo="servicio" required><option disabled value="">Selecciona un servicio</option>
             <option v-for="s in opciones.servicios" :key="s.id" :value="s.id">{{ s.codigo || '' }} · {{ s.nombre }} ({{ s.duracionMinutos }} min, {{ precioQuetzales(s.precioCentavos) }})</option>
@@ -239,7 +239,7 @@ useOpcionesVivas(cargarOpciones, ['servicios', 'usuarios'])
           <input v-model="nueva.horaInicio" data-campo="horaInicio" type="time" required /></label>
         <label class="campo-ancho">Observaciones administrativas <span class="requisito-campo">Opcional</span>
           <textarea v-model="nueva.observacionesAdministrativas" maxlength="2000" /></label>
-        <button type="submit" :disabled="operando">Revisar cita</button>
+        <button type="submit" :disabled="operando">Revisar y continuar</button>
       </form>
       <p v-if="!opciones.profesionales.length">No hay profesionales activos disponibles.</p>
     </section>

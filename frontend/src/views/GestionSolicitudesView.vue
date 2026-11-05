@@ -173,7 +173,7 @@ useOpcionesVivas(cargar, ['servicios'])
 </script>
 
 <template>
-  <main class="contenedor">
+  <main class="contenedor panel-solicitudes">
     <h1>Solicitudes de citas</h1>
     <p>Una fecha preferida no reserva horario. La conversión crea una cita en estado PENDIENTE después de validar disponibilidad.</p>
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
@@ -193,7 +193,7 @@ useOpcionesVivas(cargar, ['servicios'])
         <tbody><tr v-for="item in solicitudes" :key="item.id">
           <td>{{ new Date(item.creadoEn).toLocaleString('es-GT', { timeZone: 'America/Guatemala' }) }}</td>
           <td>{{ item.nombreSolicitante }}</td><td>{{ nombreServicio(item.servicio) }}</td>
-          <td>{{ item.fechaPreferida }}</td><td>{{ item.estado }}</td>
+          <td>{{ item.fechaPreferida }}</td><td><span class="solicitud-estado" :class="item.estado.toLowerCase()">{{ item.estado }}</span></td>
           <td><button type="button" class="secundario" @click="ver(item)">Ver detalle</button></td>
         </tr><tr v-if="!solicitudes.length"><td colspan="6">No hay solicitudes para este filtro.</td></tr></tbody>
       </table></div>
@@ -236,7 +236,7 @@ useOpcionesVivas(cargar, ['servicios'])
             <small v-if="conversion.fecha" role="status">{{ avisoEspera(conversion.fecha) }}</small></label>
           <label>Hora de inicio en Guatemala <span class="requisito-campo">Obligatorio</span>
             <input v-model="conversion.horaInicio" data-campo="horaInicio" type="time" required /></label>
-          <button type="submit" :disabled="operando">Revisar cita</button>
+          <button type="submit" :disabled="operando">Revisar y continuar</button>
         </form>
         <p v-if="!profesionales.length">No hay profesionales activos. Solicita al administrador que registre uno.</p>
       </template>

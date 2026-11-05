@@ -9,6 +9,7 @@ const props = defineProps({ modelValue: { type: String, default: '' },
 const emit = defineEmits(['update:modelValue', 'invalido', 'seleccion'])
 const sesion = useSesionStore()
 const consulta = ref('')
+const abierto = ref(false)
 const pacientes = ref([])
 const seleccionado = ref(null)
 const total = ref(0)
@@ -71,12 +72,16 @@ async function cargar(reiniciar = true) {
 
 function elegir(paciente) {
   seleccionado.value = paciente
+  abierto.value = false
+  consulta.value = ''
   emit('update:modelValue', paciente.id)
   emit('seleccion', paciente)
 }
 
 function quitar() {
   seleccionado.value = null
+  consulta.value = ''
+  abierto.value = false
   emit('update:modelValue', '')
   emit('seleccion', null)
 }
@@ -99,15 +104,15 @@ cargar(true)
 <template>
   <fieldset class="selector-pacientes" data-campo="paciente" :aria-describedby="`${idLista}-estado`">
     <legend>Pacientes Activos <span class="requisito-campo">Obligatorio</span></legend>
-    <label>Buscar por código, nombres o apellidos <span class="requisito-campo">Opcional</span>
+    <label>Buscar y seleccionar paciente <span class="requisito-campo">Obligatorio</span>
       <input v-model="consulta" type="search" maxlength="80" autocomplete="off"
-        placeholder="Escribe desde la primera letra" @keydown.down.prevent="lista?.querySelector('[data-opcion]')?.focus()" />
+        placeholder="Escribe nombre, apellido o código" :aria-expanded="abierto && !!consulta.trim() && !seleccionado" :aria-controls="idLista" @focus="abierto = true" @input="abierto = true" @keydown.esc="abierto = false" @keydown.down.prevent="lista?.querySelector('[data-opcion]')?.focus()" />
     </label>
     <p v-if="seleccionado" class="selector-seleccionado">
       Seleccionado: <strong>{{ seleccionado.codigo || 'Sin código' }} · {{ seleccionado.nombre }}</strong>
       <button type="button" class="secundario" @click="quitar">Quitar selección</button>
     </p>
-    <div :id="idLista" ref="lista" class="selector-opciones" aria-label="Resultados de pacientes activos">
+    <div v-show="abierto && consulta.trim() && !seleccionado" :id="idLista" ref="lista" class="selector-opciones" aria-label="Resultados de pacientes activos">
       <button v-for="paciente in pacientes" :key="paciente.id" type="button" data-opcion
         class="selector-opcion" :aria-pressed="modelValue === paciente.id"
         @click="elegir(paciente)" @keydown.down.prevent="enfocarOpcion($event, 1)"
@@ -115,13 +120,13 @@ cargar(true)
         {{ paciente.codigo || 'Sin código' }} · {{ paciente.nombre }}
       </button>
     </div>
-    <p :id="`${idLista}-estado`" role="status" aria-live="polite">
+    <p v-show="abierto && consulta.trim() && !seleccionado" :id="`${idLista}-estado`" role="status" aria-live="polite">
       <template v-if="cargando">Cargando pacientes…</template>
       <template v-else-if="error">{{ error }}</template>
       <template v-else-if="!total">{{ consulta.trim() ? 'No hay coincidencias.' : 'No hay pacientes activos.' }}</template>
       <template v-else>Mostrando {{ pacientes.length }} de {{ total }} pacientes.</template>
     </p>
-    <button v-if="hayMas" type="button" class="secundario" :disabled="cargando" @click="cargar(false)">
+    <button v-if="abierto && consulta.trim() && !seleccionado && hayMas" type="button" class="secundario" :disabled="cargando" @click="cargar(false)">
       Cargar 10 más
     </button>
   </fieldset>

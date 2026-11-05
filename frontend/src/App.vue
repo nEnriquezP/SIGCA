@@ -171,7 +171,7 @@ async function salir() {
             <path d="M24 4 43 12v12c0 11-7 17-19 20C12 41 5 35 5 24V12L24 4Z" stroke="currentColor" stroke-width="3" />
             <path d="M24 14v20M14 24h20" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
           </svg>
-          <span>{{ nombreCentro }}</span>
+          <span class="marca-textos"><strong>{{ nombrePublico }}</strong><small v-if="subtituloPublico">{{ subtituloPublico }}</small></span>
         </RouterLink>
       </div>
       <strong class="titulo-panel">Panel interno</strong>
