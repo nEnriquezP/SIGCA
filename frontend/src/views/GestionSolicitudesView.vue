@@ -194,7 +194,7 @@ useOpcionesVivas(cargar, ['servicios'])
           <td>{{ new Date(item.creadoEn).toLocaleString('es-GT', { timeZone: 'America/Guatemala' }) }}</td>
           <td>{{ item.nombreSolicitante }}</td><td>{{ nombreServicio(item.servicio) }}</td>
           <td>{{ item.fechaPreferida }}</td><td><span class="solicitud-estado" :class="item.estado.toLowerCase()">{{ item.estado }}</span></td>
-          <td><button type="button" class="secundario" @click="ver(item)">Ver detalle</button></td>
+          <td><button type="button" class="solicitud-boton-detalle" :disabled="cargandoDetalle" @click="ver(item)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Ver detalle</button></td>
         </tr><tr v-if="!solicitudes.length"><td colspan="6">No hay solicitudes para este filtro.</td></tr></tbody>
       </table></div>
     </section>
@@ -205,15 +205,25 @@ useOpcionesVivas(cargar, ['servicios'])
     </nav>
 
     <p v-if="cargandoDetalle" role="status">Cargando detalle…</p>
-    <section v-if="detalle && !cargandoDetalle" class="tarjeta">
-      <h2>Detalle de la solicitud</h2>
-      <p>Código de solicitud: {{ detalle.codigo || 'Pendiente de actualización' }} · Estado: {{ detalle.estado }}</p>
-      <p>Solicitante: {{ detalle.nombreSolicitante }}</p>
-      <p>Correo: {{ detalle.correo }} ({{ detalle.correoVerificado ? 'verificado' : 'sin verificar' }}) · Teléfono: {{ detalle.telefono }}</p>
-      <p>Publicaciones del portal: {{ detalle.recibirPublicaciones ? 'El solicitante expresó interés; confirmar al registrar su contacto' : 'No solicitadas' }}</p>
-      <p>Servicio: {{ nombreServicio(detalle.servicio) }}</p>
-      <p>Fecha preferida: {{ detalle.fechaPreferida }}. Esta fecha no es una cita confirmada.</p>
-      <p class="texto-preservado">Mensaje: {{ detalle.mensajeAdicional || 'Sin mensaje adicional' }}</p>
+    <section v-if="detalle && !cargandoDetalle" class="tarjeta solicitud-detalle" :class="`solicitud-detalle--${detalle.estado.toLowerCase()}`" aria-labelledby="titulo-detalle-solicitud">
+      <header class="solicitud-detalle-cabecera"><div><span class="solicitud-etiqueta">GESTIÓN DE SOLICITUDES</span>
+        <h2 id="titulo-detalle-solicitud">Detalle de la solicitud</h2>
+        <p>Información de contacto y datos de la atención solicitada.</p></div>
+        <span class="solicitud-estado" :class="detalle.estado.toLowerCase()">{{ detalle.estado }}</span></header>
+      <div class="solicitud-bloque"><h3>Datos del solicitante</h3>
+        <dl class="solicitud-campos">
+          <div><dt>Código de solicitud</dt><dd>{{ detalle.codigo || 'Pendiente de actualización' }}</dd></div>
+          <div><dt>Nombre</dt><dd>{{ detalle.nombreSolicitante }}</dd></div>
+          <div><dt>Correo electrónico</dt><dd>{{ detalle.correo }} <span class="solicitud-verificacion">{{ detalle.correoVerificado ? 'Verificado' : 'Sin verificar' }}</span></dd></div>
+          <div><dt>Teléfono</dt><dd>{{ detalle.telefono }}</dd></div>
+        </dl></div>
+      <div class="solicitud-bloque"><h3>Información de la solicitud</h3>
+        <dl class="solicitud-campos">
+          <div><dt>Servicio solicitado</dt><dd>{{ nombreServicio(detalle.servicio) }}</dd></div>
+          <div><dt>Fecha preferida</dt><dd>{{ detalle.fechaPreferida }}</dd><small>Esta fecha no es una cita confirmada.</small></div>
+          <div class="solicitud-campo-ancho"><dt>Mensaje adicional</dt><dd class="texto-preservado">{{ detalle.mensajeAdicional || 'Sin mensaje adicional' }}</dd></div>
+          <div class="solicitud-campo-ancho"><dt>Publicaciones del portal</dt><dd>{{ detalle.recibirPublicaciones ? 'El solicitante expresó interés; confirmar al registrar su contacto' : 'No solicitadas' }}</dd></div>
+        </dl></div>
       <p v-if="detalle.cita"><strong>Cita relacionada:</strong>
         <RouterLink v-if="sesion.tienePermiso('CITAS_VER')"
           :to="{ name: 'citas', query: { id: detalle.cita } }">Ver detalle de la cita</RouterLink>
@@ -245,3 +255,27 @@ useOpcionesVivas(cargar, ['servicios'])
       @confirmar="confirmarConversion" @volver="confirmacionCita = null" />
   </main>
 </template>
+
+<style scoped>
+.panel-solicitudes .solicitud-boton-detalle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px; border: 1px solid #b9dfe1; border-radius: 9px; background: #e5f5f4; color: #087279; font-weight: 700; white-space: nowrap; }
+.solicitud-boton-detalle:hover:not(:disabled) { background: #d1ecea; }
+.solicitud-boton-detalle svg { width: 18px; height: 18px; }
+.panel-solicitudes .solicitud-detalle { border: 1px solid #e7d79f; background: #fffbeb; }
+.panel-solicitudes .solicitud-detalle--rechazada { background: #fff2f1; border-color: #ebc6c2; }
+.panel-solicitudes .solicitud-detalle--atendida { background: #effaf2; border-color: #c5e4ce; }
+.panel-solicitudes .solicitud-detalle--pendiente { background: #fffbeb; border-color: #e7d79f; }
+.solicitud-detalle-cabecera { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; }
+.solicitud-detalle-cabecera h2 { margin: 5px 0; }
+.solicitud-detalle-cabecera p { margin: 0; color: #566c7c; }
+.solicitud-etiqueta { color: #14787e; font-size: .73rem; font-weight: 800; letter-spacing: .08em; }
+.solicitud-bloque { padding: 20px; margin: 14px 0; border: 1px solid rgba(101, 129, 142, .18); border-radius: 12px; background: rgba(255, 255, 255, .86); }
+.solicitud-bloque h3 { margin: 0 0 16px; color: #163e60; font-size: 1.05rem; }
+.solicitud-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 18px; margin: 0; }
+.solicitud-campos div { min-width: 0; }
+.solicitud-campos dt { color: #617789; font-size: .82rem; font-weight: 700; margin-bottom: 5px; }
+.solicitud-campos dd { margin: 0; color: #173653; font-weight: 600; overflow-wrap: anywhere; }
+.solicitud-campos small { display: block; margin-top: 5px; color: #6f6250; }
+.solicitud-campo-ancho { grid-column: 1 / -1; }
+.solicitud-verificacion { display: inline-block; margin: 4px; padding: 3px 8px; border-radius: 20px; background: #edf4f6; color: #405b6d; font-size: .75rem; }
+.solicitud-boton-detalle:focus-visible { outline: 3px solid #d7a943; outline-offset: 3px; }
+</style>
