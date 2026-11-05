@@ -7,6 +7,8 @@ test('el historial omite filtros vacíos y envía la página solicitada', () => 
   assert.equal(rutaListadoCajas({ pagina: 2, estado: 'CERRADA',
     fechaOperativa: '2026-11-03' }),
   '/api/cajas?pagina=2&estado=CERRADA&fechaOperativa=2026-11-03')
+  assert.equal(rutaListadoCajas({ usuarioResponsable: '507f1f77bcf86cd799439011' }),
+    '/api/cajas?pagina=0&usuarioResponsable=507f1f77bcf86cd799439011')
 })
 
 test('la consulta de movimientos conserva la página y codifica el identificador', () => {
