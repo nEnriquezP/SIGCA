@@ -27,6 +27,8 @@ const filtrosAplicados = ref({ buscar: '', tipo: '', estado: '' })
 const cargando = ref(false)
 const errorListado = ref('')
 const detalle = ref(null)
+const detalleElemento = ref(null)
+let botonDetalleOrigen = null
 const consultando = ref(false)
 const materialElegido = ref(null)
 
@@ -124,13 +126,18 @@ async function moverPagina(direccion) {
   await cargarMateriales()
 }
 
-async function consultarMaterial(material) {
+async function consultarMaterial(material, evento) {
+  const origen = evento?.currentTarget
   consultando.value = true
   error.value = ''
   try {
     const datos = await solicitarApi(`/api/materiales/${material.id}`,
       { token: sesion.token, silencioso: true })
     detalle.value = datos.material
+    botonDetalleOrigen = origen
+    await nextTick()
+    detalleElemento.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    detalleElemento.value?.focus({ preventScroll: true })
   } catch (fallo) {
     manejarError(fallo)
     if ([403, 404].includes(fallo.status)) {
@@ -140,6 +147,16 @@ async function consultarMaterial(material) {
   } finally {
     consultando.value = false
   }
+}
+
+async function cerrarDetalle() {
+  detalle.value = null
+  await nextTick()
+  if (botonDetalleOrigen?.isConnected) {
+    botonDetalleOrigen.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    botonDetalleOrigen.focus({ preventScroll: true })
+  }
+  botonDetalleOrigen = null
 }
 
 async function seleccionarMaterial(material) {
@@ -354,7 +371,7 @@ onMounted(cargarMateriales)
     </section>
 
     <section class="tarjeta" aria-labelledby="titulo-catalogo">
-      <header class="seccion-plegable-cabecera"><h2 id="titulo-catalogo">Catálogo de materiales</h2><button type="button" class="secundario" :aria-expanded="catalogoAbierto" aria-controls="contenido-catalogo-material" @click="catalogoAbierto = !catalogoAbierto">{{ catalogoAbierto ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <header class="seccion-plegable-cabecera"><h2 id="titulo-catalogo">Catálogo de materiales</h2><button type="button" class="secundario material-boton" :aria-expanded="catalogoAbierto" aria-controls="contenido-catalogo-material" @click="catalogoAbierto = !catalogoAbierto"><span aria-hidden="true">{{ catalogoAbierto ? '−' : '+' }}</span>{{ catalogoAbierto ? 'Ocultar' : 'Mostrar' }}</button></header>
       <div v-show="catalogoAbierto" id="contenido-catalogo-material">
       <form class="formulario-grid filtros-materiales" @submit.prevent="buscarMateriales">
         <label>Buscar por código, título o descripción
@@ -370,7 +387,7 @@ onMounted(cargarMateriales)
             <option value="INACTIVO">Inactivo</option>
           </select>
         </label>
-        <button type="submit" :disabled="cargando">Buscar</button>
+        <button type="submit" class="material-boton" :disabled="cargando"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg>Buscar</button>
       </form>
       <p v-if="cargando" role="status">Cargando materiales…</p>
       <p v-if="errorListado" class="mensaje-error" role="alert">{{ errorListado }}</p>
@@ -385,43 +402,45 @@ onMounted(cargarMateriales)
           </div>
           <p class="texto-preservado">{{ material.descripcion }}</p>
           <p class="material-fecha">Registrado: {{ fechaGuatemala(material.fechaRegistro) }}</p>
-          <div class="acciones">
+          <div class="acciones material-acciones">
             <a v-if="enlaceSeguro(material.enlace)" :href="enlaceSeguro(material.enlace)"
-              target="_blank" rel="noopener noreferrer">Abrir recurso</a>
+              class="material-boton material-boton-recurso" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M13 5h6v6M19 5l-9 9"/><path d="M19 13v5H5V5h5"/></svg>Abrir recurso</a>
             <span v-else>Enlace no disponible</span>
-            <button type="button" class="secundario" :disabled="consultando" @click="consultarMaterial(material)">Ver detalle</button>
+            <button type="button" class="secundario material-boton" :disabled="consultando" @click="consultarMaterial(material, $event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Ver detalle</button>
             <button v-if="puedeAsignar && material.estado === 'ACTIVO'" type="button"
-              :aria-pressed="materialElegido?.id === material.id"
-              @click="seleccionarMaterial(material)">{{ materialElegido?.id === material.id ? 'Material seleccionado' : 'Seleccionar para asignar' }}</button>
-            <button v-if="puedeGestionar" type="button" class="secundario" :disabled="consultando"
-              @click="editarMaterial(material)">Editar material</button>
-            <button v-if="puedeGestionar" type="button" class="secundario"
+              class="material-boton" :aria-pressed="materialElegido?.id === material.id"
+              @click="seleccionarMaterial(material)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 10-4M18 13v8m-4-4h8"/></svg>{{ materialElegido?.id === material.id ? 'Material seleccionado' : 'Seleccionar para asignar' }}</button>
+            <button v-if="puedeGestionar" type="button" class="secundario material-boton" :disabled="consultando"
+              @click="editarMaterial(material)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m4 20 4-1 11-11-3-3L5 16l-1 4ZM14 7l3 3"/></svg>Editar material</button>
+            <button v-if="puedeGestionar" type="button" class="secundario material-boton"
               :disabled="Boolean(cambiandoEstado)" @click="cambiarEstado(material)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path :d="material.estado === 'ACTIVO' ? 'M8 12h8' : 'M8 12h8M12 8v8'"/></svg>
               {{ material.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
             </button>
           </div>
         </article>
       </div>
       <nav class="acciones material-paginas" aria-label="Páginas del catálogo">
-        <button type="button" class="secundario" :disabled="pagina === 0 || cargando" @click="moverPagina(-1)">Anterior</button>
+        <button type="button" class="secundario material-boton" :disabled="pagina === 0 || cargando" @click="moverPagina(-1)"><span aria-hidden="true">←</span> Anterior</button>
         <span>Página {{ pagina + 1 }}</span>
-        <button type="button" class="secundario" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente</button>
+        <button type="button" class="secundario material-boton" :disabled="!hayMas || cargando" @click="moverPagina(1)">Siguiente <span aria-hidden="true">→</span></button>
       </nav>
       </div>
     </section>
 
-    <section v-if="detalle" class="tarjeta" aria-labelledby="titulo-detalle-material">
-      <h2 id="titulo-detalle-material">Detalle del material</h2>
-      <h3>{{ detalle.titulo }}</h3>
-      <p><strong>Código:</strong> {{ detalle.codigo || 'Código pendiente' }}</p>
-      <p class="texto-preservado">{{ detalle.descripcion }}</p>
-      <p><strong>Tipo:</strong> {{ detalle.tipo }} · <strong>Estado:</strong> {{ detalle.estado }}</p>
-      <p><strong>Registro:</strong> {{ fechaGuatemala(detalle.fechaRegistro) }}</p>
-      <p><strong>Última actualización:</strong> {{ fechaGuatemala(detalle.fechaActualizacion) }}</p>
-      <div class="acciones">
+    <section v-if="detalle" ref="detalleElemento" tabindex="-1" class="tarjeta material-detalle" aria-labelledby="titulo-detalle-material">
+      <div class="material-detalle-cabecera"><div><span class="material-kicker">RECURSO EDUCATIVO</span>
+        <h2 id="titulo-detalle-material">Detalle del material</h2></div>
+        <button type="button" class="material-cerrar" aria-label="Cerrar detalle y volver al material" @click="cerrarDetalle">×</button></div>
+      <div class="material-detalle-titulo"><h3>{{ detalle.titulo }}</h3>
+        <span class="material-estado" :class="detalle.estado === 'ACTIVO' ? 'activo' : 'inactivo'">{{ detalle.estado === 'ACTIVO' ? 'Activo' : 'Inactivo' }}</span></div>
+      <p class="material-codigo">{{ detalle.codigo || 'Código pendiente' }} · {{ detalle.tipo }}</p>
+      <div class="material-descripcion"><h4>Descripción</h4><p class="texto-preservado">{{ detalle.descripcion }}</p></div>
+      <dl class="material-fechas"><div><dt>Fecha de registro</dt><dd>{{ fechaGuatemala(detalle.fechaRegistro) }}</dd></div>
+        <div><dt>Última actualización</dt><dd>{{ fechaGuatemala(detalle.fechaActualizacion) }}</dd></div></dl>
+      <div class="acciones material-acciones">
         <a v-if="enlaceSeguro(detalle.enlace)" :href="enlaceSeguro(detalle.enlace)"
-          target="_blank" rel="noopener noreferrer">Abrir recurso</a>
-        <button type="button" class="secundario" @click="detalle = null">Cerrar detalle</button>
+          class="material-boton material-boton-recurso" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M13 5h6v6M19 5l-9 9M19 13v5H5V5h5"/></svg>Abrir recurso</a>
       </div>
     </section>
 
@@ -488,6 +507,25 @@ onMounted(cargarMateriales)
 .material-estado.inactivo { color: #79551c; background: #fff2d8; }
 .material-fecha, .material-ayuda { color: #526477; font-size: .9rem; }
 .material-paginas { align-items: center; margin-top: 16px; }
+.material-boton { display: inline-flex; justify-content: center; align-items: center; gap: 8px; }
+.material-boton svg { width: 18px; height: 18px; flex: none; stroke-linecap: round; stroke-linejoin: round; }
+.materiales-vista .material-boton-recurso { padding: 10px 15px; border-radius: 8px; background: #e4f4f2; color: #076c6a; font-weight: 700; text-decoration: none; }
+.materiales-vista .material-boton-recurso:hover { background: #cfeae6; }
+.material-detalle { scroll-margin-top: 24px; border: 1px solid #cfe5e8; background: linear-gradient(145deg, #fff 65%, #f1f9f8); }
+.material-detalle-cabecera, .material-detalle-titulo { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.material-kicker { color: #087c80; font-size: .75rem; font-weight: 800; letter-spacing: .08em; }
+.material-detalle h2 { margin: 6px 0 22px; }
+.material-detalle-titulo h3 { margin: 0; color: #143a5c; font-size: 1.35rem; overflow-wrap: anywhere; }
+.material-cerrar { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: #e9f1f3; color: #25465b; font-size: 1.6rem; line-height: 1; }
+.material-cerrar:hover { background: #d6e9e9; }
+.material-codigo { color: #526b7a; }
+.material-descripcion { margin: 20px 0; padding: 18px; border-radius: 10px; background: #f3f8fa; }
+.material-descripcion h4 { margin: 0 0 8px; color: #153d5d; }
+.material-descripcion p { margin: 0; }
+.material-fechas { display: flex; flex-wrap: wrap; gap: 16px 36px; margin: 20px 0; }
+.material-fechas dt { color: #60778a; font-size: .85rem; }
+.material-fechas dd { margin: 5px 0 0; color: #17365d; font-weight: 700; }
+.material-detalle:focus-visible, .material-boton-recurso:focus-visible, .material-cerrar:focus-visible { outline: 3px solid #d7a943; outline-offset: 3px; }
 .materiales-vista .texto-preservado { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 700px) {
   .materiales-vista .formulario-grid { grid-template-columns: 1fr; }
