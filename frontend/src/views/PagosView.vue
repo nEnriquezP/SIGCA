@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { solicitarApi } from '../services/api.js'
 import { useSesionStore } from '../stores/sesion.js'
@@ -14,6 +14,10 @@ const intentos = usePagosStore()
 const esAdministrador = computed(() => sesion.usuario?.rol === 'ADMINISTRADOR')
 const puedeRegistrar = computed(() => sesion.tienePermiso('PAGOS_REGISTRAR'))
 const puedeAnular = computed(() => esAdministrador.value && sesion.tienePermiso('PAGOS_ANULAR'))
+const cajaAbierta = ref(false)
+const consultaAbierta = ref(Boolean(route.query.paciente) && !route.query.cita)
+const saldoAbierto = ref(Boolean(route.query.cita))
+const comprobanteSeccion = ref(null)
 
 const caja = ref(null)
 const cierre = ref(null)
@@ -150,6 +154,18 @@ async function quitarPaciente() {
 }
 
 async function filtrar() { pagina.value = 0; await cargarPagos() }
+async function limpiarFiltros() {
+  filtros.value = { paciente: '', fecha: '', metodo: '' }
+  nombrePaciente.value = ''
+  textoPaciente.value = ''
+  resultadosPaciente.value = []
+  pagina.value = 0
+  if (route.query.paciente) {
+    const query = { ...route.query }
+    delete query.paciente
+    await router.replace({ query })
+  } else await Promise.all([cargarPagos(), cargarCitas()])
+}
 async function cambiarPagina(direccion) {
   pagina.value = Math.max(0, pagina.value + direccion)
   await cargarPagos()
@@ -228,6 +244,8 @@ async function consultarPago(id) {
     pagoDetalle.value = (await solicitarApi(`/api/pagos/${id}`, {
       token: sesion.token, silencioso: true })).pago
     motivo.value = ''
+    await nextTick()
+    comprobanteSeccion.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch (fallo) { explicarError(fallo) }
 }
 
@@ -254,8 +272,9 @@ async function cargarPacienteRuta(id) {
   } catch (fallo) { explicarError(fallo) }
 }
 
-watch(() => route.query.cita, (id) => { if (id) seleccionarCita(String(id)) })
+watch(() => route.query.cita, (id) => { if (id) { saldoAbierto.value = true; seleccionarCita(String(id)) } })
 watch(() => route.query.paciente, async (id) => {
+  if (id && !route.query.cita) consultaAbierta.value = true
   filtros.value.paciente = String(id || '')
   nombrePaciente.value = ''
   pagina.value = 0
@@ -276,8 +295,10 @@ onMounted(async () => {
     <p v-if="error" class="mensaje-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
 
-    <section class="tarjeta">
-      <h2>Mi caja</h2>
+    <section class="tarjeta pagos-seccion">
+      <header class="seccion-plegable-cabecera"><h2>Mi caja</h2>
+        <button type="button" class="secundario pagos-mostrar" :aria-expanded="cajaAbierta" aria-controls="pagos-caja" @click="cajaAbierta = !cajaAbierta">{{ cajaAbierta ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <div v-show="cajaAbierta" id="pagos-caja" class="pagos-contenido">
       <p><RouterLink :to="{ name: 'caja', query: caja?.id || cierre?.id ?
         { id: caja?.id || cierre?.id } : {} }">
         Consultar resumen, movimientos y cierres de caja</RouterLink></p>
@@ -294,7 +315,7 @@ onMounted(async () => {
       <form v-else class="formulario-grid" @submit.prevent="cerrarCaja">
         <label>Efectivo contado al cierre <span class="requisito-campo">Obligatorio</span>
           <input v-model="efectivoContado" inputmode="decimal" required placeholder="0.00" /></label>
-        <button type="submit" class="secundario" :disabled="ocupado">Cerrar mi caja</button>
+        <button type="submit" class="secundario pagos-boton-icono" :disabled="ocupado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></svg>Cerrar mi caja</button>
       </form>
       <dl v-if="cierre" class="pagos-resumen">
         <div><dt>Código de caja</dt><dd>{{ cierre.codigo || 'Código pendiente' }}</dd></div>
@@ -302,15 +323,30 @@ onMounted(async () => {
         <div><dt>Efectivo esperado</dt><dd>{{ quetzales(cierre.efectivoEsperadoCentavos) }}</dd></div>
         <div><dt>Diferencia</dt><dd>{{ quetzales(cierre.diferenciaCentavos) }}</dd></div>
       </dl>
+      </div>
     </section>
 
-    <section class="tarjeta">
-      <h2>Consultar pagos</h2>
-      <form class="formulario-grid" @submit.prevent="buscarPacientes">
+    <section class="tarjeta pagos-seccion">
+      <header class="seccion-plegable-cabecera"><h2>Consultar pagos</h2>
+        <button type="button" class="secundario pagos-mostrar" :aria-expanded="consultaAbierta" aria-controls="pagos-consulta" @click="consultaAbierta = !consultaAbierta">{{ consultaAbierta ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <div v-show="consultaAbierta" id="pagos-consulta" class="pagos-contenido">
+      <div class="pagos-filtros-linea">
+      <form class="pagos-busqueda-paciente" @submit.prevent="buscarPacientes">
         <label>Buscar paciente por código o nombre <span class="requisito-campo">Opcional</span>
           <input v-model="textoPaciente" maxlength="80" placeholder="PAC-000001 o nombre" /></label>
-        <button type="submit" class="secundario">Buscar paciente</button>
+        <button type="submit" class="secundario pagos-boton-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>Buscar paciente</button>
       </form>
+      <form class="pagos-filtros-fecha" @submit.prevent="filtrar">
+        <label>Fecha de pago en Guatemala <span class="requisito-campo">Opcional</span>
+          <input v-model="filtros.fecha" type="date" /></label>
+        <label>Método <span class="requisito-campo">Opcional</span>
+          <select v-model="filtros.metodo"><option value="">Todos</option>
+            <option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option>
+            <option value="TARJETA">Tarjeta</option></select></label>
+        <div class="acciones pagos-filtros-acciones"><button type="submit">Aplicar filtros</button>
+          <button type="button" class="secundario" @click="limpiarFiltros">Limpiar filtros</button></div>
+      </form>
+      </div>
       <div v-if="resultadosPaciente.length" class="pagos-resultados">
         <button v-for="paciente in resultadosPaciente" :key="paciente.id" type="button"
           class="secundario" @click="elegirPaciente(paciente)">
@@ -319,15 +355,6 @@ onMounted(async () => {
       </div>
       <p v-if="filtros.paciente">Paciente filtrado: <strong>{{ nombrePaciente || filtros.paciente }}</strong>
         <button type="button" class="secundario" @click="quitarPaciente">Quitar filtro</button></p>
-      <form class="formulario-grid" @submit.prevent="filtrar">
-        <label>Fecha de pago en Guatemala <span class="requisito-campo">Opcional</span>
-          <input v-model="filtros.fecha" type="date" /></label>
-        <label>Método <span class="requisito-campo">Opcional</span>
-          <select v-model="filtros.metodo"><option value="">Todos</option>
-            <option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option>
-            <option value="TARJETA">Tarjeta</option></select></label>
-        <button type="submit">Aplicar filtros</button>
-      </form>
       <p v-if="cargando" role="status">Cargando pagos…</p>
       <p v-else>{{ total }} pago(s) encontrados. Página {{ pagina + 1 }}.</p>
       <div class="tabla-contenedor"><table>
@@ -344,11 +371,14 @@ onMounted(async () => {
       <div class="acciones"><button type="button" class="secundario" :disabled="pagina === 0"
           @click="cambiarPagina(-1)">Anterior</button>
         <button type="button" class="secundario" :disabled="!hayMas" @click="cambiarPagina(1)">Siguiente</button></div>
+      </div>
     </section>
 
-    <section class="tarjeta">
-      <h2>Saldo de una cita</h2>
-      <label>Selecciona una cita de las más recientes
+    <section class="tarjeta pagos-seccion">
+      <header class="seccion-plegable-cabecera"><h2>Saldo de una cita</h2>
+        <button type="button" class="secundario pagos-mostrar" :aria-expanded="saldoAbierto" aria-controls="pagos-saldo" @click="saldoAbierto = !saldoAbierto">{{ saldoAbierto ? 'Ocultar' : 'Mostrar' }}</button></header>
+      <div v-show="saldoAbierto" id="pagos-saldo" class="pagos-contenido">
+      <label class="pagos-selector-cita">Selecciona una cita de las más recientes
         <select v-model="citaId" @change="seleccionarCita(citaId)">
           <option value="">Selecciona una cita</option>
           <option v-for="item in citas" :key="item.id" :value="item.id">
@@ -358,28 +388,28 @@ onMounted(async () => {
       </label>
       <p>Para localizar citas anteriores, abre el historial del paciente o busca desde Citas.</p>
       <template v-if="cita && saldo">
-        <h3>{{ cita.paciente.nombre }} · {{ fechaCorta(cita.fecha) }} · {{ cita.servicio.nombre }}</h3>
+        <div class="pagos-cita-identidad"><span>Resumen de la cita</span><h3>{{ cita.paciente.nombre }}</h3><p>{{ fechaCorta(cita.fecha) }} · {{ cita.servicio.nombre }}</p></div>
         <dl class="pagos-resumen">
           <div><dt>Precio histórico</dt><dd>{{ quetzales(saldo.precioCentavos) }}</dd></div>
-          <div><dt>Pagos válidos</dt><dd>{{ quetzales(saldo.totalPagadoCentavos) }}</dd></div>
-          <div><dt>Saldo pendiente</dt><dd>{{ quetzales(saldo.saldoPendienteCentavos) }}</dd></div>
-          <div><dt>Estado financiero</dt><dd>{{ saldo.estadoFinanciero }}</dd></div>
+          <div class="pagos-historicos"><dt>Pagos válidos</dt><dd>{{ quetzales(saldo.totalPagadoCentavos) }}</dd></div>
+          <div :class="saldo.saldoPendienteCentavos > 0 ? 'pagos-pendiente' : 'pagos-pagado'"><dt>Saldo pendiente</dt><dd>{{ quetzales(saldo.saldoPendienteCentavos) }}</dd></div>
+          <div :class="{ 'pagos-pendiente': saldo.estadoFinanciero === 'PENDIENTE', 'pagos-historicos': saldo.estadoFinanciero === 'PARCIAL', 'pagos-pagado': saldo.estadoFinanciero === 'PAGADO' }"><dt>Estado financiero</dt><dd>{{ { PENDIENTE: 'Pendiente de pago', PARCIAL: 'Pago parcial', PAGADO: 'Pagado' }[saldo.estadoFinanciero] || saldo.estadoFinanciero }}</dd></div>
         </dl>
-        <form v-if="puedeRegistrar" class="formulario-grid" @submit.prevent="registrarPago">
+        <form v-if="puedeRegistrar" class="formulario-grid pagos-registro" @submit.prevent="registrarPago">
           <label>Monto a pagar en quetzales <span class="requisito-campo">Obligatorio</span>
             <input v-model="monto" inputmode="decimal" required placeholder="0.00" /></label>
           <label>Método <span class="requisito-campo">Obligatorio</span>
             <select v-model="metodo" required><option value="EFECTIVO">Efectivo</option>
               <option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option></select></label>
           <div class="acciones campo-ancho">
-            <button type="button" class="secundario" :disabled="!saldo.saldoPendienteCentavos"
-              @click="monto = entradaQuetzales(saldo.saldoPendienteCentavos)">Usar saldo completo</button>
+            <button type="button" class="secundario pagos-boton-icono pagos-usar-saldo" :disabled="!saldo.saldoPendienteCentavos"
+              @click="monto = entradaQuetzales(saldo.saldoPendienteCentavos)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18m-13 5h4"/></svg>Completar monto con el saldo</button>
             <button type="submit" :disabled="ocupado || !caja ||
               (!saldo.saldoPendienteCentavos && !reintentoDisponible)">Registrar pago o abono</button>
           </div>
           <p v-if="!caja" class="campo-ancho">Abre tu caja antes de registrar.</p>
         </form>
-        <p v-if="comprobante" role="status">Último comprobante interno: <strong>{{ comprobante.numeroComprobante }}</strong>
+        <p v-if="comprobante" class="pagos-aviso-comprobante" role="status">Último comprobante interno: <strong>{{ comprobante.numeroComprobante }}</strong>
           · {{ quetzales(comprobante.montoCentavos) }} · {{ comprobante.estado }}.</p>
         <h3>Historial de pagos de la cita</h3>
         <div class="tabla-contenedor"><table>
@@ -395,22 +425,29 @@ onMounted(async () => {
           <button type="button" class="secundario" :disabled="!hayMasHistorial"
             @click="paginaHistorial++; cargarHistorial()">Siguiente</button></div>
       </template>
+      </div>
     </section>
 
-    <section v-if="pagoDetalle" class="tarjeta" aria-label="Detalle del pago">
-      <h2>Comprobante {{ pagoDetalle.numeroComprobante }}</h2>
-      <p>{{ fechaHoraGuatemala(pagoDetalle.fechaPago) }} (Guatemala) ·
-        {{ pagoDetalle.metodo }} · {{ quetzales(pagoDetalle.montoCentavos) }} · {{ pagoDetalle.estado }}</p>
+    <section v-if="pagoDetalle" ref="comprobanteSeccion" class="tarjeta pagos-comprobante" aria-label="Detalle del pago">
+      <div class="pagos-comprobante-cabecera"><div><span>Comprobante interno</span><h2>{{ pagoDetalle.numeroComprobante }}</h2></div>
+        <strong :class="pagoDetalle.estado === 'ANULADO' ? 'comprobante-anulado' : 'comprobante-registrado'">{{ pagoDetalle.estado }}</strong></div>
+      <dl class="pagos-comprobante-datos">
+        <div><dt>Fecha y hora · Guatemala</dt><dd>{{ fechaHoraGuatemala(pagoDetalle.fechaPago) }}</dd></div>
+        <div><dt>Método</dt><dd>{{ pagoDetalle.metodo }}</dd></div>
+        <div><dt>Monto</dt><dd>{{ quetzales(pagoDetalle.montoCentavos) }}</dd></div>
+      </dl>
       <p v-if="pagoDetalle.estado === 'ANULADO' && esAdministrador">
         Motivo: {{ pagoDetalle.motivoAnulacion || 'No disponible' }} ·
         Anulado el {{ fechaHoraGuatemala(pagoDetalle.fechaAnulacion) }}.</p>
-      <form v-if="puedeAnular && pagoDetalle.estado === 'REGISTRADO'" class="formulario-grid"
+      <form v-if="puedeAnular && pagoDetalle.estado === 'REGISTRADO'" id="anulacion-pago" class="pagos-anulacion"
         @submit.prevent="anularPago">
-        <label class="campo-ancho">Motivo de anulación <span class="requisito-campo">Obligatorio</span>
-          <textarea v-model.trim="motivo" required maxlength="500" /></label>
-        <button type="submit" :disabled="ocupado">Anular pago</button>
+        <label>Motivo de anulación <span class="requisito-campo">Obligatorio</span>
+          <input v-model.trim="motivo" required maxlength="500" placeholder="Indica el motivo de la anulación" /></label>
       </form>
-      <button type="button" class="secundario" @click="pagoDetalle = null">Cerrar detalle</button>
+      <div class="acciones pagos-comprobante-acciones">
+        <button v-if="puedeAnular && pagoDetalle.estado === 'REGISTRADO'" type="submit" form="anulacion-pago" class="pagos-anular pagos-boton-icono" :disabled="ocupado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg>Anular pago</button>
+        <button type="button" class="secundario pagos-boton-icono" @click="pagoDetalle = null"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>Cerrar detalle</button>
+      </div>
     </section>
   </main>
 </template>

@@ -305,6 +305,61 @@ button.secundario { background: #e7edf4; color: #203047; }
 .pagos-vista .pagos-resultados { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .pagos-vista .tabla-contenedor { margin: 14px 0; }
 .pagos-vista table { min-width: 620px; }
+.pagos-vista .pagos-seccion, .pagos-vista .pagos-comprobante { border-radius: 16px; box-shadow: 0 8px 26px #123b5610; }
+.pagos-vista .seccion-plegable-cabecera h2 { margin: 0; }
+.pagos-vista .pagos-mostrar { min-width: 96px; border: 1px solid #c6dfe5; border-radius: 9px; background: #eaf6f6; color: #0c626c; font-weight: 700; }
+.pagos-vista .pagos-mostrar:hover { background: #d9eeee; }
+.pagos-contenido { margin-top: 24px; }
+.pagos-vista input, .pagos-vista select { min-height: 44px; border-radius: 9px; }
+.pagos-vista button { border-radius: 9px; }
+.pagos-boton-icono { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.pagos-boton-icono svg { width: 19px; height: 19px; flex: none; }
+.pagos-filtros-linea { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+.pagos-busqueda-paciente { gap: 10px; }
+.pagos-filtros-fecha { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.pagos-filtros-acciones { grid-column: 1 / -1; align-items: center; }
+.pagos-filtros-acciones button:first-child { background: #087d85; font-weight: 700; }
+.pagos-filtros-acciones button:first-child:hover:not(:disabled) { background: #08636c; }
+.pagos-vista .tabla-contenedor { border: 1px solid #e0eaf0; border-radius: 10px; }
+.pagos-vista table { border-collapse: collapse; }
+.pagos-vista th { background: #f1f7f9; color: #35546a; }
+.pagos-vista td, .pagos-vista th { padding: 13px; vertical-align: middle; }
+.pagos-vista .pagos-selector-cita { max-width: 650px; }
+.pagos-cita-identidad { margin: 24px 0 14px; padding: 18px 20px; border-radius: 12px; background: #eef8f8; }
+.pagos-cita-identidad span { color: #087681; font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pagos-cita-identidad h3 { margin: 6px 0; color: #153d5e; }
+.pagos-cita-identidad p { margin: 0; color: #496477; }
+.pagos-vista .pagos-resumen .pagos-historicos { background: #fff8e6; border-color: #f1d991; }
+.pagos-vista .pagos-resumen .pagos-pendiente { background: #fff0ef; border-color: #edc4c1; }
+.pagos-vista .pagos-resumen .pagos-pendiente dd { color: #a53732; }
+.pagos-vista .pagos-resumen .pagos-pagado { background: #eaf7ef; border-color: #bfe2cc; }
+.pagos-vista .pagos-resumen .pagos-pagado dd { color: #17644d; }
+.pagos-registro { max-width: 800px; margin: 24px 0; padding: 20px; border: 1px solid #dce9ed; border-radius: 12px; background: #f9fcfc; align-items: end; }
+.pagos-usar-saldo { border: 1px solid #b8d9dc; color: #0a626d !important; background: #e8f5f5 !important; }
+.pagos-aviso-comprobante { padding: 14px; border-radius: 10px; background: #eaf7ef; color: #17644d; }
+.pagos-comprobante { scroll-margin-top: 20px; }
+.pagos-comprobante-cabecera { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid #dfe9ef; }
+.pagos-comprobante-cabecera span { color: #587386; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+.pagos-comprobante-cabecera h2 { margin: 6px 0 0; }
+.pagos-comprobante-cabecera strong { padding: 6px 11px; border-radius: 999px; font-size: .78rem; }
+.comprobante-registrado { color: #17644d; background: #e5f5eb; }
+.comprobante-anulado { color: #9a3535; background: #fbe9e8; }
+.pagos-comprobante-datos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.pagos-comprobante-datos div { padding: 14px; border-radius: 10px; background: #f3f8fa; }
+.pagos-comprobante-datos dt { color: #61788a; font-size: .8rem; }
+.pagos-comprobante-datos dd { margin: 6px 0 0; color: #173d5d; font-weight: 700; overflow-wrap: anywhere; }
+.pagos-anulacion { max-width: 700px; margin: 20px 0; }
+.pagos-comprobante-acciones { margin-top: 18px; }
+.pagos-anular { background: #a33937; }
+.pagos-anular:hover:not(:disabled) { background: #812b2b; }
+@media (max-width: 850px) {
+  .pagos-filtros-linea { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .pagos-filtros-fecha, .pagos-comprobante-datos { grid-template-columns: 1fr; }
+  .pagos-filtros-acciones { grid-column: auto; }
+  .pagos-registro { padding: 15px; }
+}
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #d9e2ed; padding: 10px; text-align: left; }
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; }
