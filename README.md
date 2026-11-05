@@ -1,6 +1,8 @@
 # SIGCA
 
-Sistema Integral de Gestión de Citas y Atención. Proyecto final **individual** del curso de Desarrollo Web de Ingeniería en Sistemas, desarrollado por Nelson Enríquez. El autor asumió frontend, backend, base de datos, integración, pruebas y documentación; el ingeniero autorizó la modalidad individual.
+Sistema Integral de Gestión de Citas y Atención. Proyecto final **individual** del curso de Desarrollo Web de Ingeniería en Sistemas, desarrollado por Nelson Fernando Enríquez Portillo carné 0907-18-14024. El autor asumió frontend, backend, base de datos, integración, pruebas y documentación; el ingeniero autorizó la modalidad individual.
+
+**Repositorio del proyecto:** [github.com/nEnriquezP/SIGCA](https://github.com/nEnriquezP/SIGCA). La entrega académica incluye además la carpeta `Evidencias/` en el archivo ZIP; las capturas deben revisarse para evitar divulgar información privada.
 
 ## Guía rápida para evaluar
 
@@ -11,6 +13,7 @@ Sistema Integral de Gestión de Citas y Atención. Proyecto final **individual**
 | Plantillas de variables sin secretos | `frontend/.env.example` y `backend/.env.example` |
 | Script de datos de demostración | `backend/scripts/cargarDatosFicticios.js` |
 | Peticiones para probar la API | `postman/SIGCA.postman_collection.json` |
+| Capturas de la entrega | `Evidencias/` en el ZIP académico |
 | Lista de evidencias y entrega | [`docs/ENTREGA_FINAL.md`](docs/ENTREGA_FINAL.md) |
 
 Los controladores HTTP están implementados como funciones dentro de los archivos de `backend/src/routes/`; la lógica compartida se encuentra en `backend/src/services/`. No existe una carpeta `controllers/` separada. Los archivos `.env.example` indican **qué variables configurar**, mientras que los `.env` reales contienen valores privados y no se incluyen en el repositorio ni en el ZIP de entrega.
